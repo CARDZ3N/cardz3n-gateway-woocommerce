@@ -3,6 +3,17 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.2] — 2026-04-18
+
+### Added
+- `== Privacy ==` section in `readme.txt` documenting exactly what data is stored on the WP site vs. transmitted to NMI, and the controller/processor relationship.
+- `== License ==` section in `readme.txt` and full GPLv2 license text bundled in `LICENSE`, with an explicit attribution note stating that all bundled assets are first-party and GPLv2-or-later, and that no third-party libraries are redistributed inside the package.
+- `uninstall.php` that removes plugin options, transients, and (optionally) order meta + saved tokens when the plugin is deleted from **Plugins → Delete**.
+
+### Changed
+- `readme.txt` `Contributors` field updated to the `cardz3n` WordPress.org handle.
+- Installation instructions corrected to reference the `cardz3n-gateway` plugin folder (matches the WP.org slug).
+
 ## [1.0.1] — 2026-04-18
 
 ### Fixed

@@ -1,10 +1,10 @@
 === CARDZ3N Gateway for WooCommerce ===
-Contributors: cardz3ninc
+Contributors: cardz3n
 Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.1
+Stable tag: 1.0.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,31 @@ B2B merchants benefit from **automatic Level 2 and Level 3 commercial-card data*
 * Optional checkout Purchase Order (PO) number field
 * Merchant-visible diagnostics in WooCommerce → Status → Logs
 
+== Privacy ==
+
+This plugin processes payment data on behalf of the store owner. Here is exactly what it stores and what leaves your server:
+
+**Stored on your WordPress site (per order):**
+
+* Card last 4 digits, brand, and expiry month/year — used to display saved methods and receipts.
+* NMI Customer Vault ID — an opaque reference (not the actual card or account number) used to charge saved methods.
+* NMI transaction ID, auth code, AVS/CVV response codes — used for refunds, reconciliation, and support.
+* For ACH: bank name and last 4 digits of the account number (never the routing number or full account number).
+
+**Never stored on your WordPress site:**
+
+* Full Primary Account Number (PAN), full ACH account number, routing number, or CVV. These are tokenized by NMI Collect.js in the buyer's browser before the form is submitted. Your server never receives them.
+* Your NMI Security Key is stored only in WordPress options and is never sent to the browser.
+
+**What is sent to external services:**
+
+* To NMI Collect.js (browser-side): your public Tokenization Key, order total, buyer billing info as entered at checkout. Collect.js returns a one-time payment token.
+* To the NMI Transaction API (server-side): your Security Key, the payment token or vault ID, order amount, buyer billing/shipping address, line items, and Level 2/3 commercial-card fields when enabled.
+
+**Controller / processor relationship:** The store owner is the data controller. CARDZ3N / NMI acts as the payment processor. Buyers should be informed via the store's own privacy policy that card and ACH data is transmitted to NMI for processing.
+
+Data retention on your WordPress site follows your WooCommerce order retention settings. To remove all plugin settings on uninstall, the plugin ships an \`uninstall.php\` that deletes its options automatically when deleted via **Plugins → Delete**.
+
 == External services ==
 
 This plugin connects to two external CARDZ3N / NMI services to process payments:
@@ -50,7 +75,7 @@ Your private Security Key is stored in WooCommerce gateway settings and is only 
 
 == Installation ==
 
-1. Upload the plugin ZIP via **Plugins → Add New → Upload Plugin**, or extract into `wp-content/plugins/cardz3n-gateway-woocommerce`.
+1. Upload the plugin ZIP via **Plugins → Add New → Upload Plugin**, or extract into `wp-content/plugins/cardz3n-gateway`.
 2. Activate the plugin.
 3. Go to **WooCommerce → Settings → Payments** and click **CARDZ3N Gateway**.
 4. Enter your sandbox or live **Security Key** and **Tokenization Key** from your CARDZ3N / NMI Merchant Portal (Settings → Security Keys).
@@ -80,14 +105,29 @@ Level 3 is the enhanced transaction data (line items, freight, tax, destination,
 
 Yes. HPOS compatibility is declared on plugin boot.
 
+== License ==
+
+CARDZ3N Gateway for WooCommerce is licensed under the GNU General Public License v2.0 or later (GPL-2.0-or-later). The full license text ships with the plugin as `LICENSE` and is also available at https://www.gnu.org/licenses/gpl-2.0.html.
+
+All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-party works authored by CARDZ3N Inc and are released under the same GPLv2-or-later license. No third-party code or media libraries are redistributed inside the plugin package. The NMI Collect.js tokenization script is loaded at runtime from the payment processor's own servers and is not included in this distribution.
+
 == Screenshots ==
 
 1. Embedded checkout — Card, ACH, Apple Pay, Google Pay, and saved methods in one gateway panel.
-2. Gateway settings — credentials, payment methods, processing rules, Level 2/3.
-3. Manual capture button on the order edit screen.
-4. Level 3 commercial-data fields and overrides.
+2. ACH / eCheck tab — routing + account number fields tokenized by Collect.js.
+3. Mobile checkout — Apple Pay and Google Pay wallet buttons above the card form.
+4. Saved payment methods — returning customers pick a stored card or bank account.
+5. Gateway settings — Security Key, Tokenization Key, environment, and Test Credentials button.
+6. Commercial data settings — Level 2/3 defaults for UOM, commodity code, tax, and freight.
+7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.2 =
+* Add: == Privacy == section documenting what data is stored and transmitted.
+* Add: == License == section and full GPLv2 license text bundled in `LICENSE`.
+* Add: uninstall.php to clean plugin options when the plugin is deleted.
+* Fix: update WP.org contributor handle and correct the installation path reference.
 
 = 1.0.1 =
 * Fix: escape description output in payment_fields() to satisfy WPCS.
@@ -106,6 +146,9 @@ Yes. HPOS compatibility is declared on plugin boot.
 * HPOS compatibility declared.
 
 == Upgrade Notice ==
+
+= 1.0.2 =
+Adds privacy disclosure, uninstall cleanup, and WP.org metadata polish. No merchant-facing behavior changes.
 
 = 1.0.1 =
 Minor compliance fixes for WP.org plugin directory submission. No merchant-facing changes.
