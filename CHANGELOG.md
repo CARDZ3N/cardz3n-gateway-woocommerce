@@ -3,6 +3,18 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] — 2026-04-18
+
+### Fixed
+- Escape description output in `Gateway::payment_fields()` to satisfy `WordPress.Security.EscapeOutput`.
+
+### Changed
+- Remove deprecated `load_plugin_textdomain()` call; WP.org auto-loads translations since WordPress 4.6.
+- Trim `readme.txt` short description to 141 characters (WP.org max is 150).
+- Reduce `readme.txt` tags from 10 to the 5-tag maximum.
+- Bump `Tested up to` from 6.7 to 6.9.
+- Packaging: exclude `.gitignore` and other dotfiles from the distribution zip (WP.org rejects hidden files).
+
 ## [1.0.0] — 2026-04-18
 
 ### Added

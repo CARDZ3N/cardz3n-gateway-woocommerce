@@ -168,7 +168,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		$brand = Brand::profile();
 
 		if ( $this->get_description() ) {
-			echo wpautop( wp_kses_post( $this->get_description() ) );
+			echo wp_kses_post( wpautop( wp_kses_post( $this->get_description() ) ) );
 		}
 
 		$this->render_brand_icons();

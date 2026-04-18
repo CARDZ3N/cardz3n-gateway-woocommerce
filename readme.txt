@@ -1,14 +1,14 @@
 === CARDZ3N Gateway for WooCommerce ===
 Contributors: cardz3ninc
-Tags: woocommerce, payment gateway, credit card, ach, nmi, apple pay, google pay, level 3, subscriptions, b2b
+Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
-Tested up to: 6.7
+Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Embedded on-site checkout for WooCommerce powered by the CARDZ3N / NMI payment platform. Card, ACH, Apple Pay, Google Pay, subscriptions, refunds, and automatic Level 2/3 commercial-card data in a single gateway UI.
+Embedded WooCommerce checkout via CARDZ3N / NMI. Card, ACH, Apple Pay, Google Pay, saved methods, subscriptions, refunds, and Level 2/3 data.
 
 == Description ==
 
@@ -89,6 +89,11 @@ Yes. HPOS compatibility is declared on plugin boot.
 
 == Changelog ==
 
+= 1.0.1 =
+* Fix: escape description output in payment_fields() to satisfy WPCS.
+* Change: remove deprecated load_plugin_textdomain() call (WP auto-loads since 4.6).
+* Docs: trim short description to ≤150 chars; reduce tags to 5; bump Tested up to 6.9.
+
 = 1.0.0 =
 * Initial release.
 * Embedded checkout via NMI Collect.js inline hosted fields.
@@ -101,6 +106,9 @@ Yes. HPOS compatibility is declared on plugin boot.
 * HPOS compatibility declared.
 
 == Upgrade Notice ==
+
+= 1.0.1 =
+Minor compliance fixes for WP.org plugin directory submission. No merchant-facing changes.
 
 = 1.0.0 =
 Initial public release.
