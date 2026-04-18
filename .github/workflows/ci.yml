@@ -15,7 +15,7 @@ jobs:
       matrix:
         php: ["7.4", "8.0", "8.1", "8.2", "8.3"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup PHP ${{ matrix.php }}
         uses: shivammathur/setup-php@v2
@@ -45,7 +45,7 @@ jobs:
     name: JS / CSS lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -62,7 +62,7 @@ jobs:
     name: WP Plugin Check (readme.txt + security heuristics)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Validate readme.txt headers
         run: |
           grep -E "^(Contributors|Tags|Requires at least|Tested up to|Stable tag|License):" readme.txt
