@@ -1,0 +1,11 @@
+.DS_Store
+Thumbs.db
+*.log
+*.bak
+node_modules/
+vendor/
+.phpunit.cache/
+.phpcs-cache
+build/
+dist/
+*.zip

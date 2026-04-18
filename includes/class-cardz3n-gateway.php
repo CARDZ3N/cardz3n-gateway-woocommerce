@@ -1,0 +1,571 @@
+<?php
+/**
+ * Main CARDZ3N Gateway class.
+ *
+ * Registers as a WooCommerce payment gateway, renders the embedded checkout,
+ * processes payments, delegates refund/void/capture to the Refunds_Trait, and
+ * coordinates the Api_Client + Level3_Mapper + Token_Service + Order_Service.
+ *
+ * @package Cardz3n_Gateway
+ */
+
+namespace Cardz3n_Gateway;
+
+defined( 'ABSPATH' ) || exit;
+
+use Cardz3n_Gateway\Api_Client;
+use Cardz3n_Gateway\Brand;
+use Cardz3n_Gateway\Level3_Mapper;
+use Cardz3n_Gateway\Logger;
+use Cardz3n_Gateway\Order_Service;
+use Cardz3n_Gateway\Token_Service;
+use Cardz3n_Gateway\Wallet_Service;
+use Cardz3n_Gateway\ACH_Service;
+
+class Gateway extends \WC_Payment_Gateway_CC {
+
+	use Refunds_Trait;
+	use Settings_Trait;
+	use Compatibility_Trait;
+
+	public function __construct() {
+		$brand                  = Brand::profile();
+		$this->id               = $brand['gateway_id'];
+		$this->method_title     = $brand['method_title'];
+		$this->method_description = $brand['method_description'];
+		$this->has_fields       = true;
+		$this->icon             = $this->gateway_icon_url();
+
+		$this->init_form_fields();
+		$this->init_settings();
+
+		$this->title       = $this->get_option( 'title', $brand['default_title'] );
+		$this->description = $this->get_option( 'description' );
+
+		$this->supports = $this->build_supports_array();
+
+		// Persist settings.
+		add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
+
+		// Enqueue checkout assets.
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_checkout_assets' ) );
+
+		// Optional PO checkout field.
+		add_action( 'woocommerce_after_order_notes', array( $this, 'render_po_field' ) );
+		add_action( 'woocommerce_checkout_update_order_meta', array( $this, 'save_po_field' ) );
+
+		// Thank-you instructions.
+		add_action( 'woocommerce_thankyou_' . $this->id, array( $this, 'render_thankyou' ) );
+
+		// Admin AJAX for credential validation.
+		add_action( 'wp_ajax_cardz3n_validate_credentials', array( $this, 'ajax_validate_credentials' ) );
+
+		// Checkout AJAX (non-blocking vault-delete from the account area).
+		add_action( 'wp_ajax_cardz3n_delete_token', array( $this, 'ajax_delete_token' ) );
+	}
+
+	/* ------------------------------------------------------------------
+	 * Assets & rendering
+	 * --------------------------------------------------------------- */
+
+	public function gateway_icon_url() {
+		$style = $this->get_option( 'icon_style', 'brands' );
+		if ( 'none' === $style ) {
+			return '';
+		}
+		if ( 'brand' === $style ) {
+			return CARDZ3N_GW_URL . 'assets/img/' . Brand::get( 'logo_file' );
+		}
+		return ''; // Brand icons rendered inline by payment_fields() for finer control.
+	}
+
+	public function enqueue_checkout_assets() {
+		if ( ! is_checkout() && ! is_add_payment_method_page() && ! is_account_page() ) {
+			return;
+		}
+		if ( 'no' === $this->get_option( 'enabled' ) ) {
+			return;
+		}
+
+		$client = new Api_Client( $this->settings );
+		$pk     = $client->tokenization_key();
+		if ( empty( $pk ) ) {
+			return;
+		}
+
+		// NMI Collect.js (loaded from secure.nmi.com per NMI docs).
+		wp_enqueue_script(
+			'cardz3n-collectjs',
+			'https://secure.nmi.com/token/Collect.js',
+			array(),
+			null,
+			true
+		);
+
+		// Our static checkout bundle (no inline JS, no synchronous AJAX).
+		wp_enqueue_script(
+			'cardz3n-checkout',
+			CARDZ3N_GW_URL . 'assets/js/checkout.js',
+			array( 'jquery', 'cardz3n-collectjs' ),
+			CARDZ3N_GW_VERSION,
+			true
+		);
+
+		wp_enqueue_style(
+			'cardz3n-checkout',
+			CARDZ3N_GW_URL . 'assets/css/checkout.css',
+			array(),
+			CARDZ3N_GW_VERSION
+		);
+
+		wp_localize_script(
+			'cardz3n-checkout',
+			'CARDZ3N_GW',
+			array(
+				'gatewayId'          => $this->id,
+				'tokenizationKey'    => $pk,
+				'enableCards'        => 'yes' === $this->get_option( 'enable_cards', 'yes' ),
+				'enableAch'          => 'yes' === $this->get_option( 'enable_ach', 'yes' ),
+				'enableApplePay'     => 'yes' === $this->get_option( 'enable_apple_pay', 'yes' ),
+				'enableGooglePay'    => 'yes' === $this->get_option( 'enable_google_pay', 'yes' ),
+				'enableSaved'        => 'yes' === $this->get_option( 'enable_saved_methods', 'yes' ),
+				'allowedBrands'      => (array) $this->get_option( 'allowed_card_brands', array() ),
+				'country'            => ( WC()->customer && WC()->customer->get_billing_country() ) ? WC()->customer->get_billing_country() : 'US',
+				'currency'           => get_woocommerce_currency(),
+				'ajaxUrl'            => admin_url( 'admin-ajax.php' ),
+				'nonce'              => wp_create_nonce( 'cardz3n_gw_nonce' ),
+				'i18n'                => array(
+					'cardTab'       => __( 'Card', 'cardz3n-gateway' ),
+					'achTab'        => __( 'Bank (ACH)', 'cardz3n-gateway' ),
+					'savedTab'      => __( 'Saved', 'cardz3n-gateway' ),
+					'cardNumber'    => __( 'Card number', 'cardz3n-gateway' ),
+					'expiry'        => __( 'MM / YY', 'cardz3n-gateway' ),
+					'cvv'           => __( 'CVV', 'cardz3n-gateway' ),
+					'accountName'   => __( 'Name on account', 'cardz3n-gateway' ),
+					'routing'       => __( 'Routing number', 'cardz3n-gateway' ),
+					'account'       => __( 'Account number', 'cardz3n-gateway' ),
+					'checking'      => __( 'Checking', 'cardz3n-gateway' ),
+					'savings'       => __( 'Savings', 'cardz3n-gateway' ),
+					'processing'    => __( 'Processing…', 'cardz3n-gateway' ),
+					'invalidFields' => __( 'Please check your payment details and try again.', 'cardz3n-gateway' ),
+					'timeout'       => __( 'Tokenization timed out. Please try again.', 'cardz3n-gateway' ),
+				),
+			)
+		);
+	}
+
+	/**
+	 * Render the embedded checkout UI inside the CARDZ3N gateway panel.
+	 *
+	 * Structure (single gateway, multiple panes):
+	 *   [ Saved | Card | ACH ]  ← tabs, visible only if method enabled + eligible
+	 *   .pane-saved   → saved tokens radio list (managed by parent::saved_payment_methods())
+	 *   .pane-card    → Collect.js inline hosted fields for PAN/exp/CVV
+	 *   .pane-ach     → Collect.js inline hosted fields for routing/account
+	 *   .wallets      → Apple/Google Pay buttons (rendered by Collect.js)
+	 */
+	public function payment_fields() {
+		$brand = Brand::profile();
+
+		if ( $this->get_description() ) {
+			echo wpautop( wp_kses_post( $this->get_description() ) );
+		}
+
+		$this->render_brand_icons();
+
+		$show_saved    = $this->supports( 'tokenization' ) && is_user_logged_in();
+		$enable_cards  = 'yes' === $this->get_option( 'enable_cards', 'yes' );
+		$enable_ach    = 'yes' === $this->get_option( 'enable_ach', 'yes' );
+		$enable_apple  = Wallet_Service::apple_enabled();
+		$enable_google = Wallet_Service::google_enabled();
+		?>
+		<div class="cardz3n-gateway-ui" data-gateway="<?php echo esc_attr( $this->id ); ?>">
+
+			<?php if ( $enable_apple || $enable_google ) : ?>
+			<div class="cardz3n-wallets">
+				<?php if ( $enable_apple ) : ?>
+					<div class="cardz3n-applepay-button" data-cardz3n-wallet="apple"></div>
+				<?php endif; ?>
+				<?php if ( $enable_google ) : ?>
+					<div class="cardz3n-googlepay-button" data-cardz3n-wallet="google"></div>
+				<?php endif; ?>
+				<div class="cardz3n-wallets-divider"><span><?php esc_html_e( 'or pay with', 'cardz3n-gateway' ); ?></span></div>
+			</div>
+			<?php endif; ?>
+
+			<div class="cardz3n-tabs" role="tablist">
+				<?php if ( $show_saved ) : ?>
+					<button type="button" class="cardz3n-tab" data-target="saved" role="tab"><?php esc_html_e( 'Saved', 'cardz3n-gateway' ); ?></button>
+				<?php endif; ?>
+				<?php if ( $enable_cards ) : ?>
+					<button type="button" class="cardz3n-tab is-active" data-target="card" role="tab"><?php esc_html_e( 'Card', 'cardz3n-gateway' ); ?></button>
+				<?php endif; ?>
+				<?php if ( $enable_ach ) : ?>
+					<button type="button" class="cardz3n-tab" data-target="ach" role="tab"><?php esc_html_e( 'Bank (ACH)', 'cardz3n-gateway' ); ?></button>
+				<?php endif; ?>
+			</div>
+
+			<input type="hidden" name="cardz3n_payment_source" value="card" />
+			<input type="hidden" name="cardz3n_payment_token" value="" />
+			<input type="hidden" name="cardz3n_token_type" value="" />
+
+			<?php if ( $show_saved ) : ?>
+				<div class="cardz3n-pane" data-pane="saved">
+					<?php $this->saved_payment_methods(); ?>
+				</div>
+			<?php endif; ?>
+
+			<?php if ( $enable_cards ) : ?>
+			<div class="cardz3n-pane is-active" data-pane="card">
+				<div class="cardz3n-field">
+					<label><?php esc_html_e( 'Card number', 'cardz3n-gateway' ); ?></label>
+					<div id="cardz3n-ccnumber" class="cardz3n-collect-field"></div>
+				</div>
+				<div class="cardz3n-row">
+					<div class="cardz3n-field">
+						<label><?php esc_html_e( 'Expiry', 'cardz3n-gateway' ); ?></label>
+						<div id="cardz3n-ccexp" class="cardz3n-collect-field"></div>
+					</div>
+					<div class="cardz3n-field">
+						<label><?php esc_html_e( 'CVV', 'cardz3n-gateway' ); ?></label>
+						<div id="cardz3n-cvv" class="cardz3n-collect-field"></div>
+					</div>
+				</div>
+				<?php if ( $show_saved ) : ?>
+				<label class="cardz3n-save-method">
+					<input type="checkbox" name="wc-<?php echo esc_attr( $this->id ); ?>-new-payment-method" value="true" />
+					<?php esc_html_e( 'Save this card for faster checkout next time.', 'cardz3n-gateway' ); ?>
+				</label>
+				<?php endif; ?>
+			</div>
+			<?php endif; ?>
+
+			<?php if ( $enable_ach ) : ?>
+			<div class="cardz3n-pane" data-pane="ach">
+				<div class="cardz3n-field">
+					<label><?php esc_html_e( 'Name on account', 'cardz3n-gateway' ); ?></label>
+					<div id="cardz3n-checkname" class="cardz3n-collect-field"></div>
+				</div>
+				<div class="cardz3n-row">
+					<div class="cardz3n-field">
+						<label><?php esc_html_e( 'Routing number', 'cardz3n-gateway' ); ?></label>
+						<div id="cardz3n-checkaba" class="cardz3n-collect-field"></div>
+					</div>
+					<div class="cardz3n-field">
+						<label><?php esc_html_e( 'Account number', 'cardz3n-gateway' ); ?></label>
+						<div id="cardz3n-checkaccount" class="cardz3n-collect-field"></div>
+					</div>
+				</div>
+				<div class="cardz3n-field">
+					<label><?php esc_html_e( 'Account type', 'cardz3n-gateway' ); ?></label>
+					<select name="cardz3n_ach_account_type">
+						<option value="checking"><?php esc_html_e( 'Checking', 'cardz3n-gateway' ); ?></option>
+						<option value="savings"><?php esc_html_e( 'Savings', 'cardz3n-gateway' ); ?></option>
+					</select>
+				</div>
+				<?php if ( ACH_Service::reuse_allowed() && $show_saved ) : ?>
+				<label class="cardz3n-save-method">
+					<input type="checkbox" name="wc-<?php echo esc_attr( $this->id ); ?>-new-ach-method" value="true" />
+					<?php esc_html_e( 'Save this bank account for future orders.', 'cardz3n-gateway' ); ?>
+				</label>
+				<?php endif; ?>
+			</div>
+			<?php endif; ?>
+
+			<div class="cardz3n-errors" role="alert" aria-live="polite"></div>
+		</div>
+		<?php
+	}
+
+	private function render_brand_icons() {
+		$style = $this->get_option( 'icon_style', 'brands' );
+		if ( 'brands' !== $style ) {
+			return;
+		}
+		$brands = (array) $this->get_option( 'allowed_card_brands', array( 'visa', 'mastercard', 'amex', 'discover' ) );
+		if ( empty( $brands ) ) {
+			return;
+		}
+		echo '<div class="cardz3n-brand-icons">';
+		foreach ( $brands as $b ) {
+			$file = 'icon_cc_' . $b . '.svg';
+			$path = CARDZ3N_GW_URL . 'assets/img/' . $file;
+			printf( '<img src="%s" alt="%s" width="38" height="24" loading="lazy" />', esc_url( $path ), esc_attr( ucfirst( $b ) ) );
+		}
+		echo '</div>';
+	}
+
+	public function render_po_field( $checkout ) {
+		if ( 'yes' !== $this->get_option( 'enable_po_field', 'yes' ) ) {
+			return;
+		}
+		?>
+		<div class="cardz3n-po-field">
+			<p class="form-row form-row-wide">
+				<label for="cardz3n_po_number"><?php esc_html_e( 'Purchase Order number (optional)', 'cardz3n-gateway' ); ?></label>
+				<input type="text" id="cardz3n_po_number" name="cardz3n_po_number" maxlength="17" autocomplete="off" />
+			</p>
+		</div>
+		<?php
+	}
+
+	public function save_po_field( $order_id ) {
+		if ( empty( $_POST['cardz3n_po_number'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			return;
+		}
+		$po = sanitize_text_field( wp_unslash( $_POST['cardz3n_po_number'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$order = wc_get_order( $order_id );
+		if ( $order ) {
+			$order->update_meta_data( '_cardz3n_po_number', $po );
+			$order->save_meta_data();
+		}
+	}
+
+	public function render_thankyou( $order_id ) {
+		$msg = trim( (string) $this->get_option( 'thankyou_instructions' ) );
+		if ( '' === $msg ) {
+			return;
+		}
+		echo '<div class="cardz3n-thankyou">' . wp_kses_post( wpautop( $msg ) ) . '</div>';
+	}
+
+	/* ------------------------------------------------------------------
+	 * Availability / admin gates
+	 * --------------------------------------------------------------- */
+
+	public function is_available() {
+		if ( 'yes' !== $this->get_option( 'enabled' ) ) {
+			return false;
+		}
+		if ( ! is_admin() && ! is_ssl() && 'yes' !== $this->get_option( 'sandbox_mode' ) ) {
+			Logger::warning( 'Gateway hidden: live mode requires HTTPS.' );
+			return false;
+		}
+		$client = new Api_Client( $this->settings );
+		if ( ! $client->has_credentials() ) {
+			return false;
+		}
+		return parent::is_available();
+	}
+
+	/* ------------------------------------------------------------------
+	 * process_payment — the critical server-side flow.
+	 * --------------------------------------------------------------- */
+
+	/**
+	 * @param int $order_id
+	 * @return array{result:string,redirect:string}|null
+	 */
+	public function process_payment( $order_id ) {
+		$order = wc_get_order( $order_id );
+		if ( ! $order ) {
+			wc_add_notice( __( 'Order not found.', 'cardz3n-gateway' ), 'error' );
+			return null;
+		}
+
+		$client = new Api_Client( $this->settings );
+		if ( ! $client->has_credentials() ) {
+			wc_add_notice( __( 'Payment gateway is not configured. Please contact the store.', 'cardz3n-gateway' ), 'error' );
+			return null;
+		}
+
+		// Gather inputs from checkout. POST is nonce-protected by WooCommerce itself.
+		$payment_token_id = isset( $_POST[ 'wc-' . $this->id . '-payment-token' ] ) ? sanitize_text_field( wp_unslash( $_POST[ 'wc-' . $this->id . '-payment-token' ] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$collect_token    = isset( $_POST['cardz3n_payment_token'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_payment_token'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$token_type       = isset( $_POST['cardz3n_token_type'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_token_type'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$source           = isset( $_POST['cardz3n_payment_source'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_payment_source'] ) ) : 'card'; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$save_card        = ! empty( $_POST[ 'wc-' . $this->id . '-new-payment-method' ] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$save_ach         = ! empty( $_POST[ 'wc-' . $this->id . '-new-ach-method' ] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+
+		// Resolve payment mechanism.
+		$using_saved = false;
+		$vault_id    = '';
+		$normalized_source = Wallet_Service::normalize_source( $token_type ?: $source );
+
+		if ( ! empty( $payment_token_id ) && 'new' !== $payment_token_id ) {
+			$token = \WC_Payment_Tokens::get( (int) $payment_token_id );
+			if ( ! $token || $token->get_user_id() !== get_current_user_id() || $token->get_gateway_id() !== $this->id ) {
+				wc_add_notice( __( 'Invalid saved payment method.', 'cardz3n-gateway' ), 'error' );
+				return null;
+			}
+			$vault_id    = (string) $token->get_meta( 'cardz3n_vault_id' ) ?: $token->get_token();
+			$using_saved = true;
+			$normalized_source = $token instanceof \WC_Payment_Token_ECheck ? 'ach_vault' : 'card_vault';
+		} elseif ( empty( $collect_token ) ) {
+			wc_add_notice( __( 'Payment details could not be tokenized. Please try again.', 'cardz3n-gateway' ), 'error' );
+			return null;
+		}
+
+		// Determine NMI "payment" field.
+		$payment_kind = in_array( $normalized_source, array( 'ach', 'ach_vault' ), true ) ? 'check' : 'creditcard';
+
+		// Transaction type from settings.
+		$txn_type = 'yes' === $this->get_option( 'transaction_mode' ) ? 'sale' : $this->get_option( 'transaction_mode', 'sale' );
+		if ( ! in_array( $txn_type, array( 'sale', 'auth' ), true ) ) {
+			$txn_type = 'sale';
+		}
+
+		// Collect billing / shipping from the order.
+		$billing = array(
+			'first_name' => $order->get_billing_first_name(),
+			'last_name'  => $order->get_billing_last_name(),
+			'company'    => $order->get_billing_company(),
+			'email'      => $order->get_billing_email(),
+			'phone'      => $order->get_billing_phone(),
+			'address1'   => $order->get_billing_address_1(),
+			'address2'   => $order->get_billing_address_2(),
+			'city'       => $order->get_billing_city(),
+			'state'      => $order->get_billing_state(),
+			'zip'        => $order->get_billing_postcode(),
+			'country'    => $order->get_billing_country(),
+		);
+		$shipping = array(
+			'first_name' => $order->get_shipping_first_name(),
+			'last_name'  => $order->get_shipping_last_name(),
+			'company'    => $order->get_shipping_company(),
+			'address1'   => $order->get_shipping_address_1(),
+			'address2'   => $order->get_shipping_address_2(),
+			'city'       => $order->get_shipping_city(),
+			'state'      => $order->get_shipping_state(),
+			'zip'        => $order->get_shipping_postcode(),
+			'country'    => $order->get_shipping_country(),
+		);
+
+		// Level 3 payload.
+		$mapper = new Level3_Mapper( $this->settings );
+		$level3 = $mapper->build( $order );
+
+		// Descriptor.
+		$descriptor = \Cardz3n_Gateway\descriptor_for_order( $order, $this->settings );
+
+		// Whether to also tokenize (vault creation) during this transaction.
+		$should_vault_card = ( $save_card && ! $using_saved && in_array( $normalized_source, array( 'card', 'apple_pay', 'google_pay' ), true ) );
+		$should_vault_ach  = ( $save_ach && ! $using_saved && 'ach' === $normalized_source && ACH_Service::reuse_allowed() );
+
+		$args = array(
+			'type'              => $txn_type,
+			'amount'            => $order->get_total(),
+			'order_id'          => $order->get_id(),
+			'order_description' => sprintf( /* translators: order id */ __( 'Order #%s', 'cardz3n-gateway' ), $order->get_order_number() ),
+			'currency'          => $order->get_currency(),
+			'descriptor'        => $descriptor,
+			'payment'           => $payment_kind,
+			'billing'           => $billing,
+			'shipping'          => $shipping,
+			'level3'            => $level3,
+			'extra'             => array(
+				'merchant_defined_field_10' => $normalized_source, // wallet source provenance
+			),
+		);
+
+		if ( $using_saved ) {
+			$args['customer_vault_id'] = $vault_id;
+		} else {
+			$args['payment_token'] = $collect_token;
+			if ( $should_vault_card || $should_vault_ach ) {
+				$args['vault'] = 'add_customer';
+			}
+		}
+
+		$response = $client->transaction( $args );
+
+		$extra = array(
+			'payment_source_type' => $normalized_source,
+			'transaction_type'    => $txn_type,
+			'descriptor'          => $descriptor,
+			'level3_sent'         => ! empty( $level3 ),
+			'po_number'           => (string) $order->get_meta( '_cardz3n_po_number' ),
+		);
+
+		if ( 'auth' === $txn_type ) {
+			$extra['authorized_amount'] = $order->get_total();
+		} else {
+			$extra['captured_amount'] = $order->get_total();
+		}
+
+		if ( ! $response['success'] ) {
+			$note = Order_Service::failure_note( $response, $extra );
+			$order->add_order_note( $note );
+			wc_add_notice( $response['text'] ? $response['text'] : __( 'Payment could not be processed.', 'cardz3n-gateway' ), 'error' );
+			return null;
+		}
+
+		// Persist standard meta and notes.
+		Order_Service::stamp( $order, $response, $extra );
+		$order->add_order_note( Order_Service::success_note( $response, $extra ) );
+
+		// Save token if the gateway returned a vault id and we requested vaulting.
+		if ( ! empty( $response['customer_vault_id'] ) && ( $should_vault_card || $should_vault_ach ) && is_user_logged_in() ) {
+			if ( $should_vault_card ) {
+				Token_Service::save_card_token(
+					get_current_user_id(),
+					$this->id,
+					$response['customer_vault_id'],
+					array(
+						'last4'     => substr( (string) ( $response['raw']['cc_number'] ?? '' ), -4 ),
+						'brand'     => \Cardz3n_Gateway\brand_slug( $response['raw']['cc_type'] ?? $response['raw']['card_type'] ?? '' ),
+						'exp_month' => \Cardz3n_Gateway\parse_ccexp( $response['raw']['cc_exp'] ?? $response['raw']['ccexp'] ?? '' )['month'],
+						'exp_year'  => \Cardz3n_Gateway\parse_ccexp( $response['raw']['cc_exp'] ?? $response['raw']['ccexp'] ?? '' )['year'],
+					)
+				);
+			}
+			if ( $should_vault_ach ) {
+				Token_Service::save_ach_token(
+					get_current_user_id(),
+					$this->id,
+					$response['customer_vault_id'],
+					array(
+						'last4'        => substr( (string) ( $response['raw']['account_number'] ?? '' ), -4 ),
+						'account_type' => isset( $_POST['cardz3n_ach_account_type'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_ach_account_type'] ) ) : 'checking', // phpcs:ignore WordPress.Security.NonceVerification.Missing
+					)
+				);
+			}
+		}
+
+		// Complete or mark authorized.
+		if ( 'sale' === $txn_type ) {
+			$success_status = $this->get_option( 'success_order_status', '' );
+			$order->payment_complete( $response['transaction_id'] );
+			if ( ! empty( $success_status ) ) {
+				$order->update_status( $success_status );
+			}
+		} else {
+			// Auth only: leave awaiting capture.
+			$order->update_status( 'on-hold', __( 'Authorized. Awaiting capture.', 'cardz3n-gateway' ) );
+		}
+
+		// Clear the cart and redirect.
+		WC()->cart->empty_cart();
+
+		return array(
+			'result'   => 'success',
+			'redirect' => $this->get_return_url( $order ),
+		);
+	}
+
+	/* ------------------------------------------------------------------
+	 * AJAX endpoints
+	 * --------------------------------------------------------------- */
+
+	public function ajax_validate_credentials() {
+		check_ajax_referer( 'cardz3n_gw_nonce', 'nonce' );
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_send_json_error( array( 'msg' => __( 'Insufficient permissions.', 'cardz3n-gateway' ) ), 403 );
+		}
+
+		$client = new Api_Client( $this->settings );
+		$result = $client->validate_credentials();
+		wp_send_json_success( $result );
+	}
+
+	public function ajax_delete_token() {
+		check_ajax_referer( 'cardz3n_gw_nonce', 'nonce' );
+		$token_id = isset( $_POST['token_id'] ) ? absint( $_POST['token_id'] ) : 0;
+		$token    = \WC_Payment_Tokens::get( $token_id );
+		if ( ! $token || $token->get_user_id() !== get_current_user_id() ) {
+			wp_send_json_error( array( 'msg' => __( 'Invalid token.', 'cardz3n-gateway' ) ), 400 );
+		}
+		$token->delete();
+		wp_send_json_success();
+	}
+}

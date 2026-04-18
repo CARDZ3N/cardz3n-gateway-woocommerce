@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, "release/**"]
+  pull_request:
+    branches: [main, develop, "release/**"]
+
+jobs:
+  lint-php:
+    name: PHP lint + WPCS
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["7.4", "8.0", "8.1", "8.2", "8.3"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer, phpcs, cs2pr
+          coverage: none
+
+      - name: Syntax check
+        run: |
+          find . -name "*.php" -not -path "./vendor/*" -print0 \
+            | xargs -0 -n1 -P4 php -l
+
+      - name: Install WordPress Coding Standards
+        run: |
+          composer global require --dev \
+            "squizlabs/php_codesniffer=^3.9" \
+            "wp-coding-standards/wpcs=^3.0" \
+            "phpcompatibility/phpcompatibility-wp=^2.1" \
+            "dealerdirect/phpcodesniffer-composer-installer=^1.0"
+          echo "$HOME/.composer/vendor/bin" >> $GITHUB_PATH
+
+      - name: Run WPCS
+        run: phpcs --standard=phpcs.xml.dist --report=checkstyle | cs2pr
+
+  lint-js:
+    name: JS / CSS lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install linters
+        run: |
+          npm init -y
+          npm install --no-save eslint@^8 stylelint@^16 stylelint-config-standard
+      - name: ESLint
+        run: npx eslint "assets/js/**/*.js" --no-eslintrc --env browser,jquery --parser-options=ecmaVersion:2019 || true
+      - name: Stylelint
+        run: npx stylelint "assets/css/**/*.css" --config '{"extends":"stylelint-config-standard"}' || true
+
+  plugin-check:
+    name: WP Plugin Check (readme.txt + security heuristics)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate readme.txt headers
+        run: |
+          grep -E "^(Contributors|Tags|Requires at least|Tested up to|Stable tag|License):" readme.txt
+          grep -E "^Requires PHP:" readme.txt
+      - name: Forbidden function scan
+        run: |
+          ! grep -RnE "\b(eval|create_function|assert|exec|shell_exec|passthru|system|popen)\s*\(" includes/ cardz3n-gateway-woocommerce.php
+      - name: No inline JS/CSS in PHP
+        run: |
+          ! grep -RnE "<script[^>]*>[^<]*[A-Za-z]" includes/ cardz3n-gateway-woocommerce.php

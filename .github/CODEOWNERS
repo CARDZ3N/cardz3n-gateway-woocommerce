@@ -1,0 +1,12 @@
+# Default owners for everything in the repo.
+* @CARDZ3N/core
+
+# Payments-critical paths require additional review.
+/includes/class-cardz3n-api-client.php     @CARDZ3N/payments
+/includes/class-cardz3n-gateway.php        @CARDZ3N/payments
+/includes/class-cardz3n-level3-mapper.php  @CARDZ3N/payments
+/includes/traits/trait-cardz3n-refunds.php @CARDZ3N/payments
+
+# Docs.
+/docs/                                      @CARDZ3N/docs
+readme.txt                                  @CARDZ3N/docs

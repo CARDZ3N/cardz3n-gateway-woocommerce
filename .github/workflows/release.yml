@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-zip:
+    name: Build and publish release zip
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: v
+        run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Verify version in plugin header
+        run: |
+          HEADER=$(grep -E "^\s*\*\s*Version:" cardz3n-gateway-woocommerce.php | awk '{print $3}')
+          CONST=$(grep "CARDZ3N_GW_VERSION" cardz3n-gateway-woocommerce.php | head -1 | grep -oE "'[0-9.]+'" | tr -d "'")
+          STABLE=$(grep -E "^Stable tag:" readme.txt | awk '{print $3}')
+          echo "header=$HEADER const=$CONST stable=$STABLE tag=${{ steps.v.outputs.version }}"
+          test "$HEADER" = "${{ steps.v.outputs.version }}"
+          test "$CONST" = "${{ steps.v.outputs.version }}"
+          test "$STABLE" = "${{ steps.v.outputs.version }}"
+
+      - name: Stage plugin folder
+        run: |
+          mkdir -p build/cardz3n-gateway-woocommerce
+          rsync -a --exclude='.git*' --exclude='.github' --exclude='build' \
+                --exclude='tests' --exclude='phpcs.xml.dist' \
+                --exclude='WPORG-SUBMISSION-CHECKLIST.md' \
+                --exclude='CONTRIBUTING.md' --exclude='CODE_OF_CONDUCT.md' \
+                --exclude='SECURITY.md' --exclude='node_modules' \
+                ./ build/cardz3n-gateway-woocommerce/
+
+      - name: Create zip
+        run: |
+          cd build
+          zip -rq cardz3n-gateway-woocommerce-${{ steps.v.outputs.version }}.zip cardz3n-gateway-woocommerce
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/cardz3n-gateway-woocommerce-*.zip
+          generate_release_notes: true
+          draft: false
+          prerelease: false

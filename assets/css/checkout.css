@@ -1,0 +1,84 @@
+/* CARDZ3N Gateway — embedded checkout styles */
+.cardz3n-gateway-ui {
+	--cardz3n-primary: #0a5cff;
+	--cardz3n-accent: #00c48c;
+	--cardz3n-error: #d64545;
+	--cardz3n-border: #d9dde4;
+	--cardz3n-bg: #fff;
+	--cardz3n-muted: #6b7280;
+	font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+	color: #111;
+	margin-top: 10px;
+}
+.cardz3n-brand-icons {
+	display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap;
+}
+.cardz3n-brand-icons img { height: 22px; width: auto; }
+
+.cardz3n-wallets {
+	display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px;
+}
+.cardz3n-wallets > div[data-cardz3n-wallet] {
+	min-height: 44px;
+}
+.cardz3n-wallets-divider {
+	display: flex; align-items: center; gap: 10px; color: var(--cardz3n-muted);
+	font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
+}
+.cardz3n-wallets-divider::before,
+.cardz3n-wallets-divider::after {
+	content: ''; flex: 1 1 auto; height: 1px; background: var(--cardz3n-border);
+}
+
+.cardz3n-tabs {
+	display: flex; gap: 4px; border-bottom: 1px solid var(--cardz3n-border);
+	margin-bottom: 14px;
+}
+.cardz3n-tab {
+	appearance: none; border: 0; background: transparent;
+	padding: 10px 14px; font-size: 14px; color: var(--cardz3n-muted);
+	cursor: pointer; border-bottom: 2px solid transparent; border-radius: 0;
+	font-weight: 500; transition: color .15s, border-color .15s;
+}
+.cardz3n-tab:hover { color: #111; }
+.cardz3n-tab.is-active { color: var(--cardz3n-primary); border-bottom-color: var(--cardz3n-primary); }
+
+.cardz3n-pane { display: none; }
+.cardz3n-pane.is-active { display: block; }
+
+.cardz3n-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.cardz3n-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.cardz3n-field > label {
+	font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--cardz3n-muted);
+}
+.cardz3n-collect-field {
+	height: 44px; border: 1px solid var(--cardz3n-border); border-radius: 6px;
+	padding: 0 10px; background: var(--cardz3n-bg); transition: border-color .15s;
+}
+.cardz3n-collect-field:focus-within { border-color: var(--cardz3n-primary); }
+
+.cardz3n-save-method {
+	display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--cardz3n-muted);
+	margin-top: 4px;
+}
+.cardz3n-errors {
+	display: none; margin-top: 10px; color: var(--cardz3n-error);
+	background: #fff5f5; padding: 10px 12px; border-radius: 6px; border: 1px solid #fecaca;
+	font-size: 14px;
+}
+.cardz3n-po-field { margin-top: 6px; }
+
+.cardz3n-field select {
+	height: 44px; border: 1px solid var(--cardz3n-border); border-radius: 6px; padding: 0 10px;
+	background: #fff; font-size: 14px;
+}
+
+@media (max-width: 640px) {
+	.cardz3n-row { grid-template-columns: 1fr; }
+}
+
+/* AerospacePay brand variant — triggered by body class set elsewhere if desired */
+body.cardz3n-brand-aerospacepay .cardz3n-gateway-ui {
+	--cardz3n-primary: #0b3d91;
+	--cardz3n-accent: #d64545;
+}

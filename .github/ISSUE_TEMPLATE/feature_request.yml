@@ -1,0 +1,40 @@
+name: Feature request
+description: Suggest an enhancement for CARDZ3N Gateway for WooCommerce
+title: "[feat]: "
+labels: ["enhancement", "triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      placeholder: "Merchants using X currently have to..."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Checkout UI
+        - Gateway / API
+        - Vault / Saved methods
+        - Refund / Void / Capture
+        - Level 2/3
+        - Subscriptions / Pre-Orders
+        - Apple Pay / Google Pay
+        - Admin / Settings
+        - Brand / White-label
+        - i18n / a11y
+        - Docs
+    validations:
+      required: true
