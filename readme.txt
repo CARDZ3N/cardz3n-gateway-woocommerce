@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,12 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Changelog ==
 
+= 1.0.3 =
+* Fix: uninstall.php PHPCS cleanup — prefix all local variables with `cardz3n_` to satisfy `WordPress.NamingConventions.PrefixAllGlobals`.
+* Fix: uninstall.php — route transient deletes through `delete_transient()` / `delete_site_transient()` so object caches flush cleanly.
+* Fix: uninstall.php — pass LIKE patterns through `$wpdb->esc_like()` + `$wpdb->prepare()` for the postmeta / HPOS / payment-token deletes.
+* Docs: uninstall.php — document the `phpcs:ignore` suppressions (uninstall is a one-shot pass where caching is meaningless and table names are validated internal identifiers).
+
 = 1.0.2 =
 * Add: == Privacy == section documenting what data is stored and transmitted.
 * Add: == License == section and full GPLv2 license text bundled in `LICENSE`.
@@ -146,6 +152,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * HPOS compatibility declared.
 
 == Upgrade Notice ==
+
+= 1.0.3 =
+Hardens `uninstall.php` for WP Plugin Check: prefixed variables, prepared LIKE patterns, documented DB suppressions. No runtime behavior changes.
 
 = 1.0.2 =
 Adds privacy disclosure, uninstall cleanup, and WP.org metadata polish. No merchant-facing behavior changes.

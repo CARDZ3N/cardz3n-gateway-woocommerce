@@ -3,6 +3,14 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.3] — 2026-04-18
+
+### Fixed
+- `uninstall.php`: prefix every local variable with `cardz3n_` to satisfy `WordPress.NamingConventions.PrefixAllGlobals`.
+- `uninstall.php`: route transient row deletions through `delete_transient()` / `delete_site_transient()` so the object cache is flushed for each transient, rather than only removing the underlying option rows.
+- `uninstall.php`: pass LIKE patterns through `$wpdb->esc_like()` + `$wpdb->prepare()` with `%s` placeholders for the postmeta, HPOS, and payment-token deletes (closes `WordPress.DB.PreparedSQL.InterpolatedNotPrepared`).
+- `uninstall.php`: quote validated table identifiers with backticks and document the remaining `phpcs:ignore` lines — uninstall is a one-shot deletion pass where object-cache reads/writes are meaningless and table names are hard-coded internal identifiers verified via `SHOW TABLES`.
+
 ## [1.0.2] — 2026-04-18
 
 ### Added
