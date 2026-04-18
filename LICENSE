@@ -340,14 +340,14 @@ Public License instead of this License.
 ---
 
 CARDZ3N Gateway for WooCommerce
-Copyright (C) 2026 CARDZ3N Inc (DBA ChargebackZ3N)
+Copyright (C) 2026 CARDZ3N
 
 This plugin is distributed under the GNU General Public License v2.0 or
 later, at your option. You are free to use, modify, and redistribute it,
 provided derivative works remain GPL-compatible.
 
 All code, CSS, JavaScript, and image assets bundled with this plugin are
-first-party works authored by CARDZ3N Inc and are released under the same
+first-party works authored by CARDZ3N and are released under the same
 GPLv2-or-later license as the plugin itself.
 
 No third-party libraries are bundled inside this plugin. The NMI Collect.js

@@ -35,4 +35,4 @@ Out of scope:
 
 ## Safe harbor
 
-Good-faith research following this policy will not result in legal action from CARDZ3N Inc.
+Good-faith research following this policy will not result in legal action from CARDZ3N.

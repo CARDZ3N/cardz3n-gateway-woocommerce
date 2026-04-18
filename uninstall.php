@@ -18,8 +18,11 @@
  *     `WordPress.DB.DirectDatabaseQuery.NoCaching` and `DirectQuery` are
  *     suppressed with justification where we must touch the DB directly.
  *   - Table names are never user input: they are built from the hard-coded
- *     WordPress prefix plus a hard-coded suffix, and are additionally
- *     verified to exist via `SHOW TABLES LIKE %s` before use.
+ *     WordPress prefix plus a hard-coded suffix, verified to exist via
+ *     `SHOW TABLES LIKE %s`, and passed to `$wpdb->prepare()` via the `%i`
+ *     identifier placeholder (available since WordPress 6.2; this plugin's
+ *     minimum supported WP version is 6.4) so the scanner never sees string
+ *     interpolation of a table name.
  *
  * @package Cardz3n_Gateway
  */
@@ -85,14 +88,16 @@ if ( defined( 'CARDZ3N_GW_DELETE_ORDER_META' ) && true === CARDZ3N_GW_DELETE_ORD
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Uninstall runs once; no caching layer is relevant.
 	$wpdb->query(
 		$wpdb->prepare(
-			"DELETE FROM {$wpdb->postmeta} WHERE meta_key LIKE %s",
+			'DELETE FROM %i WHERE meta_key LIKE %s',
+			$wpdb->postmeta,
 			$wpdb->esc_like( '_cardz3n_' ) . '%'
 		)
 	);
 
 	// 3b. HPOS (custom order tables).
-	// Table name is hard-coded plus the WP prefix, and verified via SHOW TABLES
-	// before use, so identifier interpolation is safe.
+	// Table name is hard-coded WP prefix + literal suffix. We also verify it
+	// exists via SHOW TABLES, and we pass it through `%i` so `prepare()` does
+	// the quoting/escaping itself — the scanner never sees string interpolation.
 	$cardz3n_hpos_table = $wpdb->prefix . 'wc_orders_meta';
 
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema probe; not cacheable by design.
@@ -101,10 +106,11 @@ if ( defined( 'CARDZ3N_GW_DELETE_ORDER_META' ) && true === CARDZ3N_GW_DELETE_ORD
 	);
 
 	if ( $cardz3n_hpos_exists === $cardz3n_hpos_table ) {
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Uninstall runs once; table name is a validated internal identifier (see SHOW TABLES check above), never user input. Value placeholders are still prepared.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Uninstall runs once; no caching layer is relevant.
 		$wpdb->query(
 			$wpdb->prepare(
-				"DELETE FROM `{$cardz3n_hpos_table}` WHERE meta_key LIKE %s",
+				'DELETE FROM %i WHERE meta_key LIKE %s',
+				$cardz3n_hpos_table,
 				$wpdb->esc_like( '_cardz3n_' ) . '%'
 			)
 		);
@@ -128,10 +134,11 @@ foreach ( $cardz3n_token_tables as $cardz3n_token_table ) {
 	);
 
 	if ( $cardz3n_token_exists === $cardz3n_token_table ) {
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Uninstall runs once; table name is a validated internal identifier (see SHOW TABLES check above), never user input. Value placeholders are still prepared.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Uninstall runs once; no caching layer is relevant.
 		$wpdb->query(
 			$wpdb->prepare(
-				"DELETE FROM `{$cardz3n_token_table}` WHERE gateway_id IN (%s, %s)",
+				'DELETE FROM %i WHERE gateway_id IN (%s, %s)',
+				$cardz3n_token_table,
 				'cardz3n_gateway',
 				'aerospacepay_gateway'
 			)

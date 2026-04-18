@@ -3,6 +3,16 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.4] — 2026-04-18
+
+### Fixed
+- Plugin header: drop the `Domain Path: /languages` header. The plugin does not yet ship any `.po`/`.mo` files, so Plugin Check flagged the directory as nonexistent in the distribution zip. WP.org language packs do not require this header.
+- `uninstall.php`: switch the HPOS and payment-token `DELETE` queries to `$wpdb->prepare()` with the `%i` identifier placeholder (WP 6.2+; this plugin requires 6.4+), so `prepare()` itself quotes and escapes the table name. The scanner no longer sees any string-interpolated identifiers.
+- `uninstall.php`: the postmeta DELETE also moves from `{$wpdb->postmeta}` interpolation to `%i` for consistency.
+
+### Changed
+- `Author:` plugin header shortened from `CARDZ3N Inc (DBA ChargebackZ3N)` to `CARDZ3N`. `LICENSE`, `readme.txt`, `README.md`, and `SECURITY.md` copyright / legal-entity references updated to match.
+
 ## [1.0.3] — 2026-04-18
 
 ### Fixed

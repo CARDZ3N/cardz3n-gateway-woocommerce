@@ -59,4 +59,4 @@ cardz3n-gateway-woocommerce/
 
 ## License
 
-GPLv2 or later. © 2026 CARDZ3N Inc (DBA ChargebackZ3N).
+GPLv2 or later. © 2026 CARDZ3N.

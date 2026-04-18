@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.3
+Stable tag: 1.0.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -109,7 +109,7 @@ Yes. HPOS compatibility is declared on plugin boot.
 
 CARDZ3N Gateway for WooCommerce is licensed under the GNU General Public License v2.0 or later (GPL-2.0-or-later). The full license text ships with the plugin as `LICENSE` and is also available at https://www.gnu.org/licenses/gpl-2.0.html.
 
-All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-party works authored by CARDZ3N Inc and are released under the same GPLv2-or-later license. No third-party code or media libraries are redistributed inside the plugin package. The NMI Collect.js tokenization script is loaded at runtime from the payment processor's own servers and is not included in this distribution.
+All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-party works authored by CARDZ3N and are released under the same GPLv2-or-later license. No third-party code or media libraries are redistributed inside the plugin package. The NMI Collect.js tokenization script is loaded at runtime from the payment processor's own servers and is not included in this distribution.
 
 == Screenshots ==
 
@@ -122,6 +122,11 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.4 =
+* Fix: Plugin header — drop the `Domain Path` header so Plugin Check stops flagging the missing `languages/` folder (no translations are shipped yet; WordPress auto-loads translations from WP.org regardless).
+* Fix: uninstall.php — switch the HPOS and payment-token DELETE queries to `$wpdb->prepare()` with the `%i` identifier placeholder, so the scanner never sees string interpolation of a table name.
+* Change: Author header shortened to `CARDZ3N`.
 
 = 1.0.3 =
 * Fix: uninstall.php PHPCS cleanup — prefix all local variables with `cardz3n_` to satisfy `WordPress.NamingConventions.PrefixAllGlobals`.
@@ -152,6 +157,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * HPOS compatibility declared.
 
 == Upgrade Notice ==
+
+= 1.0.4 =
+Quiets the last three WP Plugin Check warnings (domain path + two prepared-SQL identifier findings). No runtime behavior changes.
 
 = 1.0.3 =
 Hardens `uninstall.php` for WP Plugin Check: prefixed variables, prepared LIKE patterns, documented DB suppressions. No runtime behavior changes.
