@@ -3,6 +3,51 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.9] — 2026-04-19
+
+### Fixed (critical)
+- **Checkout showed "No payment methods are available."** Two stacked bugs:
+
+  **Bug 1: Collect.js tokenization key was never attached to its script tag.**
+  Collect.js reads its Public Tokenization Key from a `data-tokenization-key`
+  attribute on its own `<script>` tag during load. We were enqueueing the
+  script via `wp_enqueue_script()` with no attribute and trying to hand the
+  key off later through `wp_localize_script()` — which attaches the key to
+  a *different* script variable read by our bundle, not by Collect.js.
+  Result: Collect.js threw `Config.js:830 Uncaught Error: A tokenization
+  key must be provided by including a data-tokenization-key attribute`,
+  and no hosted field mounted.
+
+  Fix: the key is now injected as a real HTML attribute via the WordPress
+  `script_loader_tag` filter, on both the classic shortcode checkout
+  (`includes/class-cardz3n-gateway.php`) and the Blocks checkout
+  (`includes/class-cardz3n-blocks-support.php`). We also set
+  `data-variant="inline"` so Collect.js mounts hosted fields inside our
+  form instead of opening its lightbox.
+
+  **Bug 2: HTTPS detection was wrong behind reverse proxies.**
+  `Gateway::is_available()` used `is_ssl()` to enforce the live-mode HTTPS
+  requirement. On managed WordPress hosts that terminate TLS at a proxy
+  (InstaWP, WP Engine, Kinsta, Cloudflare flexible SSL, basically any host
+  with an LB in front), `$_SERVER['HTTPS']` is empty on the internal
+  request even when the visitor is clearly on HTTPS. `is_ssl()` returned
+  false and the gateway silently hid itself, which Woo surfaced to the
+  shopper as "No payment methods are available."
+
+  Fix: use `wc_checkout_is_https()` (a Woo helper that handles proxy cases
+  correctly) with a fallback that also honors the `X-Forwarded-Proto`
+  request header.
+
+### Changed
+- `Gateway::is_available()` now writes a specific Logger::warning line when
+  it hides the gateway — one of: disabled toggle, HTTPS gate, or missing
+  credentials for the active mode. This turns future "gateway invisible at
+  checkout" reports into a one-log-lookup fix.
+
+### Not affected
+- No changes to `process_payment`, capture, void, refund, the API client
+  endpoints, or the credentials validator.
+
 ## [1.0.8] — 2026-04-19
 
 ### Fixed (critical)

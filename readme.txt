@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.8
+Stable tag: 1.0.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,12 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Changelog ==
 
+= 1.0.9 =
+* Fix (critical): Checkout page was showing "No payment methods are available" and the browser console reported `Config.js:830 Uncaught Error: A tokenization key must be provided by including a data-tokenization-key attribute`. Two independent bugs were stacked on top of each other.
+* Fix (critical): Collect.js requires its Public Tokenization Key to be supplied as a `data-tokenization-key` attribute on its own `<script>` tag — passing it through `wp_localize_script` is too late and Collect.js throws during load. The attribute is now injected via the WordPress `script_loader_tag` filter on both the classic shortcode checkout and the Blocks checkout paths. We also add `data-variant="inline"` so Collect.js mounts hosted fields inside our form instead of firing the lightbox.
+* Fix (critical): `Gateway::is_available()` was using WordPress's `is_ssl()` to enforce the live-mode HTTPS requirement. On hosts that terminate TLS at a reverse proxy (InstaWP, WP Engine, Cloudflare flexible SSL, most managed WP hosts), `is_ssl()` returns false even though the visitor is on HTTPS, which silently hid the gateway from the checkout. We now prefer `wc_checkout_is_https()` (which is proxy-aware) with a fallback that also honors `X-Forwarded-Proto: https`.
+* Change: `is_available()` now logs the specific reason when it hides the gateway (no credentials, HTTPS gate, disabled toggle), making future "gateway is invisible" reports a one-log-lookup fix instead of a guessing game.
+
 = 1.0.8 =
 * Fix (critical): The `cardz3n_validate_credentials` AJAX action was never actually being registered with WordPress on admin-ajax.php requests. The hook lived in the Gateway class constructor, which only runs when WooCommerce builds its `woocommerce_payment_gateways` list — a step that does not happen on a bare admin-ajax.php request. WordPress saw an unknown action and fell through to the default auth-check response with HTTP 400, which the browser surfaced as "Network error." Moved both `wp_ajax_cardz3n_validate_credentials` and `wp_ajax_cardz3n_delete_token` registrations into the `Cardz3n_Gateway\Admin` bootstrap, which runs on every admin request (including admin-ajax), guaranteeing the handlers are always reachable.
 * Fix: `wp_ajax_cardz3n_delete_token` now uses `check_ajax_referer( ..., $die=false )` for the same reason as 1.0.7's validator fix — returns a clean JSON body on nonce failure instead of dying with `-1`.
@@ -181,6 +187,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * HPOS compatibility declared.
 
 == Upgrade Notice ==
+
+= 1.0.9 =
+Critical: fixes two defects that together caused the checkout to show "No payment methods are available." (1) Collect.js now receives its tokenization key as a proper `data-tokenization-key` attribute on its `<script>` tag. (2) The live-mode HTTPS check now works correctly behind reverse proxies (InstaWP, WP Engine, Cloudflare, etc.). Upgrade immediately.
 
 = 1.0.8 =
 Critical: the 1.0.7 admin "Test Credentials" fix was architecturally incomplete — the AJAX action was never being registered on admin-ajax.php requests. This release moves the hook registration into the Admin bootstrap so the handler actually runs. Upgrade immediately.

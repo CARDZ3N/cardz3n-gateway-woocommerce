@@ -90,8 +90,14 @@ class Blocks_Support extends AbstractPaymentMethodType {
 			true
 		);
 
-		// CARDZ3N Collect.js is required before our block script initializes Collect.
-		// Served from z3n.transactiongateway.com (white-labeled NMI host).
+		/*
+		 * CARDZ3N Collect.js — served from z3n.transactiongateway.com.
+		 *
+		 * Collect.js REQUIRES a `data-tokenization-key` attribute on its own
+		 * <script> tag or it throws during load and no hosted field mounts. We
+		 * enqueue it via the standard pipeline and inject the attribute on the
+		 * printed tag through the `script_loader_tag` filter below.
+		 */
 		wp_register_script(
 			'cardz3n-collectjs',
 			Api_Client::collectjs_url(),
@@ -99,6 +105,30 @@ class Blocks_Support extends AbstractPaymentMethodType {
 			null, // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion -- Vendor script, versioned by the gateway host.
 			true
 		);
+
+		$gateway = $this->get_gateway();
+		$pk      = $gateway ? ( new Api_Client( $gateway->settings ) )->tokenization_key() : '';
+
+		if ( ! empty( $pk ) ) {
+			add_filter(
+				'script_loader_tag',
+				static function ( $tag, $handle ) use ( $pk ) {
+					if ( 'cardz3n-collectjs' !== $handle ) {
+						return $tag;
+					}
+					if ( false !== strpos( $tag, 'data-tokenization-key' ) ) {
+						return $tag;
+					}
+					$attrs = sprintf(
+						' data-tokenization-key="%s" data-variant="inline"',
+						esc_attr( $pk )
+					);
+					return preg_replace( '/<script\b/', '<script' . $attrs, $tag, 1 );
+				},
+				10,
+				2
+			);
+		}
 
 		// Reuse the shared stylesheet from the classic checkout.
 		wp_register_style(

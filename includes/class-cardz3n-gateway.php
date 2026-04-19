@@ -101,14 +101,46 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			return;
 		}
 
-		// CARDZ3N Collect.js tokenization script.
-		// Served from z3n.transactiongateway.com (white-labeled NMI host).
+		/*
+		 * CARDZ3N Collect.js tokenization script (white-labeled NMI host).
+		 *
+		 * CRITICAL: Collect.js reads its Public Tokenization Key from a
+		 * `data-tokenization-key` attribute on its own <script> tag during load.
+		 * Without it, Collect.js throws "A tokenization key must be provided by
+		 * including a data-tokenization-key attribute" and every hosted field on
+		 * the page fails to mount.
+		 *
+		 * WordPress's wp_enqueue_script() has no direct way to set attributes on
+		 * the <script> tag, so we enqueue here and use the `script_loader_tag`
+		 * filter below to inject the attribute when WordPress prints the tag.
+		 */
 		wp_enqueue_script(
 			'cardz3n-collectjs',
 			Api_Client::collectjs_url(),
 			array(),
 			null,
 			true
+		);
+
+		// Inject data-tokenization-key onto the <script> tag that loads Collect.js.
+		add_filter(
+			'script_loader_tag',
+			static function ( $tag, $handle ) use ( $pk ) {
+				if ( 'cardz3n-collectjs' !== $handle ) {
+					return $tag;
+				}
+				// Idempotent — avoid double-injecting if something already added the attr.
+				if ( false !== strpos( $tag, 'data-tokenization-key' ) ) {
+					return $tag;
+				}
+				$attrs = sprintf(
+					' data-tokenization-key="%s" data-variant="inline"',
+					esc_attr( $pk )
+				);
+				return preg_replace( '/<script\b/', '<script' . $attrs, $tag, 1 );
+			},
+			10,
+			2
 		);
 
 		// Our static checkout bundle (no inline JS, no synchronous AJAX).
@@ -346,12 +378,31 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		if ( 'yes' !== $this->get_option( 'enabled' ) ) {
 			return false;
 		}
-		if ( ! is_admin() && ! is_ssl() && 'yes' !== $this->get_option( 'sandbox_mode' ) ) {
-			Logger::warning( 'Gateway hidden: live mode requires HTTPS.' );
-			return false;
+
+		/*
+		 * HTTPS gate for live mode.
+		 *
+		 * Use `wc_checkout_is_https()` instead of WordPress's `is_ssl()` — the
+		 * Woo helper correctly detects HTTPS when the site is behind a reverse
+		 * proxy or load balancer that terminates TLS (InstaWP, WP Engine,
+		 * Cloudflare flexible SSL, etc.). `is_ssl()` alone reads $_SERVER['HTTPS']
+		 * on the internal request, which is empty for proxied HTTP-to-backend
+		 * traffic, and would falsely hide the gateway with "No payment methods
+		 * are available" on every proxied host.
+		 */
+		if ( ! is_admin() && 'yes' !== $this->get_option( 'sandbox_mode' ) ) {
+			$is_https = function_exists( 'wc_checkout_is_https' )
+				? wc_checkout_is_https()
+				: ( is_ssl() || 'https' === ( $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '' ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+			if ( ! $is_https ) {
+				Logger::warning( 'Gateway hidden: live mode requires HTTPS.' );
+				return false;
+			}
 		}
+
 		$client = new Api_Client( $this->settings );
 		if ( ! $client->has_credentials() ) {
+			Logger::warning( 'Gateway hidden: no credentials on file for the active mode.' );
 			return false;
 		}
 		return parent::is_available();
