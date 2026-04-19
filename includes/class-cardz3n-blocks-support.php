@@ -90,12 +90,13 @@ class Blocks_Support extends AbstractPaymentMethodType {
 			true
 		);
 
-		// NMI Collect.js is required before our block script initializes Collect.
+		// CARDZ3N Collect.js is required before our block script initializes Collect.
+		// Served from z3n.transactiongateway.com (white-labeled NMI host).
 		wp_register_script(
 			'cardz3n-collectjs',
-			'https://secure.nmi.com/token/Collect.js',
+			Api_Client::collectjs_url(),
 			array(),
-			null, // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion -- Vendor script, versioned by NMI.
+			null, // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion -- Vendor script, versioned by the gateway host.
 			true
 		);
 

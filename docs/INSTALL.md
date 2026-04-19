@@ -98,7 +98,7 @@ These can be set via the WooCommerce admin, WP-CLI, or a product-import CSV.
 | Symptom                                                  | Likely cause / fix                                            |
 |----------------------------------------------------------|----------------------------------------------------------------|
 | Gateway hidden at checkout                               | Missing credentials or live mode without HTTPS                |
-| "Tokenization timed out" at checkout                     | Browser blocked `secure.nmi.com` — check CSP, ad-blockers     |
+| "Tokenization timed out" at checkout                     | Browser blocked `z3n.transactiongateway.com` — check CSP, ad-blockers |
 | `Invalid security key` on Test Credentials               | Keys swapped or belong to a disabled account                  |
 | Level 3 data not transmitted                             | Toggle `Enable Level 2/3 Transmission` in settings            |
 | Auto-capture never fires                                 | Set `Auto-capture on Status Change` to a specific status      |

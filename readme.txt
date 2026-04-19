@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.5
+Stable tag: 1.0.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -63,11 +63,11 @@ Data retention on your WordPress site follows your WooCommerce order retention s
 
 This plugin connects to two external CARDZ3N / NMI services to process payments:
 
-1. **NMI Collect.js** (https://secure.nmi.com/token/Collect.js) — JavaScript library loaded in the buyer's browser at checkout. It securely tokenizes card / ACH / wallet payment details into a one-time `payment_token`. No sensitive data is sent to your WordPress server.
+1. **CARDZ3N Collect.js** (https://z3n.transactiongateway.com/token/Collect.js) — JavaScript library loaded in the buyer's browser at checkout from the CARDZ3N gateway host (a white-labeled NMI instance). It securely tokenizes card / ACH / wallet payment details into a one-time `payment_token`. No sensitive data is sent to your WordPress server.
    * Terms of service: https://www.nmi.com/terms/
    * Privacy policy: https://www.nmi.com/privacy/
 
-2. **NMI Transaction API** (https://secure.nmi.com/api/transact.php) — server-side endpoint called by your WordPress site to execute charges, captures, voids, and refunds using the Collect.js token and your private Security Key.
+2. **CARDZ3N Transaction API** (https://z3n.transactiongateway.com/api/transact.php) — server-side endpoint called by your WordPress site to execute charges, captures, voids, and refunds using the Collect.js token and your private Security Key. This is the white-labeled CARDZ3N gateway host; the plugin never calls `secure.nmi.com`.
    * Terms of service: https://www.nmi.com/terms/
    * Privacy policy: https://www.nmi.com/privacy/
 
@@ -123,6 +123,13 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Changelog ==
 
+= 1.0.6 =
+* Fix (critical): Point every gateway call at the CARDZ3N white-label host. Transaction API, Query API, 3-Step Redirect, and Collect.js now resolve to `https://z3n.transactiongateway.com/...` instead of `secure.nmi.com`. This clears the HTTP 400 Bad Request observed on the "Test Credentials" admin button and on live checkout attempts.
+* Add: `cardz3n_gw_api_endpoint`, `cardz3n_gw_collectjs_url`, `cardz3n_gw_query_url`, and `cardz3n_gw_three_step_url` filters so merchants on a different white-label NMI host can override the defaults without patching the plugin.
+* Add: `Api_Client::collectjs_url()`, `::query_url()`, `::three_step_url()` static helpers — single source of truth for every external gateway URL.
+* Change: Classic checkout and Blocks checkout both now enqueue Collect.js via `Api_Client::collectjs_url()` rather than a hardcoded string.
+* Docs: readme.txt External Services section + docs/INSTALL.md troubleshooting updated to reference the CARDZ3N gateway host.
+
 = 1.0.5 =
 * Add: Full compatibility with the WooCommerce Cart & Checkout Blocks. CARDZ3N Gateway now renders inside the block-based checkout and the admin-only “may not be compatible with the Checkout block” notice no longer appears.
 * Add: Blocks payment-method registration via `AbstractPaymentMethodType` — card, ACH, Apple Pay, Google Pay, and saved methods are all available in both classic and block checkouts from a single code path.
@@ -164,6 +171,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * HPOS compatibility declared.
 
 == Upgrade Notice ==
+
+= 1.0.6 =
+Critical: switches every gateway URL to the CARDZ3N white-label host (z3n.transactiongateway.com). Fixes HTTP 400 Bad Request on Test Credentials and live checkout failures. Upgrade immediately.
 
 = 1.0.5 =
 Adds WooCommerce Cart & Checkout Blocks support — CARDZ3N now works on both classic shortcode and the new block-based checkout. Clears the admin “may not be compatible” notice.

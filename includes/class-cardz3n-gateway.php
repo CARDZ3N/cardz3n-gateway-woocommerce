@@ -93,10 +93,11 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			return;
 		}
 
-		// NMI Collect.js (loaded from secure.nmi.com per NMI docs).
+		// CARDZ3N Collect.js tokenization script.
+		// Served from z3n.transactiongateway.com (white-labeled NMI host).
 		wp_enqueue_script(
 			'cardz3n-collectjs',
-			'https://secure.nmi.com/token/Collect.js',
+			Api_Client::collectjs_url(),
 			array(),
 			null,
 			true

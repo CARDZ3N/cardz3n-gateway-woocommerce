@@ -22,8 +22,25 @@ defined( 'ABSPATH' ) || exit;
 
 class Api_Client {
 
-	const ENDPOINT_LIVE    = 'https://secure.nmi.com/api/transact.php';
-	const ENDPOINT_SANDBOX = 'https://secure.nmi.com/api/transact.php';
+	/*
+	 * CARDZ3N is a white-labeled NMI instance. All server-to-server traffic
+	 * and the browser-side Collect.js script must be served from the CARDZ3N
+	 * gateway host (z3n.transactiongateway.com), never from secure.nmi.com.
+	 *
+	 * The human merchant login (/merchants/login.php) is NOT an API endpoint
+	 * and will always return HTML / HTTP 400 when POSTed to — we never call
+	 * that path here.
+	 *
+	 * These constants can be overridden at runtime via the
+	 * `cardz3n_gw_api_endpoint` and `cardz3n_gw_collectjs_url` filters for
+	 * merchants who operate on a different white-label NMI host.
+	 */
+	const GATEWAY_HOST     = 'https://z3n.transactiongateway.com';
+	const ENDPOINT_LIVE    = 'https://z3n.transactiongateway.com/api/transact.php';
+	const ENDPOINT_SANDBOX = 'https://z3n.transactiongateway.com/api/transact.php';
+	const COLLECTJS_URL    = 'https://z3n.transactiongateway.com/token/Collect.js';
+	const QUERY_URL        = 'https://z3n.transactiongateway.com/api/query.php';
+	const THREE_STEP_URL   = 'https://z3n.transactiongateway.com/api/v2/three-step';
 
 	/** @var array */
 	private $settings;
@@ -68,7 +85,38 @@ class Api_Client {
 	}
 
 	public function endpoint() {
-		return $this->sandbox ? self::ENDPOINT_SANDBOX : self::ENDPOINT_LIVE;
+		$url = $this->sandbox ? self::ENDPOINT_SANDBOX : self::ENDPOINT_LIVE;
+		/**
+		 * Filter the Transaction API endpoint.
+		 *
+		 * @param string $url     Default endpoint (z3n.transactiongateway.com).
+		 * @param bool   $sandbox Whether the gateway is in sandbox mode.
+		 */
+		return (string) apply_filters( 'cardz3n_gw_api_endpoint', $url, $this->sandbox );
+	}
+
+	/**
+	 * URL of the Collect.js tokenization script.
+	 * Filterable for merchants on a different white-label NMI host.
+	 */
+	public static function collectjs_url() {
+		return (string) apply_filters( 'cardz3n_gw_collectjs_url', self::COLLECTJS_URL );
+	}
+
+	/**
+	 * URL of the Query API endpoint.
+	 * Filterable for merchants on a different white-label NMI host.
+	 */
+	public static function query_url() {
+		return (string) apply_filters( 'cardz3n_gw_query_url', self::QUERY_URL );
+	}
+
+	/**
+	 * URL of the 3-Step Redirect API root.
+	 * Filterable for merchants on a different white-label NMI host.
+	 */
+	public static function three_step_url() {
+		return (string) apply_filters( 'cardz3n_gw_three_step_url', self::THREE_STEP_URL );
 	}
 
 	public function has_credentials() {

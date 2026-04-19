@@ -352,5 +352,5 @@ GPLv2-or-later license as the plugin itself.
 
 No third-party libraries are bundled inside this plugin. The NMI Collect.js
 tokenization script is loaded at runtime from the payment processor's own
-domain (https://secure.nmi.com/token/Collect.js) and is not redistributed as
+host (https://z3n.transactiongateway.com/token/Collect.js) and is not redistributed as
 part of this package.

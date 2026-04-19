@@ -3,6 +3,29 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.6] — 2026-04-19
+
+### Fixed (critical)
+- **Wrong gateway host.** Every hardcoded `secure.nmi.com` URL in the plugin has been replaced with the CARDZ3N white-label host `z3n.transactiongateway.com`. The merchant reported an HTTP 400 Bad Request on the admin *Test Credentials* button and during live checkout attempts — the root cause was the plugin POSTing to the wrong NMI instance (and, for some diagnostic flows, accidentally hitting `/merchants/login.php`, which is a human login page, not an API endpoint).
+  - Transaction API → `https://z3n.transactiongateway.com/api/transact.php`
+  - Query API       → `https://z3n.transactiongateway.com/api/query.php`
+  - 3-Step Redirect → `https://z3n.transactiongateway.com/api/v2/three-step`
+  - Collect.js      → `https://z3n.transactiongateway.com/token/Collect.js`
+
+### Added
+- New `Api_Client::COLLECTJS_URL`, `QUERY_URL`, `THREE_STEP_URL` constants plus `Api_Client::collectjs_url()`, `::query_url()`, `::three_step_url()` static helpers — a single source of truth for every external gateway URL.
+- New runtime filters for merchants who operate on a different white-label NMI host: `cardz3n_gw_api_endpoint`, `cardz3n_gw_collectjs_url`, `cardz3n_gw_query_url`, `cardz3n_gw_three_step_url`.
+
+### Changed
+- Classic checkout (`includes/class-cardz3n-gateway.php`) and Blocks checkout (`includes/class-cardz3n-blocks-support.php`) both now enqueue Collect.js via `Api_Client::collectjs_url()` rather than a hardcoded string.
+- `readme.txt` "External Services" section and `docs/INSTALL.md` troubleshooting table updated to reference the CARDZ3N gateway host.
+- `LICENSE` attribution note updated to reference the CARDZ3N Collect.js host.
+
+### Not affected
+- No changes to the Blocks Checkout integration, HPOS handling, uninstall cleanup, or GPL/licensing.
+- No new merchant-facing settings (the new host is the default; filters are opt-in for edge cases).
+- WP.org directory assets (icon, banner, 7 screenshots) from 1.0.2 are still current.
+
 ## [1.0.5] — 2026-04-18
 
 ### Added
