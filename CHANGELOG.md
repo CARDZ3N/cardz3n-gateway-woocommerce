@@ -3,6 +3,20 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.8] — 2026-04-19
+
+### Fixed (critical)
+- **The AJAX action `cardz3n_validate_credentials` was never actually registered on admin-ajax.php requests.** Root cause: `add_action( 'wp_ajax_cardz3n_validate_credentials', ... )` lived inside the `Gateway` class constructor, and `Gateway` is only instantiated by WooCommerce's `woocommerce_payment_gateways` filter — which fires on the Checkout page, the Woo Settings page, and the REST gateways list, but **not** on a plain `admin-ajax.php` POST. WordPress saw an unknown AJAX action, the hook never ran, and the request fell through to the default `wp-auth-check` response with HTTP 400 and body `{"wp-auth-check":true,"server_time":...}`. The browser surfaced this as "Network error."
+- **Fix:** Moved both `wp_ajax_cardz3n_validate_credentials` and `wp_ajax_cardz3n_delete_token` hook registrations from `Cardz3n_Gateway\Gateway::__construct()` to `Cardz3n_Gateway\Admin::__construct()`. The Admin singleton is booted directly from the main plugin file's `is_admin()` branch, which returns true on admin-ajax requests as well as regular wp-admin page loads. The handlers are now guaranteed to be reachable on every admin-ajax call.
+- **Fix:** Ported the 1.0.7 hardening (cap-check-first, `check_ajax_referer` with `$die=false`, fresh `Api_Client(null)`, HTTP 200 + `success:false` for business-logic failures) to the new Admin-class handler. `ajax_delete_token` also now uses `$die=false` so nonce failures return a clean JSON body.
+
+### Changed
+- `Gateway::__construct()` no longer registers any `wp_ajax_*` hooks. A prominent comment documents why — to prevent this regression from coming back.
+- The old `Gateway::ajax_validate_credentials()` and `Gateway::ajax_delete_token()` methods remain in place as dead code for now (harmless; not wired to any hook). They will be removed in 1.1.0.
+
+### How this slipped past 1.0.7
+1.0.7 patched the handler body (the right fix) but didn't verify the hook was registered on admin-ajax. The fact that `wp_ajax_cardz3n_capture_order` works fine on the order-edit screen (and is registered in Admin, not Gateway) should have been the tell.
+
 ## [1.0.7] — 2026-04-19
 
 ### Fixed (critical)

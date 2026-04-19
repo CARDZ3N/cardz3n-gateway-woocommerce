@@ -57,11 +57,19 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		// Thank-you instructions.
 		add_action( 'woocommerce_thankyou_' . $this->id, array( $this, 'render_thankyou' ) );
 
-		// Admin AJAX for credential validation.
-		add_action( 'wp_ajax_cardz3n_validate_credentials', array( $this, 'ajax_validate_credentials' ) );
-
-		// Checkout AJAX (non-blocking vault-delete from the account area).
-		add_action( 'wp_ajax_cardz3n_delete_token', array( $this, 'ajax_delete_token' ) );
+		/*
+		 * NOTE: The `wp_ajax_cardz3n_validate_credentials` and
+		 * `wp_ajax_cardz3n_delete_token` hooks are intentionally NOT registered here.
+		 * This Gateway class is only instantiated when WooCommerce builds its
+		 * `woocommerce_payment_gateways` list, which does not happen on a bare
+		 * admin-ajax.php request. Hooks registered here would never fire for AJAX,
+		 * causing WordPress to return HTTP 400 with an empty auth-check payload.
+		 *
+		 * Both AJAX actions are now registered in Cardz3n_Gateway\Admin, which boots
+		 * unconditionally on every admin request (including admin-ajax). The handler
+		 * implementations still live on this class; Admin delegates to them via a
+		 * lazily-resolved Gateway instance.
+		 */
 	}
 
 	/* ------------------------------------------------------------------

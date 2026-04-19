@@ -24,6 +24,82 @@ class Admin {
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
 		add_action( 'woocommerce_order_item_add_action_buttons', array( $this, 'render_capture_button' ) );
 		add_action( 'wp_ajax_cardz3n_capture_order', array( $this, 'ajax_capture_order' ) );
+
+		/*
+		 * Gateway AJAX endpoints are registered here — not in the Gateway class —
+		 * because the Gateway is only instantiated when WooCommerce builds its
+		 * `woocommerce_payment_gateways` list. On a plain admin-ajax.php request,
+		 * that list is never built, so hooks registered in the Gateway constructor
+		 * never fire and WordPress returns HTTP 400 with an empty auth-check body.
+		 * Registering here (inside the Admin bootstrap, which runs on every
+		 * `is_admin()` request including admin-ajax) guarantees reachability.
+		 */
+		add_action( 'wp_ajax_cardz3n_validate_credentials', array( $this, 'ajax_validate_credentials' ) );
+		add_action( 'wp_ajax_cardz3n_delete_token', array( $this, 'ajax_delete_token' ) );
+	}
+
+	/**
+	 * AJAX: Validate the saved gateway credentials.
+	 *
+	 * Reads the Security Key directly from saved options (not POST, which carries
+	 * a masked value). Returns HTTP 200 + success:false for every business-logic
+	 * failure, reserving 400 for transport/auth problems (stale nonce, no cap).
+	 */
+	public function ajax_validate_credentials() {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_send_json_error( array( 'msg' => __( 'Insufficient permissions.', 'cardz3n-gateway' ) ), 403 );
+		}
+		if ( ! check_ajax_referer( 'cardz3n_gw_nonce', 'nonce', false ) ) {
+			wp_send_json_error(
+				array( 'msg' => __( 'Invalid session. Reload the settings page and try again.', 'cardz3n-gateway' ) ),
+				400
+			);
+		}
+
+		// Fresh read from the options table — admin form masks the key once saved.
+		$client = new Api_Client( null );
+
+		if ( ! $client->has_credentials() ) {
+			wp_send_json_error(
+				array(
+					'ok'  => false,
+					'msg' => __( 'Save changes first — no Security Key on file for the active mode.', 'cardz3n-gateway' ),
+				)
+			);
+		}
+
+		$result = $client->validate_credentials();
+
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( array( 'ok' => false, 'msg' => $result->get_error_message() ) );
+		}
+
+		if ( ! empty( $result['ok'] ) ) {
+			wp_send_json_success( $result );
+		}
+
+		wp_send_json_error(
+			array(
+				'ok'  => false,
+				'msg' => isset( $result['msg'] ) ? $result['msg'] : __( 'Gateway rejected the credentials.', 'cardz3n-gateway' ),
+			)
+		);
+	}
+
+	/**
+	 * AJAX: Delete a saved payment token from the customer's vault.
+	 */
+	public function ajax_delete_token() {
+		if ( ! check_ajax_referer( 'cardz3n_gw_nonce', 'nonce', false ) ) {
+			wp_send_json_error( array( 'msg' => __( 'Invalid session.', 'cardz3n-gateway' ) ), 400 );
+		}
+		$token_id = isset( $_POST['token_id'] ) ? absint( wp_unslash( $_POST['token_id'] ) ) : 0;
+		$token    = \WC_Payment_Tokens::get( $token_id );
+		if ( ! $token || $token->get_user_id() !== get_current_user_id() ) {
+			wp_send_json_error( array( 'msg' => __( 'Invalid token.', 'cardz3n-gateway' ) ), 400 );
+		}
+		$token->delete();
+		wp_send_json_success();
 	}
 
 	public function enqueue_admin_assets( $hook ) {

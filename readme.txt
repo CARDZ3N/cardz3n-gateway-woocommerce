@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.7
+Stable tag: 1.0.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,10 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Changelog ==
 
+= 1.0.8 =
+* Fix (critical): The `cardz3n_validate_credentials` AJAX action was never actually being registered with WordPress on admin-ajax.php requests. The hook lived in the Gateway class constructor, which only runs when WooCommerce builds its `woocommerce_payment_gateways` list — a step that does not happen on a bare admin-ajax.php request. WordPress saw an unknown action and fell through to the default auth-check response with HTTP 400, which the browser surfaced as "Network error." Moved both `wp_ajax_cardz3n_validate_credentials` and `wp_ajax_cardz3n_delete_token` registrations into the `Cardz3n_Gateway\Admin` bootstrap, which runs on every admin request (including admin-ajax), guaranteeing the handlers are always reachable.
+* Fix: `wp_ajax_cardz3n_delete_token` now uses `check_ajax_referer( ..., $die=false )` for the same reason as 1.0.7's validator fix — returns a clean JSON body on nonce failure instead of dying with `-1`.
+
 = 1.0.7 =
 * Fix (critical): Admin "Test Credentials" button no longer returns HTTP 400 Bad Request. The `wp_ajax_cardz3n_validate_credentials` handler has been rewritten to (a) run the capability check before the nonce check, (b) return a clean JSON body with a 400 status when the nonce is stale instead of dying with WordPress's default `-1` text response, and (c) load the Security Key directly from the saved gateway options (`woocommerce_{cardz3n|aerospacepay}_gateway_settings`) instead of trusting the POST body — the admin form masks the key once saved, so the browser was POSTing an empty string.
 * Fix: Business-logic failures on Test Credentials (no key on file, gateway rejection, transport error) now return HTTP 200 with `success:false` and a human-readable `data.msg`, so the admin UI shows the real reason instead of a generic "Network error."
@@ -177,6 +181,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * HPOS compatibility declared.
 
 == Upgrade Notice ==
+
+= 1.0.8 =
+Critical: the 1.0.7 admin "Test Credentials" fix was architecturally incomplete — the AJAX action was never being registered on admin-ajax.php requests. This release moves the hook registration into the Admin bootstrap so the handler actually runs. Upgrade immediately.
 
 = 1.0.7 =
 Critical: fixes the HTTP 400 Bad Request on the admin "Test Credentials" button. The validator now reads the Security Key from saved settings (the form masks it once saved) and returns real error messages instead of a blank network failure. Upgrade immediately.
