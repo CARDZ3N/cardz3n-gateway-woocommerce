@@ -3,6 +3,24 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.5] — 2026-04-18
+
+### Added
+- **WooCommerce Cart & Checkout Blocks support.** CARDZ3N Gateway now renders inside the block-based checkout alongside the classic shortcode checkout. The admin-only “may not be compatible with the Checkout block” notice is cleared.
+- `includes/class-cardz3n-blocks-support.php`: new `AbstractPaymentMethodType` implementation that registers the gateway with the Blocks payment-method registry. Reuses the existing gateway settings, brand profile, and tokenization key so the block UI and the classic UI share one source of truth.
+- `assets/js/blocks/checkout.js`: vanilla-React block bundle (built with `wp.element`, no Webpack required) that renders the method label, icons, and mount node. Reuses the shared `assets/css/checkout.css` so the visual design matches the classic embedded checkout.
+- `assets/js/blocks/checkout.asset.php`: hand-maintained WordPress dependency manifest declaring the block bundle's deps (`wp-element`, `wp-html-entities`, `wp-i18n`, `wc-blocks-registry`, `wc-settings`).
+- `cardz3n_gw_register_blocks_support()`: fires on `woocommerce_blocks_loaded`, loads the integration class, and registers it with the `woocommerce_blocks_payment_method_type_registration` registry.
+
+### Changed
+- `FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', … )` flipped from `false` to `true`.
+- `Gateway::process_payment()` normalizes Blocks Checkout POST keys (`cardz3n_payment_kind`, `cardz3n_saved_token_id`, `wc_payment_source=blocks`) onto the classic key shape so a single server-side path serves both checkout UIs.
+
+### Not affected
+- Classic shortcode checkout behavior is unchanged.
+- No new merchant-facing settings.
+- WP.org directory assets (icon, banner, 7 screenshots) from 1.0.2 are still current.
+
 ## [1.0.4] — 2026-04-18
 
 ### Fixed

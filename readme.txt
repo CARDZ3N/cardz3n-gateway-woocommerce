@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.4
+Stable tag: 1.0.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,13 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Changelog ==
 
+= 1.0.5 =
+* Add: Full compatibility with the WooCommerce Cart & Checkout Blocks. CARDZ3N Gateway now renders inside the block-based checkout and the admin-only “may not be compatible with the Checkout block” notice no longer appears.
+* Add: Blocks payment-method registration via `AbstractPaymentMethodType` — card, ACH, Apple Pay, Google Pay, and saved methods are all available in both classic and block checkouts from a single code path.
+* Add: Dedicated `assets/js/blocks/checkout.js` bundle (vanilla React via `wp.element`, no build step) with a hand-maintained `checkout.asset.php` dependency manifest.
+* Fix: Flip the `cart_checkout_blocks` FeaturesUtil compatibility declaration from `false` to `true`.
+* Fix: `process_payment()` now normalizes the Blocks Checkout POST payload (`cardz3n_payment_kind`, `cardz3n_saved_token_id`, `wc_payment_source=blocks`) onto the classic key shape so one server-side flow serves both UIs.
+
 = 1.0.4 =
 * Fix: Plugin header — drop the `Domain Path` header so Plugin Check stops flagging the missing `languages/` folder (no translations are shipped yet; WordPress auto-loads translations from WP.org regardless).
 * Fix: uninstall.php — switch the HPOS and payment-token DELETE queries to `$wpdb->prepare()` with the `%i` identifier placeholder, so the scanner never sees string interpolation of a table name.
@@ -157,6 +164,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * HPOS compatibility declared.
 
 == Upgrade Notice ==
+
+= 1.0.5 =
+Adds WooCommerce Cart & Checkout Blocks support — CARDZ3N now works on both classic shortcode and the new block-based checkout. Clears the admin “may not be compatible” notice.
 
 = 1.0.4 =
 Quiets the last three WP Plugin Check warnings (domain path + two prepared-SQL identifier findings). No runtime behavior changes.

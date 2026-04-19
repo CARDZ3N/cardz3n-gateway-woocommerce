@@ -369,6 +369,19 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			return null;
 		}
 
+		// Blocks Checkout compatibility: the block bundle posts a slightly
+		// different key shape (cardz3n_payment_kind, cardz3n_saved_token_id,
+		// wc_payment_source=blocks). Normalize to the classic keys so the rest
+		// of this method runs unchanged.
+		if ( isset( $_POST['wc_payment_source'] ) && 'blocks' === $_POST['wc_payment_source'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			if ( ! empty( $_POST['cardz3n_payment_kind'] ) && empty( $_POST['cardz3n_payment_source'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+				$_POST['cardz3n_payment_source'] = sanitize_text_field( wp_unslash( $_POST['cardz3n_payment_kind'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			}
+			if ( ! empty( $_POST['cardz3n_saved_token_id'] ) && empty( $_POST[ 'wc-' . $this->id . '-payment-token' ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+				$_POST[ 'wc-' . $this->id . '-payment-token' ] = sanitize_text_field( wp_unslash( $_POST['cardz3n_saved_token_id'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			}
+		}
+
 		// Gather inputs from checkout. POST is nonce-protected by WooCommerce itself.
 		$payment_token_id = isset( $_POST[ 'wc-' . $this->id . '-payment-token' ] ) ? sanitize_text_field( wp_unslash( $_POST[ 'wc-' . $this->id . '-payment-token' ] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$collect_token    = isset( $_POST['cardz3n_payment_token'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_payment_token'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
