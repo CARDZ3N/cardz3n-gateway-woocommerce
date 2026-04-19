@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.11
+Stable tag: 1.0.13
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,16 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Changelog ==
 
+= 1.0.13 =
+* Fix (critical): Checkout Block *still* showed "There are no payment methods available" after 1.0.12. The 1.0.12 hook-timing theory was wrong — live DevTools inspection on 1.0.12 confirmed our blocks JS bundle was still never enqueued, `wc.wcSettings.getSetting('cardz3n_gateway_data')` still returned null, and the Woo payment store's `getAvailablePaymentMethods()` was still `{}`. The actual bug was in `Blocks_Support::is_active()`, which delegated to `$gateway->is_available()`. Woo Blocks calls `is_active()` very early in the REST prep phase for the checkout — often before `WC()->payment_gateways()->payment_gateways()` has been fully populated by the `woocommerce_payment_gateways` filter. In that window, our `get_gateway()` lookup returned null and `is_active()` returned false, so Woo Blocks never enqueued our JS bundle and our payment method was never registered client-side.
+* Fix: `Blocks_Support::is_active()` now only checks the `enabled` toggle (loaded synchronously in `initialize()`). The full availability cascade (HTTPS, credentials, currency/country) is still enforced at `Gateway::is_available()` on the classic checkout and at `Gateway::process_payment()` server-side — nothing insecure slips through.
+* Fix: `Blocks_Support::get_payment_method_data()` now falls back to reading directly from `$this->settings` when `get_gateway()` returns null, instead of returning a stub missing `gatewayId` and `tokenizationKey` (the client JS short-circuited on `if ( ! cfg || ! cfg.gatewayId ) return;`).
+* Fix: `Blocks_Support::get_supported_features()` returns `['products', 'refunds']` in the early-boot fallback (matches the classic gateway's declared feature set).
+* No change to `process_payment()`, capture, void, refund, the classic shortcode checkout, the admin settings UI, or the diagnostic notice introduced in 1.0.11.
+
+= 1.0.12 =
+* Attempted fix for the "There are no payment methods available" error on the Checkout Block by registering the Blocks integration directly against `\Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry` via the Blocks DI container. The DI-container call is retained as a belt-and-braces alongside the canonical hook-based registration, but it was NOT the root cause of the block-checkout failure. See 1.0.13 for the actual fix.
+
 = 1.0.11 =
 * Add: Visible admin-notice diagnostic on the gateway settings page that reports exactly why the gateway is (or is not) appearing on the checkout page. `is_available()` now stores a per-brand reason token in a 5-minute transient; the settings page reads that transient and surfaces one of five statuses with a human-readable fix. Eliminates the "gateway is invisible and no one knows why" support loop.
 * Reasons surfaced: `available`, `disabled` (Enabled toggle off), `https_required` (live mode on a non-HTTPS checkout), `no_credentials` (no Security Key for the active mode), `parent_unavailable` (WooCommerce itself rejected the gateway — typically currency/country mismatch).
@@ -197,8 +207,11 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Upgrade Notice ==
 
+= 1.0.13 =
+Critical: fixes the Checkout Block's "There are no payment methods available" that 1.0.12 was supposed to fix but did not. `Blocks_Support::is_active()` was incorrectly delegating to the full classic-checkout availability cascade, which returns false during Woo Blocks' early REST prep phase. Upgrade immediately if you use the Block-based checkout.
+
 = 1.0.12 =
-Critical: fixes "There are no payment methods available" on the WooCommerce Checkout Block. The Blocks payment method integration is now registered directly against the Blocks DI container so it is actually picked up during block render. Upgrade immediately if you use the Block-based checkout (the default on Woo 8.0+).
+Supersedes 1.0.11 but does not fix the "No payment methods available" issue on the Block-based checkout. Upgrade directly to 1.0.13.
 
 = 1.0.11 =
 Adds a visible diagnostic on the gateway settings page so you can see at a glance why the gateway is (or is not) appearing at checkout. Recommended for anyone troubleshooting a "No payment methods available" notice.

@@ -55,15 +55,26 @@ class Blocks_Support extends AbstractPaymentMethodType {
 
 	/**
 	 * Is this payment method available for the block checkout?
-	 * Mirrors the classic gateway's is_available() contract so the same
-	 * store-wide currency/country/token checks apply.
+	 *
+	 * IMPORTANT: This decides whether Woo Blocks enqueues our JS bundle AT ALL.
+	 * It is called very early in the Blocks lifecycle — often during a REST
+	 * request that prepares the checkout payload, BEFORE the full payment
+	 * gateway registry has been built via the `woocommerce_payment_gateways`
+	 * filter. Delegating to `$gateway->is_available()` here can therefore
+	 * return false spuriously (because `WC()->payment_gateways()` has not yet
+	 * registered our gateway), which silently hides the method from the block
+	 * checkout even when the admin-side diagnostic reports the gateway as
+	 * available.
+	 *
+	 * We instead check the bare minimum required to decide enqueue-worthiness:
+	 * the "Enabled" toggle in the admin settings. The full availability
+	 * cascade (HTTPS, credentials, currency/country) is still enforced
+	 * client-side via `canMakePayment` and server-side at `process_payment()`
+	 * / `is_available()`, so nothing dangerous slips through.
 	 */
 	public function is_active() {
-		$gateway = $this->get_gateway();
-		if ( ! $gateway ) {
-			return false;
-		}
-		return $gateway->is_available();
+		$enabled = isset( $this->settings['enabled'] ) ? $this->settings['enabled'] : 'no';
+		return 'yes' === $enabled;
 	}
 
 	/**
@@ -155,32 +166,43 @@ class Blocks_Support extends AbstractPaymentMethodType {
 	 */
 	public function get_payment_method_data() {
 
-		$gateway = $this->get_gateway();
-		if ( ! $gateway ) {
-			return array(
-				'title'       => Brand::profile()['default_title'],
-				'description' => '',
-				'supports'    => array(),
-			);
-		}
+		/*
+		 * Prefer the live Gateway instance when available (lets us honor runtime
+		 * WC_Payment_Gateway::get_option() filters), but fall back to the raw
+		 * settings array we loaded in initialize() when it is not — Woo Blocks
+		 * calls get_payment_method_data() during an early REST prep phase where
+		 * WC()->payment_gateways() has not yet been fully populated, and if we
+		 * returned a stub-without-gatewayId here, the client-side JS would
+		 * short-circuit on `if ( ! cfg || ! cfg.gatewayId ) return;` and never
+		 * call `registerPaymentMethod()`.
+		 */
+		$gateway  = $this->get_gateway();
+		$settings = is_array( $this->settings ) ? $this->settings : array();
 
-		$client = new Api_Client( $gateway->settings );
+		$opt = static function ( $key, $default = '' ) use ( $gateway, $settings ) {
+			if ( $gateway ) {
+				return $gateway->get_option( $key, $default );
+			}
+			return isset( $settings[ $key ] ) ? $settings[ $key ] : $default;
+		};
+
+		$client = new Api_Client( $settings );
 
 		return array(
 			'name'               => $this->name,
 			'gatewayId'          => $this->name,
-			'title'              => $gateway->get_option( 'title', Brand::profile()['default_title'] ),
-			'description'        => $gateway->get_option( 'description', '' ),
+			'title'              => $opt( 'title', Brand::profile()['default_title'] ),
+			'description'        => $opt( 'description', '' ),
 			'icons'              => $this->get_icon_urls(),
 			'tokenizationKey'    => $client->tokenization_key(),
-			'enableCards'        => 'yes' === $gateway->get_option( 'enable_cards', 'yes' ),
-			'enableAch'          => 'yes' === $gateway->get_option( 'enable_ach', 'yes' ),
-			'enableApplePay'     => 'yes' === $gateway->get_option( 'enable_apple_pay', 'yes' ),
-			'enableGooglePay'    => 'yes' === $gateway->get_option( 'enable_google_pay', 'yes' ),
-			'enableSaved'        => 'yes' === $gateway->get_option( 'enable_saved_methods', 'yes' ),
-			'allowedBrands'      => (array) $gateway->get_option( 'allowed_card_brands', array() ),
-			'country'            => ( WC()->customer && WC()->customer->get_billing_country() ) ? WC()->customer->get_billing_country() : 'US',
-			'currency'           => get_woocommerce_currency(),
+			'enableCards'        => 'yes' === $opt( 'enable_cards', 'yes' ),
+			'enableAch'          => 'yes' === $opt( 'enable_ach', 'yes' ),
+			'enableApplePay'     => 'yes' === $opt( 'enable_apple_pay', 'yes' ),
+			'enableGooglePay'    => 'yes' === $opt( 'enable_google_pay', 'yes' ),
+			'enableSaved'        => 'yes' === $opt( 'enable_saved_methods', 'yes' ),
+			'allowedBrands'      => (array) $opt( 'allowed_card_brands', array() ),
+			'country'            => ( function_exists( 'WC' ) && WC()->customer && WC()->customer->get_billing_country() ) ? WC()->customer->get_billing_country() : 'US',
+			'currency'           => function_exists( 'get_woocommerce_currency' ) ? get_woocommerce_currency() : 'USD',
 			'supports'           => $this->get_supported_features(),
 			'i18n'               => array(
 				'cardTab'       => __( 'Card', 'cardz3n-gateway' ),
@@ -211,7 +233,8 @@ class Blocks_Support extends AbstractPaymentMethodType {
 	public function get_supported_features() {
 		$gateway = $this->get_gateway();
 		if ( ! $gateway ) {
-			return array( 'products' );
+			// Sensible defaults when Woo Blocks asks for this before the gateway registry is populated.
+			return array( 'products', 'refunds' );
 		}
 
 		// Default feature set guaranteed by this gateway.

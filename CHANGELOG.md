@@ -3,6 +3,20 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.13] — 2026-04-19
+
+### Fixed
+- **Critical: Checkout Block *still* showed "There are no payment methods available" after 1.0.12.** The 1.0.12 hook-timing theory was wrong. Live DevTools inspection on 1.0.12 confirmed our Blocks JS bundle (`assets/js/blocks/checkout.js`) was still never enqueued on the checkout page, `wc.wcSettings.getSetting('cardz3n_gateway_data')` still returned `null`, and `wp.data.select('wc/store/payment').getAvailablePaymentMethods()` was still `{}`.
+- **Actual root cause:** `Blocks_Support::is_active()` delegated to `$gateway->is_available()`. Woo Blocks calls `is_active()` very early in the REST prep phase for the checkout — often *before* `WC()->payment_gateways()->payment_gateways()` has been populated by the `woocommerce_payment_gateways` filter. In that window, our `get_gateway()` lookup returned null and `is_active()` returned false, so Woo Blocks never enqueued our JS bundle and our payment method was never registered client-side — even though the admin-side diagnostic banner (evaluated in a later, fully-booted context) reported the gateway as "available on the checkout page."
+
+### Fix details
+- `Blocks_Support::is_active()` now returns `'yes' === $this->settings['enabled']` only. The settings array is loaded synchronously in `initialize()` before any gateway-registry interaction, so the answer is stable regardless of boot order. The full availability cascade (HTTPS, credentials, currency/country) is still enforced at `Gateway::is_available()` on the classic checkout and at `Gateway::process_payment()` on the server-side — nothing insecure slips through to block-checkout orders.
+- `Blocks_Support::get_payment_method_data()` now falls back to reading directly from `$this->settings` when `get_gateway()` returns null, instead of returning a stub missing `gatewayId` and `tokenizationKey`. The client-side IIFE in `assets/js/blocks/checkout.js` does `if ( ! cfg || ! cfg.gatewayId ) return;` at the top, so a stub without `gatewayId` silently short-circuited `registerPaymentMethod()` on exactly those early-REST prep renders.
+- `Blocks_Support::get_supported_features()` returns `['products', 'refunds']` in the early-boot fallback (matches the classic gateway's always-declared feature set).
+
+### Unchanged
+- `process_payment()`, capture, void, refund, classic shortcode checkout, admin settings UI, diagnostic notice from 1.0.11, DI-container registration path from 1.0.12 (retained as belt-and-braces alongside the canonical `woocommerce_blocks_payment_method_type_registration` hook).
+
 ## [1.0.12] — 2026-04-19
 
 ### Fixed
