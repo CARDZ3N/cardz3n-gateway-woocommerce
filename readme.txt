@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.10
+Stable tag: 1.0.11
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,11 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Changelog ==
 
+= 1.0.11 =
+* Add: Visible admin-notice diagnostic on the gateway settings page that reports exactly why the gateway is (or is not) appearing on the checkout page. `is_available()` now stores a per-brand reason token in a 5-minute transient; the settings page reads that transient and surfaces one of five statuses with a human-readable fix. Eliminates the "gateway is invisible and no one knows why" support loop.
+* Reasons surfaced: `available`, `disabled` (Enabled toggle off), `https_required` (live mode on a non-HTTPS checkout), `no_credentials` (no Security Key for the active mode), `parent_unavailable` (WooCommerce itself rejected the gateway — typically currency/country mismatch).
+* No change to payment behavior.
+
 = 1.0.10 =
 * Fix: Silence the console error `ApplePayRequest.js:114 Could not create PaymentRequestAbstraction. Please verify the provided options are valid.` that appeared on browsers/devices without Apple Pay or Google Pay runtime support (e.g. Chrome on Windows, Firefox, Linux). We now feature-detect `window.ApplePaySession.canMakePayments()` and `window.google.payments.api.PaymentsClient` before passing each wallet's configuration to `CollectJS.configure()`. The error was non-fatal — the card form rendered correctly anyway — but it looked alarming in dev tools.
 * No change to card, ACH, or wallet behavior when the corresponding runtime IS present.
@@ -191,6 +196,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * HPOS compatibility declared.
 
 == Upgrade Notice ==
+
+= 1.0.11 =
+Adds a visible diagnostic on the gateway settings page so you can see at a glance why the gateway is (or is not) appearing at checkout. Recommended for anyone troubleshooting a "No payment methods available" notice.
 
 = 1.0.10 =
 Quality-of-life: suppresses a noisy (non-fatal) Collect.js console error about PaymentRequestAbstraction on browsers without Apple Pay or Google Pay runtime support. No change to payment behavior.

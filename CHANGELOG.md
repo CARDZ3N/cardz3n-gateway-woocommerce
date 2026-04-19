@@ -3,6 +3,24 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.11] — 2026-04-19
+
+### Added
+- **Visible availability diagnostic on the gateway settings page.** When a merchant reports "No payment methods are available at checkout," support previously had to ask the merchant to turn on debug logging, visit the checkout, come back, read `/wp-content/uploads/cardz3n-gw-logs/*.log`, and correlate timestamps. 1.0.11 replaces that with a one-line admin notice on the gateway settings page:
+  - `Status: Gateway is available on the checkout page.` (green)
+  - `Status: Gateway is NOT appearing on the checkout. The "Enabled" toggle at the top of this page is off.` (yellow)
+  - `Status: Gateway is NOT appearing on the checkout. Live mode requires HTTPS...`
+  - `Status: Gateway is NOT appearing on the checkout. No Security Key is saved for the currently active mode...`
+  - `Status: Gateway is NOT appearing on the checkout. WooCommerce itself is hiding this gateway...`
+
+### Changed
+- `Gateway::is_available()` now delegates gate logic to a new `availability_reason()` method that returns one of five machine tokens (`available`, `disabled`, `https_required`, `no_credentials`, `parent_unavailable`). The return value is stored in a per-brand 5-minute transient (`cardz3n_gw_last_avail_{brand}`) so the admin UI can read it without re-evaluating. This also unifies logging — every hide now produces a `Gateway hidden. Reason: ...` log line with a single token.
+- The HTTPS check and credentials check are unchanged in behavior from 1.0.9; this is purely a refactor + diagnostic surface.
+
+### Not affected
+- Classic and Blocks checkout both call `is_available()` through the same path, so the transient reflects whichever path the shopper is on.
+- `process_payment`, capture, void, refund, and the credentials validator are unchanged.
+
 ## [1.0.10] — 2026-04-19
 
 ### Fixed

@@ -375,37 +375,64 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	 * --------------------------------------------------------------- */
 
 	public function is_available() {
+		$reason = $this->availability_reason();
+		self::remember_availability_reason( $reason );
+		return ( 'available' === $reason );
+	}
+
+	/**
+	 * Return a short machine-readable token describing why the gateway is
+	 * available, or why it isn't. Separated from is_available() so we can
+	 * surface it in an admin notice without duplicating gate logic.
+	 *
+	 * @return string One of: 'available', 'disabled', 'https_required',
+	 *                'no_credentials', 'parent_unavailable'.
+	 */
+	private function availability_reason() {
 		if ( 'yes' !== $this->get_option( 'enabled' ) ) {
-			return false;
+			return 'disabled';
 		}
 
 		/*
-		 * HTTPS gate for live mode.
-		 *
-		 * Use `wc_checkout_is_https()` instead of WordPress's `is_ssl()` — the
-		 * Woo helper correctly detects HTTPS when the site is behind a reverse
-		 * proxy or load balancer that terminates TLS (InstaWP, WP Engine,
-		 * Cloudflare flexible SSL, etc.). `is_ssl()` alone reads $_SERVER['HTTPS']
-		 * on the internal request, which is empty for proxied HTTP-to-backend
-		 * traffic, and would falsely hide the gateway with "No payment methods
-		 * are available" on every proxied host.
+		 * HTTPS gate for live mode. Use `wc_checkout_is_https()` instead of
+		 * `is_ssl()` — the Woo helper handles reverse proxies (InstaWP, WP
+		 * Engine, Cloudflare, etc.) correctly.
 		 */
 		if ( ! is_admin() && 'yes' !== $this->get_option( 'sandbox_mode' ) ) {
 			$is_https = function_exists( 'wc_checkout_is_https' )
 				? wc_checkout_is_https()
 				: ( is_ssl() || 'https' === ( $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '' ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
 			if ( ! $is_https ) {
-				Logger::warning( 'Gateway hidden: live mode requires HTTPS.' );
-				return false;
+				return 'https_required';
 			}
 		}
 
 		$client = new Api_Client( $this->settings );
 		if ( ! $client->has_credentials() ) {
-			Logger::warning( 'Gateway hidden: no credentials on file for the active mode.' );
-			return false;
+			return 'no_credentials';
 		}
-		return parent::is_available();
+
+		if ( ! parent::is_available() ) {
+			return 'parent_unavailable';
+		}
+
+		return 'available';
+	}
+
+	/**
+	 * Store the most recent availability reason in a transient so the admin UI
+	 * can surface it. Stored per-brand so the CARDZ3N and AerospacePay white-
+	 * label instances don't stomp on each other.
+	 *
+	 * @param string $reason One of the tokens from availability_reason().
+	 */
+	private static function remember_availability_reason( $reason ) {
+		if ( ! empty( $reason ) ) {
+			set_transient( 'cardz3n_gw_last_avail_' . Brand::id(), $reason, 5 * MINUTE_IN_SECONDS );
+		}
+		if ( 'available' !== $reason ) {
+			Logger::warning( 'Gateway hidden. Reason: ' . $reason );
+		}
 	}
 
 	/* ------------------------------------------------------------------
