@@ -3,6 +3,21 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.12] — 2026-04-19
+
+### Fixed
+- **Critical: "There are no payment methods available" on the WooCommerce Checkout Block.** Even when `Gateway::is_available()` returned true (the 1.0.11 diagnostic confirmed "Gateway is available on the checkout page."), the Block-based checkout still refused to show the gateway. Root cause: our Blocks integration was registered via `add_action('woocommerce_blocks_payment_method_type_registration', ...)` *from inside* our `woocommerce_blocks_loaded` callback. On modern WooCommerce ( ≥ 8.x) the Blocks package iterates the payment method registry during `woocommerce_blocks_loaded` itself, so attaching the registration hook from inside that same callback fires too late — our `Blocks_Support` was instantiated but never added to the registry.
+- Observable symptoms before the fix (from a live diagnostic session on 1.0.11):
+  - `wc.wcSettings.getSetting('cardz3n_gateway_data')` returned `null`.
+  - `Object.keys(window.wc.wcSettings.allSettings).filter(k => /cardz3n/i.test(k))` was `[]`.
+  - `wp.data.select('wc/store/payment').getAvailablePaymentMethods()` was `{}`.
+  - `assets/js/blocks/checkout.js` was never enqueued on the checkout page (only the classic `assets/js/checkout.js` was), so `wc.wcBlocksRegistry.registerPaymentMethod()` never ran.
+- We now register directly against the Blocks DI container via `\Automattic\WooCommerce\Blocks\Package::container()->get( PaymentMethodRegistry::class )` — synchronous, no hook-timing window. The old hook-based path is retained as a fallback for older Blocks versions and is wrapped in a `Throwable` guard so a missing class on older installs never fatals the site.
+
+### Unchanged
+- Classic shortcode checkout path.
+- Server-side `process_payment()`, refund/capture/void flows, REST endpoints, admin settings, diagnostic notice from 1.0.11.
+
 ## [1.0.11] — 2026-04-19
 
 ### Added

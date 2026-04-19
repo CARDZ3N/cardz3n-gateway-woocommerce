@@ -197,6 +197,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Upgrade Notice ==
 
+= 1.0.12 =
+Critical: fixes "There are no payment methods available" on the WooCommerce Checkout Block. The Blocks payment method integration is now registered directly against the Blocks DI container so it is actually picked up during block render. Upgrade immediately if you use the Block-based checkout (the default on Woo 8.0+).
+
 = 1.0.11 =
 Adds a visible diagnostic on the gateway settings page so you can see at a glance why the gateway is (or is not) appearing at checkout. Recommended for anyone troubleshooting a "No payment methods available" notice.
 
