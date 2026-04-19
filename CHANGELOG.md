@@ -3,6 +3,16 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.10] — 2026-04-19
+
+### Fixed
+- **Silenced `ApplePayRequest.js:114 Could not create PaymentRequestAbstraction` in the browser console.** Collect.js attempts to construct a `PaymentRequestAbstraction` for every wallet in its config, even in browsers/devices that don't expose the corresponding runtime API. That produced a scary-looking `console.error` on Chrome/Windows (no Apple Pay), Firefox (no Apple Pay), Linux (no Apple Pay), and any browser without Google Pay. The error was non-fatal — card and ACH fields rendered and tokenized correctly — but it masked real errors and was noise on every merchant's dev tools.
+- Fix: `assets/js/checkout.js` now feature-detects `window.ApplePaySession && window.ApplePaySession.canMakePayments()` and `window.google.payments.api.PaymentsClient` before including each wallet block in the `CollectJS.configure()` call. If the runtime isn't present, that wallet is simply omitted — matching what Collect.js would have done after the throw anyway.
+
+### Not affected
+- Wallet behavior is unchanged when the runtime IS present: Apple Pay still renders on Safari/iOS/macOS (with a valid Merchant Domain), Google Pay still renders on Chrome/Android.
+- Classic and Blocks checkout both benefit from this fix because the Blocks bundle delegates to the classic bundle's mount function.
+
 ## [1.0.9] — 2026-04-19
 
 ### Fixed (critical)

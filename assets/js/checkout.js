@@ -143,8 +143,19 @@
 			}
 		};
 
-		// Wallets: Collect.js auto-detects eligibility and inserts a button into the target element.
-		if (cfg.enableApplePay) {
+		/*
+		 * Wallets: Collect.js tries to construct PaymentRequestAbstraction for
+		 * every wallet in the config, even in browsers/devices that don't support
+		 * them. That throws "Could not create PaymentRequestAbstraction" in the
+		 * console on Chrome/Windows/Linux (no Apple Pay) and on browsers without
+		 * Google Pay. The throw is non-fatal — Collect.js continues — but it's
+		 * noise that looks like a real bug. We now only pass each wallet's config
+		 * when the browser actually exposes the runtime API.
+		 */
+		var applePayAvailable  = !!(window.ApplePaySession && window.ApplePaySession.canMakePayments && window.ApplePaySession.canMakePayments());
+		var googlePayAvailable = !!(window.google && window.google.payments && window.google.payments.api && window.google.payments.api.PaymentsClient);
+
+		if (cfg.enableApplePay && applePayAvailable) {
 			collectConfig.applePay = {
 				style: 'black',
 				type: 'buy',
@@ -152,7 +163,7 @@
 				contactFields: ['email', 'phone']
 			};
 		}
-		if (cfg.enableGooglePay) {
+		if (cfg.enableGooglePay && googlePayAvailable) {
 			collectConfig.googlePay = {
 				buttonType: 'buy',
 				buttonColor: 'default',

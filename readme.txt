@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.9
+Stable tag: 1.0.10
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,10 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Changelog ==
 
+= 1.0.10 =
+* Fix: Silence the console error `ApplePayRequest.js:114 Could not create PaymentRequestAbstraction. Please verify the provided options are valid.` that appeared on browsers/devices without Apple Pay or Google Pay runtime support (e.g. Chrome on Windows, Firefox, Linux). We now feature-detect `window.ApplePaySession.canMakePayments()` and `window.google.payments.api.PaymentsClient` before passing each wallet's configuration to `CollectJS.configure()`. The error was non-fatal — the card form rendered correctly anyway — but it looked alarming in dev tools.
+* No change to card, ACH, or wallet behavior when the corresponding runtime IS present.
+
 = 1.0.9 =
 * Fix (critical): Checkout page was showing "No payment methods are available" and the browser console reported `Config.js:830 Uncaught Error: A tokenization key must be provided by including a data-tokenization-key attribute`. Two independent bugs were stacked on top of each other.
 * Fix (critical): Collect.js requires its Public Tokenization Key to be supplied as a `data-tokenization-key` attribute on its own `<script>` tag — passing it through `wp_localize_script` is too late and Collect.js throws during load. The attribute is now injected via the WordPress `script_loader_tag` filter on both the classic shortcode checkout and the Blocks checkout paths. We also add `data-variant="inline"` so Collect.js mounts hosted fields inside our form instead of firing the lightbox.
@@ -187,6 +191,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * HPOS compatibility declared.
 
 == Upgrade Notice ==
+
+= 1.0.10 =
+Quality-of-life: suppresses a noisy (non-fatal) Collect.js console error about PaymentRequestAbstraction on browsers without Apple Pay or Google Pay runtime support. No change to payment behavior.
 
 = 1.0.9 =
 Critical: fixes two defects that together caused the checkout to show "No payment methods are available." (1) Collect.js now receives its tokenization key as a proper `data-tokenization-key` attribute on its `<script>` tag. (2) The live-mode HTTPS check now works correctly behind reverse proxies (InstaWP, WP Engine, Cloudflare, etc.). Upgrade immediately.
