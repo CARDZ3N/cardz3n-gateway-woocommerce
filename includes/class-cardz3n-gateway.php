@@ -562,14 +562,56 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	 * --------------------------------------------------------------- */
 
 	public function ajax_validate_credentials() {
-		check_ajax_referer( 'cardz3n_gw_nonce', 'nonce' );
+		// Capability check first so unauthorized users always get a clean 403.
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
 			wp_send_json_error( array( 'msg' => __( 'Insufficient permissions.', 'cardz3n-gateway' ) ), 403 );
 		}
 
-		$client = new Api_Client( $this->settings );
+		// Nonce check with $die=false so we return a clean JSON body (not a 0/-1 text response).
+		if ( ! check_ajax_referer( 'cardz3n_gw_nonce', 'nonce', false ) ) {
+			wp_send_json_error(
+				array( 'msg' => __( 'Invalid session. Reload the settings page and try again.', 'cardz3n-gateway' ) ),
+				400
+			);
+		}
+
+		/*
+		 * Load settings fresh from the options table — never trust POST for credentials.
+		 * The admin form masks the security key once it is saved (password input with
+		 * masked placeholder), so the JS could POST an empty or masked string. Passing
+		 * null here makes the API client re-read `woocommerce_{brand}_settings` itself.
+		 */
+		$client = new Api_Client( null );
+
+		if ( ! $client->has_credentials() ) {
+			// Business-logic failure — return HTTP 200 + success:false so the admin UI
+			// shows a meaningful message instead of a generic "Network error." banner.
+			wp_send_json_error(
+				array(
+					'ok'  => false,
+					'msg' => __( 'Save changes first — no Security Key on file for the active mode.', 'cardz3n-gateway' ),
+				)
+			);
+		}
+
 		$result = $client->validate_credentials();
-		wp_send_json_success( $result );
+
+		// The API client only returns arrays (never WP_Error), but guard anyway.
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( array( 'ok' => false, 'msg' => $result->get_error_message() ) );
+		}
+
+		if ( ! empty( $result['ok'] ) ) {
+			wp_send_json_success( $result );
+		}
+
+		// Gateway rejected the credentials (e.g. "Invalid security key") — still HTTP 200.
+		wp_send_json_error(
+			array(
+				'ok'  => false,
+				'msg' => isset( $result['msg'] ) ? $result['msg'] : __( 'Gateway rejected the credentials.', 'cardz3n-gateway' ),
+			)
+		);
 	}
 
 	public function ajax_delete_token() {

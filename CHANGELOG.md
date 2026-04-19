@@ -3,6 +3,26 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.7] — 2026-04-19
+
+### Fixed (critical)
+- **Admin "Test Credentials" button returned HTTP 400 Bad Request.** The root cause was the AJAX handler (`wp_ajax_cardz3n_validate_credentials`) failing three subtle ways at once:
+  1. `check_ajax_referer()` was called with its default arguments, which means it `die()`s with an opaque `-1` text response on nonce failure — the browser saw that as a raw 400 with no parseable JSON body.
+  2. The handler constructed `new Api_Client( $this->settings )` from the gateway instance's cached settings, which could be stale relative to what's on disk right after the merchant clicks *Save changes*.
+  3. The admin Security Key field masks its value once saved (`type=password` with a masked placeholder), so if any future refactor started trusting POST for the key, it would POST an empty string and the gateway would hard-reject.
+- **New handler contract** (`includes/class-cardz3n-gateway.php`):
+  1. `current_user_can( 'manage_woocommerce' )` → 403 on fail.
+  2. `check_ajax_referer( 'cardz3n_gw_nonce', 'nonce', false )` → 400 with a clean JSON body on fail: `{"success":false,"data":{"msg":"Invalid session. Reload the settings page and try again."}}`.
+  3. `new Api_Client( null )` — forces a fresh `get_option( 'woocommerce_{brand}_settings' )` read; POST body is never trusted for credentials.
+  4. `has_credentials()` false → HTTP 200 + `success:false` + "Save changes first — no Security Key on file for the active mode."
+  5. `validate_credentials()` returns `ok:false` → HTTP 200 + `success:false` + the gateway's own `responsetext` so the admin sees "Invalid security key" instead of "Network error."
+
+### Changed
+- Business-logic failures never return non-200 status codes — 400 is reserved for transport/auth problems (nonce/cap), exactly as the JS caller in `assets/js/admin-capture.js` expects.
+
+### Not affected
+- No changes to the Classic or Blocks checkout flows, `process_payment()`, capture/void/refund, the API client's endpoints, or the uninstall cleanup.
+
 ## [1.0.6] — 2026-04-19
 
 ### Fixed (critical)

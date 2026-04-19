@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.6
+Stable tag: 1.0.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,12 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Changelog ==
 
+= 1.0.7 =
+* Fix (critical): Admin "Test Credentials" button no longer returns HTTP 400 Bad Request. The `wp_ajax_cardz3n_validate_credentials` handler has been rewritten to (a) run the capability check before the nonce check, (b) return a clean JSON body with a 400 status when the nonce is stale instead of dying with WordPress's default `-1` text response, and (c) load the Security Key directly from the saved gateway options (`woocommerce_{cardz3n|aerospacepay}_gateway_settings`) instead of trusting the POST body — the admin form masks the key once saved, so the browser was POSTing an empty string.
+* Fix: Business-logic failures on Test Credentials (no key on file, gateway rejection, transport error) now return HTTP 200 with `success:false` and a human-readable `data.msg`, so the admin UI shows the real reason instead of a generic "Network error."
+* Change: `Api_Client` is now constructed with `null` in the validate-credentials flow so it re-reads settings from the options table on every click — this guarantees freshly saved keys are picked up without a page reload.
+* No changes to the checkout, payment, capture, void, or refund flows.
+
 = 1.0.6 =
 * Fix (critical): Point every gateway call at the CARDZ3N white-label host. Transaction API, Query API, 3-Step Redirect, and Collect.js now resolve to `https://z3n.transactiongateway.com/...` instead of `secure.nmi.com`. This clears the HTTP 400 Bad Request observed on the "Test Credentials" admin button and on live checkout attempts.
 * Add: `cardz3n_gw_api_endpoint`, `cardz3n_gw_collectjs_url`, `cardz3n_gw_query_url`, and `cardz3n_gw_three_step_url` filters so merchants on a different white-label NMI host can override the defaults without patching the plugin.
@@ -171,6 +177,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * HPOS compatibility declared.
 
 == Upgrade Notice ==
+
+= 1.0.7 =
+Critical: fixes the HTTP 400 Bad Request on the admin "Test Credentials" button. The validator now reads the Security Key from saved settings (the form masks it once saved) and returns real error messages instead of a blank network failure. Upgrade immediately.
 
 = 1.0.6 =
 Critical: switches every gateway URL to the CARDZ3N white-label host (z3n.transactiongateway.com). Fixes HTTP 400 Bad Request on Test Credentials and live checkout failures. Upgrade immediately.
