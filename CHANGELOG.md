@@ -3,6 +3,25 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.14] — 2026-04-19
+
+### Fixed
+- **Critical: Checkout Block still showed "There are no payment methods available" on 1.0.13.** Live DevTools inspection on 1.0.13 confirmed `cardz3n_gateway_data` wcSetting was still `null`, `blocksRegistry` was empty, and our Blocks JS bundle was never enqueued — even though the classic `assets/js/checkout.js` was loading correctly. After three iterations (1.0.11 diagnostic banner, 1.0.12 DI-container registration, 1.0.13 `is_active()` fallback), it became clear that something upstream of our `Blocks_Support` registration was preventing Woo Blocks from picking up our `AbstractPaymentMethodType` on this stack.
+- **Strategy change:** rather than continue debugging the native Blocks PaymentMethodType integration, 1.0.14 switches to the same approach used by production NMI-family gateways like Evergreen Payments Northwest 1.1.0 — declare `cart_checkout_blocks` feature compatibility as `false`, which tells WooCommerce Blocks to render our gateway via the classic-shortcode compatibility layer. The same `payment_fields()` HTML, `assets/js/checkout.js`, and `process_payment()` server path used for classic shortcode checkouts now renders *inside* the Block checkout too. Single code path, proven pattern, no hook-timing surface.
+
+### Changed
+- `declare_compatibility('cart_checkout_blocks', ..., false)` (was `true`).
+- `woocommerce_blocks_loaded` registration call removed from `cardz3n_gw_bootstrap()`.
+- `cardz3n_gw_register_blocks_support()` function removed from the main plugin file (the `Blocks_Support` class and `assets/js/blocks/checkout.js` bundle are retained in the tree for possible future revival but are no longer loaded by the runtime).
+
+### Unchanged
+- Classic shortcode checkout continues to work exactly as before.
+- `Gateway::is_available()`, `Gateway::process_payment()`, refund/capture/void flows, Collect.js tokenization, saved-payment-method UI, subscriptions/pre-orders shims, HPOS compatibility, admin settings UI, diagnostic notice from 1.0.11.
+
+### Notes
+- The 1.0.11 diagnostic banner on the gateway settings page remains useful for verifying `is_available()` still passes HTTPS/credentials/currency checks on the site.
+- User-reported bug that finally resolved this: Test Mode uses the SAME Security Keys as live (there is no separate sandbox portal). The current four-field UI (sandbox + live key pairs) is still misleading and will be collapsed to a single Security Key + single Tokenization Key in a follow-up release with a migration that merges sandbox→live when live is empty.
+
 ## [1.0.13] — 2026-04-19
 
 ### Fixed

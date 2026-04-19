@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.13
+Stable tag: 1.0.14
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,12 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Changelog ==
 
+= 1.0.14 =
+* Fix (critical): Checkout Block still showed "There are no payment methods available" after 1.0.13. Live DevTools inspection confirmed `cardz3n_gateway_data` wcSetting was still `null`, the Blocks payment registry was empty, and our Blocks JS bundle was never enqueued — even though the classic `assets/js/checkout.js` was loading correctly. After three iterations trying to diagnose why Woo Blocks wasn't picking up our native `AbstractPaymentMethodType` on this stack, 1.0.14 switches strategy entirely.
+* Change: `declare_compatibility('cart_checkout_blocks', ..., false)` — the same approach used by production NMI-family gateways like Evergreen Payments Northwest 1.1.0. This tells WooCommerce Blocks to render CARDZ3N via its classic-shortcode compatibility layer. The same `payment_fields()` HTML, `assets/js/checkout.js`, and `process_payment()` server path used on classic shortcode checkouts now renders inside the Block checkout too. Single code path, proven pattern, no hook-timing surface.
+* Change: Removed the `woocommerce_blocks_loaded` registration call from plugin bootstrap. The `Blocks_Support` PHP class and `assets/js/blocks/checkout.js` bundle remain in the repo (retained for possible future revival) but are no longer loaded by the runtime.
+* No change to classic shortcode checkout, `Gateway::is_available()`, `process_payment()`, refund/capture/void flows, Collect.js tokenization, saved-payment-method UI, subscriptions/pre-orders shims, HPOS compatibility, admin settings UI, or the diagnostic notice introduced in 1.0.11.
+
 = 1.0.13 =
 * Fix (critical): Checkout Block *still* showed "There are no payment methods available" after 1.0.12. The 1.0.12 hook-timing theory was wrong — live DevTools inspection on 1.0.12 confirmed our blocks JS bundle was still never enqueued, `wc.wcSettings.getSetting('cardz3n_gateway_data')` still returned null, and the Woo payment store's `getAvailablePaymentMethods()` was still `{}`. The actual bug was in `Blocks_Support::is_active()`, which delegated to `$gateway->is_available()`. Woo Blocks calls `is_active()` very early in the REST prep phase for the checkout — often before `WC()->payment_gateways()->payment_gateways()` has been fully populated by the `woocommerce_payment_gateways` filter. In that window, our `get_gateway()` lookup returned null and `is_active()` returned false, so Woo Blocks never enqueued our JS bundle and our payment method was never registered client-side.
 * Fix: `Blocks_Support::is_active()` now only checks the `enabled` toggle (loaded synchronously in `initialize()`). The full availability cascade (HTTPS, credentials, currency/country) is still enforced at `Gateway::is_available()` on the classic checkout and at `Gateway::process_payment()` server-side — nothing insecure slips through.
@@ -206,6 +212,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * HPOS compatibility declared.
 
 == Upgrade Notice ==
+
+= 1.0.14 =
+Fixes "There are no payment methods available" on the WooCommerce Checkout Block for good. We now render CARDZ3N inside the Block via the classic-shortcode compatibility layer — same pattern used by Evergreen Payments Northwest 1.1.0 and other production NMI-family gateways. Recommended upgrade for every site using Cart/Checkout Blocks.
 
 = 1.0.13 =
 Critical: fixes the Checkout Block's "There are no payment methods available" that 1.0.12 was supposed to fix but did not. `Blocks_Support::is_active()` was incorrectly delegating to the full classic-checkout availability cascade, which returns false during Woo Blocks' early REST prep phase. Upgrade immediately if you use the Block-based checkout.

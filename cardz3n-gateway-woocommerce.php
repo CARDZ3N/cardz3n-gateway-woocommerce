@@ -3,7 +3,7 @@
  * Plugin Name: CARDZ3N Gateway for WooCommerce
  * Plugin URI: https://cardz3n.com/woocommerce
  * Description: Embedded on-site checkout for WooCommerce powered by the CARDZ3N/NMI payment gateway. Cards, ACH, Apple Pay, Google Pay, saved methods, subscriptions, refunds, captures, voids, and automatic Level 2/3 commercial-card data in a single gateway UI.
- * Version: 1.0.13
+ * Version: 1.0.14
  * Requires at least: 6.4
  * Requires PHP: 7.4
  * Requires Plugins: woocommerce
@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Plugin constants
  * -------------------------------------------------------------------------- */
 
-define( 'CARDZ3N_GW_VERSION', '1.0.13' );
+define( 'CARDZ3N_GW_VERSION', '1.0.14' );
 define( 'CARDZ3N_GW_FILE', __FILE__ );
 define( 'CARDZ3N_GW_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CARDZ3N_GW_URL', plugin_dir_url( __FILE__ ) );
@@ -56,7 +56,16 @@ add_action(
 	function () {
 		if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class ) ) {
 			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', CARDZ3N_GW_FILE, true );
-			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', CARDZ3N_GW_FILE, true );
+			/*
+			 * We render inside the Cart/Checkout Blocks via the classic-shortcode
+			 * compatibility layer (payment_fields()/process_payment()). Declaring
+			 * false tells WooCommerce Blocks: 'do not expect a PaymentMethodType
+			 * registration — fall back to the classic gateway render.' This is the
+			 * same pattern used by major NMI-family gateways (Evergreen Payments,
+			 * NMI Gateway Standard, etc.) and keeps a single code path for
+			 * classic shortcode AND Block checkouts.
+			 */
+			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', CARDZ3N_GW_FILE, false );
 		}
 	}
 );
@@ -118,67 +127,26 @@ function cardz3n_gw_bootstrap() {
 	// Plugin action links.
 	add_filter( 'plugin_action_links_' . CARDZ3N_GW_BASENAME, 'cardz3n_gw_action_links' );
 
-	// Register the Blocks Checkout integration (fires after Woo Blocks boots).
-	add_action( 'woocommerce_blocks_loaded', 'cardz3n_gw_register_blocks_support' );
+	/*
+	 * Cart/Checkout Blocks integration intentionally disabled. See
+	 * `declare_compatibility('cart_checkout_blocks', …, false)` above. The
+	 * Block checkout renders our classic payment_fields() output via Woo's
+	 * built-in shortcode-compatibility layer, which is materially simpler
+	 * and avoids the early-boot PaymentMethodRegistry timing problems we
+	 * spent 1.0.11–1.0.13 chasing.
+	 */
 }
 
-/**
- * Register the CARDZ3N payment method with the WooCommerce Cart & Checkout Blocks.
- *
- * Runs on `woocommerce_blocks_loaded` so we know the Blocks package is present
- * and the `AbstractPaymentMethodType` class is available. Classic shortcode
- * checkout is unaffected; this simply adds the block UI path.
- *
- * IMPORTANT: We must register the integration on `woocommerce_blocks_loaded`
- * itself rather than nesting another add_action() call, because by the time
- * `woocommerce_blocks_loaded` fires in modern WooCommerce, the Blocks package
- * has already started iterating payment method type registrations. Attaching
- * to `woocommerce_blocks_payment_method_type_registration` from inside this
- * callback misses the registry pass and our class is never instantiated.
+/*
+ * NOTE: 1.0.11–1.0.13 attempted a native WooCommerce Blocks PaymentMethodType
+ * integration via includes/class-cardz3n-blocks-support.php. That code path is
+ * retained in the repo for future revival but is intentionally NOT loaded
+ * here. 1.0.14 switched to the classic-shortcode compatibility layer because
+ * Woo Blocks was failing to enqueue our PaymentMethodType bundle on some
+ * stacks (empty `cardz3n_gateway_data` setting, empty blocksRegistry). This is
+ * the same approach used by production NMI-family gateways such as Evergreen
+ * Payments Northwest 1.1.0.
  */
-function cardz3n_gw_register_blocks_support() {
-	if ( ! class_exists( '\\Automattic\\WooCommerce\\Blocks\\Payments\\Integrations\\AbstractPaymentMethodType' ) ) {
-		return;
-	}
-
-	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-blocks-support.php';
-
-	/*
-	 * Direct registration via the PaymentMethodRegistry class. This is the
-	 * officially-documented entry point and runs synchronously when the
-	 * Blocks package boots its checkout integration — no timing gap.
-	 */
-	if ( class_exists( '\\Automattic\\WooCommerce\\Blocks\\Package' ) ) {
-		try {
-			$container = \Automattic\WooCommerce\Blocks\Package::container();
-			if ( is_object( $container ) && method_exists( $container, 'get' ) ) {
-				$registry = $container->get( \Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry::class );
-				if ( is_object( $registry ) && method_exists( $registry, 'register' ) ) {
-					$registry->register( new Cardz3n_Gateway\Blocks_Support() );
-					return;
-				}
-			}
-		} catch ( \Throwable $e ) {
-			if ( class_exists( '\\Cardz3n_Gateway\\Logger' ) ) {
-				Cardz3n_Gateway\Logger::warning( 'Direct Blocks registry unavailable: ' . $e->getMessage() );
-			}
-			// Fall through to the hook-based fallback below.
-		}
-	}
-
-	/*
-	 * Fallback for older Blocks versions that still iterate the registration
-	 * hook after `woocommerce_blocks_loaded` fires.
-	 */
-	add_action(
-		'woocommerce_blocks_payment_method_type_registration',
-		function ( $registry ) {
-			if ( is_object( $registry ) && method_exists( $registry, 'register' ) ) {
-				$registry->register( new Cardz3n_Gateway\Blocks_Support() );
-			}
-		}
-	);
-}
 
 /**
  * Register the gateway class with WooCommerce.
