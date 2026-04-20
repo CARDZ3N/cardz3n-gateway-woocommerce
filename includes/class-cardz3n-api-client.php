@@ -70,54 +70,106 @@ class Api_Client {
 	 * Test and Live keys, and the 1.0.15-1.0.18 unified single-pair UI was
 	 * wrong.
 	 *
-	 * Resolution order for each key:
-	 *   1. The test_ or live_ field for the current mode (primary).
-	 *   2. Legacy sandbox_ field when in test mode (pre-1.0.15 installs).
-	 *   3. Unified security_key / tokenization_key (1.0.15-1.0.18 installs).
-	 *   4. Opposite-mode field as a last-resort fallback so a misconfigured
-	 *      site surfaces a gateway-side auth error rather than an empty-key
-	 *      error.
+	 * 1.0.22 — PAIRED RESOLUTION. The Security Key (server-side) and the
+	 * Tokenization Key (Collect.js in-browser) MUST belong to the same
+	 * merchant account. NMI accepts a Collect.js-minted token on transact.php
+	 * only when signed with the matching security key from the same pair —
+	 * otherwise it returns "Payment Token does not exist", which is the
+	 * exact ACH error buyers saw on 1.0.21.
+	 *
+	 * Prior versions resolved each key independently: a partial upgrade
+	 * (user updates live_security_key but leaves tokenization_key in the
+	 * 1.0.15-1.0.18 unified field) would pick Security from tier A and
+	 * Tokenization from tier B, silently mixing keys across accounts. We
+	 * now resolve the pair atomically — the first tier where BOTH keys
+	 * are non-empty wins. If no tier has both, we fall back to the first
+	 * non-empty single key per field so an incomplete install surfaces as
+	 * a gateway-side auth error instead of a silent empty-key error.
+	 *
+	 * Tier order for the current mode:
+	 *   1. test_* / live_*                    (1.0.19+ four-field UI)
+	 *   2. sandbox_*                           (pre-1.0.15 legacy, test only)
+	 *   3. security_key / tokenization_key     (1.0.15-1.0.18 unified UI)
+	 *   4. Opposite-mode tier                  (last-resort mismatch surfacing)
 	 * ------------------------------------------------------------------ */
 
-	private function first_nonempty( array $keys ) {
-		foreach ( $keys as $k ) {
-			if ( null === $k ) {
-				continue;
-			}
-			$v = isset( $this->settings[ $k ] ) ? trim( (string) $this->settings[ $k ] ) : '';
-			if ( '' !== $v ) {
-				return $v;
+	private function setting( $name ) {
+		return isset( $this->settings[ $name ] ) ? trim( (string) $this->settings[ $name ] ) : '';
+	}
+
+	/**
+	 * Resolve the Security + Tokenization key pair atomically.
+	 *
+	 * @return array{security:string,tokenization:string,tier:string}
+	 */
+	private function resolve_key_pair() {
+		if ( $this->sandbox ) {
+			$tiers = array(
+				'test_pair'        => array( 'test_security_key',    'test_tokenization_key' ),
+				'sandbox_pair'     => array( 'sandbox_security_key', 'sandbox_tokenization_key' ),
+				'unified_pair'     => array( 'security_key',          'tokenization_key' ),
+				'live_fallback'    => array( 'live_security_key',     'live_tokenization_key' ),
+			);
+		} else {
+			$tiers = array(
+				'live_pair'        => array( 'live_security_key',     'live_tokenization_key' ),
+				'unified_pair'     => array( 'security_key',          'tokenization_key' ),
+				'test_fallback'    => array( 'test_security_key',     'test_tokenization_key' ),
+				'sandbox_fallback' => array( 'sandbox_security_key',  'sandbox_tokenization_key' ),
+			);
+		}
+
+		// 1) First tier where BOTH keys are non-empty wins.
+		foreach ( $tiers as $label => $pair ) {
+			$sec = $this->setting( $pair[0] );
+			$tok = $this->setting( $pair[1] );
+			if ( '' !== $sec && '' !== $tok ) {
+				return array( 'security' => $sec, 'tokenization' => $tok, 'tier' => $label );
 			}
 		}
-		return '';
+
+		// 2) No complete pair; best-effort per-field lookup so an incomplete
+		//    install surfaces a gateway-side auth error rather than an empty
+		//    key. We deliberately do NOT cross tiers to mix merchant accounts;
+		//    this path only returns a single key when it's the only one set.
+		$sec_fallback = '';
+		$tok_fallback = '';
+		foreach ( $tiers as $pair ) {
+			if ( '' === $sec_fallback ) {
+				$sec_fallback = $this->setting( $pair[0] );
+			}
+			if ( '' === $tok_fallback ) {
+				$tok_fallback = $this->setting( $pair[1] );
+			}
+		}
+		return array( 'security' => $sec_fallback, 'tokenization' => $tok_fallback, 'tier' => 'incomplete' );
 	}
 
 	/**
 	 * Private security key used to sign server-side requests.
 	 */
 	public function security_key() {
-		return $this->first_nonempty(
-			array(
-				$this->sandbox ? 'test_security_key' : 'live_security_key',
-				$this->sandbox ? 'sandbox_security_key' : null,
-				'security_key',
-				$this->sandbox ? 'live_security_key' : 'test_security_key',
-			)
-		);
+		$pair = $this->resolve_key_pair();
+		return $pair['security'];
 	}
 
 	/**
 	 * Public tokenization key used by Collect.js in the browser.
 	 */
 	public function tokenization_key() {
-		return $this->first_nonempty(
-			array(
-				$this->sandbox ? 'test_tokenization_key' : 'live_tokenization_key',
-				$this->sandbox ? 'sandbox_tokenization_key' : null,
-				'tokenization_key',
-				$this->sandbox ? 'live_tokenization_key' : 'test_tokenization_key',
-			)
-		);
+		$pair = $this->resolve_key_pair();
+		return $pair['tokenization'];
+	}
+
+	/**
+	 * Label of the tier the current key pair was resolved from. Surfaced in
+	 * support logs so we can see at a glance whether a merchant is still on
+	 * the 1.0.15–1.0.18 unified field, the four-field UI, or an incomplete
+	 * configuration that lets the opposite-mode fallback leak through.
+	 */
+	public function credentials_tier() {
+		$pair = $this->resolve_key_pair();
+		return $pair['tier'];
 	}
 
 	public function is_sandbox() {

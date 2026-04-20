@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.21
+Stable tag: 1.0.22
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,12 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.22 =
+* Fix (critical): **“Payment details could not be tokenized. Please try again.” on card submit.** Root cause: the `submit.cardz3n` handler in `assets/js/checkout.js` was bound once on `ready()` and again on every WooCommerce `updated_checkout` event, stacking duplicate handlers. Each one called `preventDefault()` + `CollectJS.startPaymentRequest()` on the same click, but only one Collect.js callback fired — so the internal `submitting` guard blocked the legitimate resubmit and `process_payment()` saw an empty `cardz3n_payment_token`, returning the “could not be tokenized” notice. 1.0.22 calls `$form.off('submit.cardz3n')` before each re-bind so exactly one handler is ever attached.
+* Fix (critical): **“The gateway did not recognize the secure token” on ACH submit.** Root cause: the credential resolver picked the Security Key and Tokenization Key independently — so a partial upgrade (e.g. user enters only `live_security_key` in the new four-field UI but leaves `tokenization_key` in the 1.0.15–1.0.18 unified field) would silently mix keys across merchant accounts. Collect.js would mint a token against one account, then transact.php would reject it against another (“Payment Token does not exist”). 1.0.22 resolves the Security + Tokenization keys as an **atomic pair**: the first tier where BOTH keys are non-empty wins (`live_pair` → `unified_pair` → `test_fallback` → `sandbox_fallback`, and the test-mode inverse). Also surfaces the resolved tier (`credentials_tier`) in the transaction log so support can confirm at a glance which keys are active.
+* Fix: **ACH Name-on-account field locked up after a failed submit.** WooCommerce fires `updated_checkout` after a checkout error, which re-renders the entire `#payment` container — including the PHP-rendered `inert` attribute on the ACH pane. The buyer saw the ACH fields but keystrokes silently went nowhere because the pane was `inert` again from the fresh server markup. 1.0.22 re-applies the `activePane` invariant after every `updated_checkout` (centralized in a new `applyActivePane()` helper), restoring `inert`/`aria-hidden` to match the actual visible tab. The `cardz3n-tokenized` form marker is also cleared on `checkout_error` so a retry always re-tokenizes instead of short-circuiting through the fast-path.
+* Change: Card brand marks refreshed to current brand guidelines — cleaner Visa, Mastercard, American Express, Discover, Maestro, JCB, Diners Club, and UnionPay artwork sized to match Apple Pay / Google Pay in the brand row at checkout.
 
 = 1.0.21 =
 * Fix (critical): **ACH fields still didn’t accept keyboard input after 1.0.20.** Live diagnostic confirmed all six Collect.js iframes mount at the correct size and the `Unable to initialize secure payment form` Collect.js error is gone — but the inactive pane’s cross-origin iframes at the same grid-stack coordinates were intercepting keydown events in Chromium and WebKit. Focus landed on the ACH-name iframe but keystrokes routed to the card-ccnumber iframe underneath, so ACH name / routing / account fields appeared clickable but never captured typing. 1.0.21 adds the `inert` + `aria-hidden="true"` attributes to every inactive pane, both in the initial PHP render and whenever the buyer clicks a tab. `inert` removes every descendant (including iframes) from the hit-test and focus tree, so keystrokes flow to the active pane only. The grid-stack is kept intact so Collect.js still mounts iframes at the correct width on first render.
