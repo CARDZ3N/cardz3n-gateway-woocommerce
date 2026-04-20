@@ -251,6 +251,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			<input type="hidden" name="cardz3n_payment_token" value="" />
 			<input type="hidden" name="cardz3n_token_type" value="" />
 
+			<div class="cardz3n-panes">
+
 			<?php if ( $show_saved ) : ?>
 				<div class="cardz3n-pane" data-pane="saved">
 					<?php $this->saved_payment_methods(); ?>
@@ -313,6 +315,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				<?php endif; ?>
 			</div>
 			<?php endif; ?>
+
+			</div><!-- /.cardz3n-panes -->
 
 			<div class="cardz3n-errors" role="alert" aria-live="polite"></div>
 		</div>
@@ -590,6 +594,24 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			if ( $should_vault_card || $should_vault_ach ) {
 				$args['vault'] = 'add_customer';
 			}
+			/*
+			 * 1.0.17 — log the first 8 chars of the Collect.js token plus the
+			 * first 4 chars of each key so support can verify at a glance
+			 * whether the Security Key and Tokenization Key belong to the
+			 * same merchant account. The full token and keys are never
+			 * logged; Logger::redact() scrubs them from transaction logs too.
+			 */
+			Logger::info(
+				'Submitting Collect.js token to transact.php',
+				array(
+					'token_prefix'      => substr( (string) $collect_token, 0, 8 ) . '...',
+					'token_len'         => strlen( (string) $collect_token ),
+					'sec_key_prefix'    => substr( $client->security_key(), 0, 4 ) . '...',
+					'tok_key_prefix'    => substr( $client->tokenization_key(), 0, 4 ) . '...',
+					'test_mode'         => $client->is_sandbox() ? 'yes' : 'no',
+					'normalized_source' => $normalized_source,
+				)
+			);
 		}
 
 		$response = $client->transaction( $args );
@@ -611,7 +633,32 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		if ( ! $response['success'] ) {
 			$note = Order_Service::failure_note( $response, $extra );
 			$order->add_order_note( $note );
-			wc_add_notice( $response['text'] ? $response['text'] : __( 'Payment could not be processed.', 'cardz3n-gateway' ), 'error' );
+
+			/*
+			 * 1.0.17 — translate the gateway's most common opaque error
+			 * ("Payment Token does not exist REFID:...") into a plain-English
+			 * message that tells the buyer and the merchant what to do. The
+			 * raw text is still stored in the order note for support
+			 * troubleshooting.
+			 */
+			$user_msg = $response['text'] ? $response['text'] : __( 'Payment could not be processed.', 'cardz3n-gateway' );
+			if ( false !== stripos( (string) $response['text'], 'payment token does not exist' ) ) {
+				Logger::error(
+					'Gateway rejected Collect.js token — check Security Key / Tokenization Key pair',
+					array(
+						'gateway_text'   => $response['text'],
+						'sec_key_prefix' => substr( $client->security_key(), 0, 4 ) . '...',
+						'tok_key_prefix' => substr( $client->tokenization_key(), 0, 4 ) . '...',
+						'test_mode'      => $client->is_sandbox() ? 'yes' : 'no',
+					)
+				);
+				$user_msg = __(
+					'We couldn\'t complete your payment because the gateway did not recognize the secure token. Please refresh the checkout page and try again. If this keeps happening, contact the store — the Security Key and Tokenization Key in the gateway settings may belong to different merchant accounts.',
+					'cardz3n-gateway'
+				);
+			}
+
+			wc_add_notice( $user_msg, 'error' );
 			return null;
 		}
 
