@@ -1,4 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 38 24" role="img" aria-label="JCB">
-  <rect width="38" height="24" rx="4" fill="#0a2c68"/>
-  <text x="19" y="15" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="8" fill="#fff" text-anchor="middle">JCB</text>
+  <rect width="38" height="24" rx="3" fill="#ffffff" stroke="#e6e8ec"/>
+  <rect x="4"  y="4" width="9.5" height="16" rx="2" fill="#0e4c96"/>
+  <rect x="14.25" y="4" width="9.5" height="16" rx="2" fill="#d31c28"/>
+  <rect x="24.5"  y="4" width="9.5" height="16" rx="2" fill="#00a758"/>
+  <text x="19" y="15.2" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="6" fill="#ffffff" letter-spacing="0.2">JCB</text>
 </svg>

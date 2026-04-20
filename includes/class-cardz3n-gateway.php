@@ -206,6 +206,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			'cardz3n-checkout',
 			'CARDZ3N_GW',
 			array(
+				'version'            => CARDZ3N_GW_VERSION,
 				'gatewayId'          => $this->id,
 				'tokenizationKey'    => $pk,
 				'enableCards'        => 'yes' === $this->get_option( 'enable_cards', 'yes' ),
@@ -270,8 +271,15 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		$default_to_saved = $show_saved; // Saved is the default active tab when tokens exist.
 		$enable_cards  = 'yes' === $this->get_option( 'enable_cards', 'yes' );
 		$enable_ach    = 'yes' === $this->get_option( 'enable_ach', 'yes' );
-		$enable_apple  = Wallet_Service::apple_enabled();
-		$enable_google = Wallet_Service::google_enabled();
+		// 1.0.20: Native wallet buttons are temporarily suspended — the current
+		// NMI Collect.js build rejects our documented applePay/googlePay config
+		// shape and throws "Unexpected fields for applePay", which broke the
+		// card + ACH iframes. Wallets will return in a later release over a
+		// dedicated PaymentRequest / Apple Pay JS flow. The enable_* flags on
+		// the settings page still control the brand-row logos (below) so
+		// buyers still see that the merchant accepts those brands.
+		$enable_apple  = false;
+		$enable_google = false;
 		?>
 		<div class="cardz3n-gateway-ui" data-gateway="<?php echo esc_attr( $this->id ); ?>">
 
@@ -327,7 +335,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 						<div id="cardz3n-cvv" class="cardz3n-collect-field"></div>
 					</div>
 				</div>
-				<?php if ( $show_saved ) : ?>
+				<?php if ( $has_tokenization ) : /* 1.0.20: always offer save when the buyer is logged in with tokenization support. */ ?>
 				<label class="cardz3n-save-method">
 					<input type="checkbox" name="wc-<?php echo esc_attr( $this->id ); ?>-new-payment-method" value="true" />
 					<?php esc_html_e( 'Save this card for faster checkout next time.', 'cardz3n-gateway' ); ?>
@@ -359,7 +367,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 						<option value="savings"><?php esc_html_e( 'Savings', 'cardz3n-gateway' ); ?></option>
 					</select>
 				</div>
-				<?php if ( ACH_Service::reuse_allowed() && $show_saved ) : ?>
+				<?php if ( ACH_Service::reuse_allowed() && $has_tokenization ) : ?>
 				<label class="cardz3n-save-method">
 					<input type="checkbox" name="wc-<?php echo esc_attr( $this->id ); ?>-new-ach-method" value="true" />
 					<?php esc_html_e( 'Save this bank account for future orders.', 'cardz3n-gateway' ); ?>
