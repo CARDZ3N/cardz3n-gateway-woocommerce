@@ -3,6 +3,19 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.17] — 2026-04-19
+
+### Fixed
+- **Critical: ACH fields accepted no input.** Collect.js mounts its hosted-field iframes by reading the target container's bounding box; when the container's parent is `display: none` (as our inactive panes were), the iframe mounts at 0×0 and every click falls through to empty space. Panes now share a `.cardz3n-panes` positioning context and inactive panes are hidden off-screen (`position: absolute; left: -9999px; visibility: hidden; opacity: 0`) instead of `display: none`, so all four ACH iframes (`checkname`, `checkaba`, `checkaccount`) and the three card iframes mount at full width on first render.
+- **Critical: Card-tab fields overflowed their bordered containers.** The wrapper had `padding: 0 10px` AND the iframe's inner input had its own padding; the iframe was positioned at 100% of the wrapper's content-box, so the visible border was inset 10px on each side and the typed characters scrolled past it. Removed wrapper padding, forced iframes to fill the container with `width/height: 100%` and `overflow: hidden`, and left Collect.js's `customCss` to style typography.
+- **"Use a new payment method" radio inside saved tokens.** WooCommerce's `saved_payment_methods()` auto-injects a "new" radio at the bottom of the token list, duplicating the Card tab's purpose. Hidden via CSS. When the buyer clicks the Saved tab, the first non-`new` token radio is auto-selected; when they click Card or ACH, any token radio selection is cleared (or forced to `new` if present) so `process_payment()` goes through the Collect.js tokenized path.
+- **"Payment Token does not exist REFID:..." on retry.** Collect.js tokens are single-use. If the gateway rejected the first attempt, WooCommerce kept re-submitting the same cached token on every retry, producing the same error. The plugin now listens for WooCommerce's `checkout_error` event and clears `cardz3n_payment_token` + `cardz3n_token_type` hidden fields so the next submit re-tokenizes.
+
+### Added
+- Buyer-facing plain-English error when the gateway returns "Payment Token does not exist" — tells them to refresh and retry, and mentions that a mismatched Security Key / Tokenization Key pair is the likely root cause for the merchant.
+- Support diagnostic logging: on every token submission, the plugin logs the first 8 chars of the Collect.js token, the first 4 chars of the Security Key, the first 4 chars of the Tokenization Key, and the current Test Mode state. No full tokens or keys are logged; `Logger::redact()` scrubs PII from all transaction logs.
+- Saved-payment-method list visually restyled as clean bordered rows.
+
 ## [1.0.16] — 2026-04-19
 
 ### Fixed

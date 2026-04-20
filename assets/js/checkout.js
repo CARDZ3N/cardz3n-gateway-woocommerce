@@ -71,7 +71,40 @@
 			$(this).addClass('is-active').siblings().removeClass('is-active');
 			$ui().find('.cardz3n-pane').removeClass('is-active');
 			$ui().find('[data-pane="' + target + '"]').addClass('is-active');
-			setHidden('cardz3n_payment_source', target === 'ach' ? 'ach' : 'card');
+
+			/*
+			 * Reconcile saved-token selection with the active pane.
+			 *
+			 * - On the Saved pane: make sure SOME saved token radio is selected so
+			 *   WooCommerce's $_POST['wc-<id>-payment-token'] is populated when the
+			 *   form is submitted. If none is checked, auto-check the first one.
+			 * - On the Card/ACH pane: clear any saved-token radio so that
+			 *   process_payment() falls through to the Collect.js tokenized path
+			 *   instead of trying to charge a saved vault that the buyer no longer
+			 *   wants to use.
+			 */
+			var $tokenRadios = $('input[name="wc-' + gatewayId + '-payment-token"]');
+			if (target === 'saved') {
+				if ($tokenRadios.filter(':checked').length === 0) {
+					// skip the "Use a new payment method" radio (value="new") which
+					// our CSS hides but WooCommerce still renders.
+					$tokenRadios.filter('[value!="new"]').first().prop('checked', true).trigger('change');
+				}
+				setHidden('cardz3n_payment_source', 'saved');
+			} else {
+				// Select "new" if it exists so WC doesn't auto-pick a saved token
+				// we're not using.
+				var $newRadio = $tokenRadios.filter('[value="new"]');
+				if ($newRadio.length) {
+					$newRadio.prop('checked', true).trigger('change');
+				} else {
+					$tokenRadios.prop('checked', false);
+				}
+				setHidden('cardz3n_payment_source', target === 'ach' ? 'ach' : 'card');
+				// Clear any stale token so a retry re-tokenizes.
+				setHidden('cardz3n_payment_token', '');
+				setHidden('cardz3n_token_type', '');
+			}
 			clearError();
 		});
 	}
@@ -240,15 +273,57 @@
 			return;
 		}
 
+		/*
+		 * Collect.js tokens are SINGLE-USE. Once transact.php has consumed one,
+		 * re-submitting the same token yields "Payment Token does not exist"
+		 * from the gateway (REFID:... in the response). To survive a failed
+		 * submission the buyer retries, and we MUST re-tokenize before the
+		 * second attempt. We log the first 8 chars of the token for support
+		 * diagnostics without exposing the full value.
+		 */
+		if (window.console && console.debug) {
+			console.debug('[CARDZ3N] Collect.js minted token', (response.token || '').substring(0, 8) + '…', 'type=' + (response.tokenType || activeSource()));
+		}
+
 		setHidden('cardz3n_payment_token', response.token);
 		setHidden('cardz3n_token_type', response.tokenType || activeSource());
 		setHidden('cardz3n_payment_source', response.tokenType || activeSource());
+
+		// Make sure no saved-token radio is checked (the Collect.js token beats
+		// the vault lookup in process_payment() only if the saved radio is not
+		// selected).
+		var $tokenRadios = $('input[name="wc-' + gatewayId + '-payment-token"]');
+		var $newRadio = $tokenRadios.filter('[value="new"]');
+		if ($newRadio.length) { $newRadio.prop('checked', true); }
+		else { $tokenRadios.prop('checked', false); }
 
 		// Now allow the native WooCommerce submit to proceed.
 		submitting = false;
 		var $form = $('form.checkout');
 		// Trigger the real submission; WC's own handler will send to the server.
 		$form.off('submit.cardz3n').addClass('cardz3n-tokenized').trigger('submit');
+	}
+
+	/* ------------------------------------------------------------------
+	 * Server-error listener
+	 *
+	 * 1.0.17 — when WooCommerce returns a checkout error from the server, WC
+	 * fires `checkout_error` on the document with the AJAX payload. If the
+	 * gateway rejected our token, we need to CLEAR the hidden fields and
+	 * re-tokenize on the next submit, otherwise the buyer will keep retrying
+	 * with the same already-consumed token and keep getting the same
+	 * "Payment Token does not exist" response.
+	 * --------------------------------------------------------------- */
+
+	function bindCheckoutErrorReset() {
+		$(document).on('checkout_error', function () {
+			setHidden('cardz3n_payment_token', '');
+			setHidden('cardz3n_token_type', '');
+			submitting = false;
+			if (window.console && console.warn) {
+				console.warn('[CARDZ3N] Checkout error — cleared cached tokenization. Next submit will re-tokenize.');
+			}
+		});
 	}
 
 	/* ------------------------------------------------------------------
@@ -307,6 +382,7 @@
 	$(document).ready(function () {
 		bindTabs();
 		bindCheckoutForm();
+		bindCheckoutErrorReset();
 
 		// (Re)configure Collect.js after WooCommerce re-renders the checkout.
 		$body.on('updated_checkout', function () {

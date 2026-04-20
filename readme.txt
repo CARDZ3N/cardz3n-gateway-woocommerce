@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.16
+Stable tag: 1.0.17
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,14 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Changelog ==
 
+= 1.0.17 =
+* Fix (critical): ACH fields (Name on account, Routing, Account number) would not accept any input. Collect.js mounts its hosted-field iframes by reading the target container's width and height; when the container's parent has `display: none`, the iframe mounts at 0×0 and every click falls through. The Card and ACH panes now share a positioning container and inactive panes are hidden off-screen (absolute position, visibility hidden, opacity 0) instead of `display: none`, so all iframes mount at full size on first render.
+* Fix (critical): On the Card tab, Collect.js iframes overflowed their bordered container because the wrapper had internal padding AND the iframe input had its own internal padding. Removed container padding, forced the iframe to fill 100% × 100% inside a clipped wrapper, and moved typography into Collect.js `customCss`. Text now sits cleanly inside each field's rounded border.
+* Fix: The "Use a new payment method" radio that WooCommerce auto-injects into saved-token lists is now hidden. Our tabbed UI already separates saved-vs-new selection (Saved tab = pay with stored vault, Card/ACH tab = pay with new and tokenize) so a second "new" radio was redundant and confusing. When the buyer clicks the Saved tab, the first saved token is auto-selected. When they click Card or ACH, any saved selection is cleared so `process_payment()` goes through the Collect.js path.
+* Fix: "Payment Token does not exist REFID:..." retries now work. Collect.js tokens are single-use; if the gateway rejected the first attempt, the cached token hidden field was being re-submitted on every retry, yielding the same error. The plugin now listens for WooCommerce's `checkout_error` event and clears the cached token so the next submit re-tokenizes.
+* Diagnostic: When the gateway returns "Payment Token does not exist", the plugin logs the first 4 chars of the Security Key, the first 4 chars of the Tokenization Key, and the current Test Mode state, and shows the buyer a plain-English error explaining that the Security Key and Tokenization Key may belong to different merchant accounts. Successful tokenization now also logs the first 8 chars of the Collect.js token for support troubleshooting (no PAN, no PII).
+* Tighter layout: saved-payment-method list styled as clean bordered rows with consistent spacing.
+
 = 1.0.16 =
 * Fix (critical): Plugin would not activate on 1.0.15 — a PHP docblock comment contained `sandbox_*/live_*`, and the embedded `*/` sequence terminated the docblock early, producing a parse error (`syntax error, unexpected identifier "into"`) that prevented the main plugin file from loading. Rewrote the comment to avoid the `*/` sequence. No functional changes; this is a hotfix for 1.0.15.
 
@@ -225,6 +233,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * HPOS compatibility declared.
 
 == Upgrade Notice ==
+
+= 1.0.17 =
+Recommended upgrade. Fixes ACH fields that refused input, card-tab field overflow, the confusing "Use a new payment method" radio inside saved tokens, and "Payment Token does not exist" retries. Also adds a helpful buyer-facing error and safer support logging when the gateway rejects a token.
 
 = 1.0.16 =
 Critical hotfix. 1.0.15 shipped with a PHP parse error that prevented the plugin from activating. Upgrade immediately. No other changes.

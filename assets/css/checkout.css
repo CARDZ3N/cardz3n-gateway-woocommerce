@@ -43,19 +43,73 @@
 .cardz3n-tab:hover { color: #111; }
 .cardz3n-tab.is-active { color: var(--cardz3n-primary); border-bottom-color: var(--cardz3n-primary); }
 
-.cardz3n-pane { display: none; }
-.cardz3n-pane.is-active { display: block; }
+/*
+ * 1.0.17 — DO NOT use `display: none` on inactive panes.
+ *
+ * Collect.js mounts its hosted-field iframes by reading the width/height of the
+ * target container. When the container's parent is `display: none`, the iframe
+ * mounts with `width: 0` and `height: 0`, and subsequent clicks into the field
+ * hit the zero-sized iframe and do nothing. This is why ACH fields refused any
+ * input until 1.0.17.
+ *
+ * Instead, inactive panes are visually hidden but still laid out (off-screen
+ * absolute-positioned, opacity 0, zero tab-index). When the buyer switches
+ * tabs we just swap `.is-active`, the pane fades in, and the already-mounted
+ * iframes are there at full size.
+ */
+.cardz3n-panes { position: relative; }
+.cardz3n-pane {
+	position: absolute;
+	top: 0;
+	left: -9999px;
+	width: 100%;
+	opacity: 0;
+	pointer-events: none;
+	visibility: hidden;
+}
+.cardz3n-pane.is-active {
+	position: static;
+	left: auto;
+	opacity: 1;
+	pointer-events: auto;
+	visibility: visible;
+}
 
+/*
+ * 1.0.17 — The Collect.js iframe fills its container 100% × 100%. If the
+ * container also has internal padding, the iframe (whose inputs have their
+ * own internal padding) overflows the container's visible border. That was
+ * the "card tab fields run over data boxes" bug. The container now has no
+ * padding and clips overflow; the hosted fields carry their own padding via
+ * the `customCss` block in checkout.js.
+ */
 .cardz3n-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .cardz3n-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
 .cardz3n-field > label {
 	font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--cardz3n-muted);
 }
 .cardz3n-collect-field {
-	height: 40px; border: 1px solid var(--cardz3n-border); border-radius: 6px;
-	padding: 0 10px; background: var(--cardz3n-bg); transition: border-color .15s;
+	display: block;
+	width: 100%;
+	height: 40px;
+	box-sizing: border-box;
+	border: 1px solid var(--cardz3n-border);
+	border-radius: 6px;
+	padding: 0;
+	background: var(--cardz3n-bg);
+	transition: border-color .15s;
+	overflow: hidden;
 }
 .cardz3n-collect-field:focus-within { border-color: var(--cardz3n-primary); }
+.cardz3n-collect-field iframe {
+	display: block;
+	width: 100% !important;
+	height: 100% !important;
+	border: 0 !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	background: transparent !important;
+}
 
 .cardz3n-save-method {
 	display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--cardz3n-muted);
@@ -68,9 +122,10 @@
 }
 .cardz3n-po-field { margin-top: 6px; }
 
-.cardz3n-field select {
+.cardz3n-field select,
+.cardz3n-field input[type="text"] {
 	height: 40px; border: 1px solid var(--cardz3n-border); border-radius: 6px; padding: 0 10px;
-	background: #fff; font-size: 14px;
+	background: #fff; font-size: 14px; box-sizing: border-box; width: 100%;
 }
 
 @media (max-width: 640px) {
@@ -89,3 +144,42 @@ body.cardz3n-brand-aerospacepay .cardz3n-gateway-ui {
 .cardz3n-applepay-button:empty,
 .cardz3n-googlepay-button:empty { display: none; }
 .cardz3n-wallets:not(:has(> div[data-cardz3n-wallet]:not(:empty))) { display: none; }
+
+/*
+ * 1.0.17 — Hide WooCommerce's native "Use a new payment method" radio inside
+ * the Saved pane. Our tabbed UI already separates saved-from-new selection
+ * (Saved tab = pay with saved token, Card/ACH tab = pay with new), so
+ * exposing a second radio with the same purpose is confusing. If the buyer
+ * is on the Saved tab, they're paying with a saved token; if they want a new
+ * card/ACH, they click the Card/ACH tab, which clears any token selection.
+ */
+.cardz3n-pane[data-pane="saved"] .woocommerce-SavedPaymentMethods-new,
+.cardz3n-pane[data-pane="saved"] li.woocommerce-SavedPaymentMethods-new {
+	display: none !important;
+}
+.cardz3n-pane[data-pane="saved"] .woocommerce-SavedPaymentMethods {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.cardz3n-pane[data-pane="saved"] .woocommerce-SavedPaymentMethods li {
+	margin: 0 0 8px 0;
+	padding: 10px 12px;
+	border: 1px solid var(--cardz3n-border);
+	border-radius: 6px;
+	background: #fff;
+	font-size: 14px;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	cursor: pointer;
+}
+.cardz3n-pane[data-pane="saved"] .woocommerce-SavedPaymentMethods li:hover {
+	border-color: var(--cardz3n-primary);
+}
+.cardz3n-pane[data-pane="saved"] .woocommerce-SavedPaymentMethods li label {
+	margin: 0;
+	cursor: pointer;
+	flex: 1 1 auto;
+	color: #111;
+}
