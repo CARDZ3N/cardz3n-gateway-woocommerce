@@ -258,7 +258,16 @@ class Gateway extends \WC_Payment_Gateway_CC {
 
 		$this->render_brand_icons();
 
-		$show_saved    = $this->supports( 'tokenization' ) && is_user_logged_in();
+		// 1.0.19: only show the Saved tab when the logged-in customer actually
+		// has saved tokens for this gateway. Prevents the empty Saved pane
+		// reported in 1.0.18.
+		$has_tokenization = $this->supports( 'tokenization' ) && is_user_logged_in();
+		$saved_tokens     = array();
+		if ( $has_tokenization && class_exists( '\WC_Payment_Tokens' ) ) {
+			$saved_tokens = \WC_Payment_Tokens::get_customer_tokens( get_current_user_id(), $this->id );
+		}
+		$show_saved       = $has_tokenization && ! empty( $saved_tokens );
+		$default_to_saved = $show_saved; // Saved is the default active tab when tokens exist.
 		$enable_cards  = 'yes' === $this->get_option( 'enable_cards', 'yes' );
 		$enable_ach    = 'yes' === $this->get_option( 'enable_ach', 'yes' );
 		$enable_apple  = Wallet_Service::apple_enabled();
@@ -280,30 +289,30 @@ class Gateway extends \WC_Payment_Gateway_CC {
 
 			<div class="cardz3n-tabs" role="tablist">
 				<?php if ( $show_saved ) : ?>
-					<button type="button" class="cardz3n-tab" data-target="saved" role="tab"><?php esc_html_e( 'Saved', 'cardz3n-gateway' ); ?></button>
+					<button type="button" class="cardz3n-tab<?php echo $default_to_saved ? ' is-active' : ''; ?>" data-target="saved" role="tab"><?php esc_html_e( 'Saved', 'cardz3n-gateway' ); ?></button>
 				<?php endif; ?>
 				<?php if ( $enable_cards ) : ?>
-					<button type="button" class="cardz3n-tab is-active" data-target="card" role="tab"><?php esc_html_e( 'Card', 'cardz3n-gateway' ); ?></button>
+					<button type="button" class="cardz3n-tab<?php echo $default_to_saved ? '' : ' is-active'; ?>" data-target="card" role="tab"><?php esc_html_e( 'Card', 'cardz3n-gateway' ); ?></button>
 				<?php endif; ?>
 				<?php if ( $enable_ach ) : ?>
 					<button type="button" class="cardz3n-tab" data-target="ach" role="tab"><?php esc_html_e( 'Bank (ACH)', 'cardz3n-gateway' ); ?></button>
 				<?php endif; ?>
 			</div>
 
-			<input type="hidden" name="cardz3n_payment_source" value="card" />
+			<input type="hidden" name="cardz3n_payment_source" value="<?php echo $default_to_saved ? 'saved' : 'card'; ?>" />
 			<input type="hidden" name="cardz3n_payment_token" value="" />
 			<input type="hidden" name="cardz3n_token_type" value="" />
 
 			<div class="cardz3n-panes">
 
 			<?php if ( $show_saved ) : ?>
-				<div class="cardz3n-pane" data-pane="saved">
+				<div class="cardz3n-pane<?php echo $default_to_saved ? ' is-active' : ''; ?>" data-pane="saved">
 					<?php $this->saved_payment_methods(); ?>
 				</div>
 			<?php endif; ?>
 
 			<?php if ( $enable_cards ) : ?>
-			<div class="cardz3n-pane is-active" data-pane="card">
+			<div class="cardz3n-pane<?php echo $default_to_saved ? '' : ' is-active'; ?>" data-pane="card">
 				<div class="cardz3n-field">
 					<label><?php esc_html_e( 'Card number', 'cardz3n-gateway' ); ?></label>
 					<div id="cardz3n-ccnumber" class="cardz3n-collect-field"></div>

@@ -64,15 +64,26 @@ class Api_Client {
 	/* ---------------------------------------------------------------------
 	 * Credentials
 	 *
-	 * 1.0.15 collapsed the four-field key UI (sandbox_* + live_*) into a
-	 * single Security Key + single Tokenization Key because CARDZ3N does not
-	 * use a separate sandbox portal — Test Mode is a toggle on the same
-	 * gateway account using the same keys. For backward compatibility we
-	 * fall back to legacy fields when the unified ones are empty.
+	 * 1.0.19 restored the four-field key UI: Test Mode and Live Mode use
+	 * DIFFERENT key pairs (test_security_key / test_tokenization_key and
+	 * live_security_key / live_tokenization_key). CARDZ3N issues separate
+	 * Test and Live keys, and the 1.0.15-1.0.18 unified single-pair UI was
+	 * wrong.
+	 *
+	 * Resolution order for each key:
+	 *   1. The test_ or live_ field for the current mode (primary).
+	 *   2. Legacy sandbox_ field when in test mode (pre-1.0.15 installs).
+	 *   3. Unified security_key / tokenization_key (1.0.15-1.0.18 installs).
+	 *   4. Opposite-mode field as a last-resort fallback so a misconfigured
+	 *      site surfaces a gateway-side auth error rather than an empty-key
+	 *      error.
 	 * ------------------------------------------------------------------ */
 
 	private function first_nonempty( array $keys ) {
 		foreach ( $keys as $k ) {
+			if ( null === $k ) {
+				continue;
+			}
 			$v = isset( $this->settings[ $k ] ) ? trim( (string) $this->settings[ $k ] ) : '';
 			if ( '' !== $v ) {
 				return $v;
@@ -87,9 +98,10 @@ class Api_Client {
 	public function security_key() {
 		return $this->first_nonempty(
 			array(
+				$this->sandbox ? 'test_security_key' : 'live_security_key',
+				$this->sandbox ? 'sandbox_security_key' : null,
 				'security_key',
-				$this->sandbox ? 'sandbox_security_key' : 'live_security_key',
-				$this->sandbox ? 'live_security_key' : 'sandbox_security_key',
+				$this->sandbox ? 'live_security_key' : 'test_security_key',
 			)
 		);
 	}
@@ -100,9 +112,10 @@ class Api_Client {
 	public function tokenization_key() {
 		return $this->first_nonempty(
 			array(
+				$this->sandbox ? 'test_tokenization_key' : 'live_tokenization_key',
+				$this->sandbox ? 'sandbox_tokenization_key' : null,
 				'tokenization_key',
-				$this->sandbox ? 'sandbox_tokenization_key' : 'live_tokenization_key',
-				$this->sandbox ? 'live_tokenization_key' : 'sandbox_tokenization_key',
+				$this->sandbox ? 'live_tokenization_key' : 'test_tokenization_key',
 			)
 		);
 	}

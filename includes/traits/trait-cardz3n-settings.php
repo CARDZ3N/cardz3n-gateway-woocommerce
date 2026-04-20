@@ -82,27 +82,41 @@ trait Settings_Trait {
 			'section_credentials'    => array(
 				'title'       => __( 'API Credentials', 'cardz3n-gateway' ),
 				'type'        => 'title',
-				'description' => __( 'Generate these in your CARDZ3N / NMI Merchant Portal under Settings → Security Keys. The Tokenization Key is public (safe for the browser). The Security Key is private and never leaves your server.', 'cardz3n-gateway' ),
+				'description' => __( 'Generate these in your CARDZ3N / NMI Merchant Portal under Settings → Security Keys. The Tokenization Key is public (safe for the browser). The Security Key is private and never leaves your server. Test Mode and Live Mode use DIFFERENT key pairs — do not reuse Test keys for Live or vice versa.', 'cardz3n-gateway' ),
 			),
 			'test_mode'              => array(
 				'title'       => __( 'Test Mode', 'cardz3n-gateway' ),
 				'type'        => 'checkbox',
-				'label'       => __( 'Route transactions through CARDZ3N Test Mode.', 'cardz3n-gateway' ),
-				'description' => __( 'CARDZ3N does not use a separate sandbox portal — Test Mode is a toggle on the same gateway account. Use the same Security Key and Tokenization Key for both live and test transactions. Turn this on to send transactions to the test processor without charging a real card.', 'cardz3n-gateway' ),
+				'label'       => __( 'Enable Test Mode', 'cardz3n-gateway' ),
+				'description' => __( 'When enabled, the plugin uses the Test Security Key and Test Tokenization Key to route transactions through the CARDZ3N test processor. No real card is charged. Turn off to use the Live keys for real transactions.', 'cardz3n-gateway' ),
 				'default'     => 'yes',
 			),
-			'security_key'           => array(
-				'title'       => __( 'Security Key', 'cardz3n-gateway' ),
+			'live_security_key'      => array(
+				'title'       => __( 'Live Security Key', 'cardz3n-gateway' ),
 				'type'        => 'password',
 				'default'     => '',
-				'description' => __( 'Private key. Used only on the server to sign API requests. Never exposed to the browser.', 'cardz3n-gateway' ),
+				'description' => __( 'Private Live key. Used only on the server to sign API requests. Never exposed to the browser.', 'cardz3n-gateway' ),
 				'desc_tip'    => true,
 			),
-			'tokenization_key'       => array(
-				'title'       => __( 'Tokenization Key (public)', 'cardz3n-gateway' ),
+			'live_tokenization_key'  => array(
+				'title'       => __( 'Live Tokenization Key (public)', 'cardz3n-gateway' ),
 				'type'        => 'text',
 				'default'     => '',
-				'description' => __( 'Public key used by Collect.js in the browser to tokenize card and ACH data.', 'cardz3n-gateway' ),
+				'description' => __( 'Public Live key used by Collect.js in the browser to tokenize card and ACH data for real transactions.', 'cardz3n-gateway' ),
+				'desc_tip'    => true,
+			),
+			'test_security_key'      => array(
+				'title'       => __( 'Test Security Key', 'cardz3n-gateway' ),
+				'type'        => 'password',
+				'default'     => '',
+				'description' => __( 'Private Test key. Used only on the server to sign test-mode API requests.', 'cardz3n-gateway' ),
+				'desc_tip'    => true,
+			),
+			'test_tokenization_key'  => array(
+				'title'       => __( 'Test Tokenization Key (public)', 'cardz3n-gateway' ),
+				'type'        => 'text',
+				'default'     => '',
+				'description' => __( 'Public Test key used by Collect.js in the browser when Test Mode is enabled.', 'cardz3n-gateway' ),
 				'desc_tip'    => true,
 			),
 			'validate_credentials'   => array(
@@ -201,8 +215,8 @@ trait Settings_Trait {
 			'descriptor'             => array(
 				'title'       => __( 'Dynamic Descriptor', 'cardz3n-gateway' ),
 				'type'        => 'text',
-				'description' => __( 'Up to 25 chars shown on cardholder statements.', 'cardz3n-gateway' ),
-				'default'     => $brand['default_descriptor'],
+				'description' => __( 'Up to 25 chars shown on cardholder statements. Leave blank to use your processor-assigned descriptor.', 'cardz3n-gateway' ),
+				'default'     => '',
 				'desc_tip'    => true,
 			),
 			'descriptor_suffix_source' => array(

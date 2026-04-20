@@ -3,7 +3,7 @@
  * Plugin Name: CARDZ3N Gateway for WooCommerce
  * Plugin URI: https://cardz3n.com/woocommerce
  * Description: Embedded on-site checkout for WooCommerce powered by the CARDZ3N/NMI payment gateway. Cards, ACH, Apple Pay, Google Pay, saved methods, subscriptions, refunds, captures, voids, and automatic Level 2/3 commercial-card data in a single gateway UI.
- * Version: 1.0.18
+ * Version: 1.0.19
  * Requires at least: 6.4
  * Requires PHP: 7.4
  * Requires Plugins: woocommerce
@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Plugin constants
  * -------------------------------------------------------------------------- */
 
-define( 'CARDZ3N_GW_VERSION', '1.0.18' );
+define( 'CARDZ3N_GW_VERSION', '1.0.19' );
 define( 'CARDZ3N_GW_FILE', __FILE__ );
 define( 'CARDZ3N_GW_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CARDZ3N_GW_URL', plugin_dir_url( __FILE__ ) );
@@ -191,24 +191,26 @@ function cardz3n_gw_deactivate() {
 }
 
 /**
- * 1.0.15 migration: collapse sandbox_* and live_* keys into a single
- * security_key + tokenization_key, and rename sandbox_mode to test_mode.
+ * Settings migration, iterated across 1.0.15 -> 1.0.19.
  *
- * CARDZ3N has no separate sandbox portal — Test Mode is a toggle on the same
- * gateway account using the same keys. This migration runs once (idempotent)
- * on activation and on every plugin-file load as a safety net for sites that
- * didn't trigger the activation hook (e.g. upgraded via WP.org auto-update).
+ * CARDZ3N DOES issue separate Test-mode and Live-mode keys. The 1.0.15-1.0.18
+ * "single key pair" model was wrong. 1.0.19 restores the four-field UI
+ * (live_security_key, live_tokenization_key, test_security_key,
+ * test_tokenization_key) with `test_mode` selecting which pair is active.
  *
- * Source of truth priority when populating unified keys:
- *   1. `security_key` / `tokenization_key` — already present, skip.
- *   2. `sandbox_security_key` / `sandbox_tokenization_key` — preferred
- *      because the user's earlier clarification was that Test Mode uses the
- *      same keys, and the sandbox fields were the first ones most merchants
- *      filled in when setting up.
- *   3. `live_security_key` and `live_tokenization_key` — fallback.
+ * This migration is idempotent and runs on activation and on every
+ * plugins_loaded as a safety net for WP.org auto-updates. It never deletes
+ * legacy fields so older plugin versions keep working if someone downgrades.
  *
- * Legacy fields are NOT deleted, so downgrade-to-previous-version keeps
- * working. The API client reads unified first, legacy second.
+ * Forward-compat fills we perform:
+ *   - Pre-1.0.15 installs: copy sandbox_security_key into test_security_key
+ *     (and same for tokenization) when the test_* field is empty.
+ *   - 1.0.15-1.0.18 installs: copy the unified security_key into
+ *     live_security_key (and same for tokenization) when live_* is empty,
+ *     because merchants on those versions were using one pair as their Live
+ *     pair. Do NOT clobber test_* with the unified value — those were
+ *     production keys, not test keys.
+ *   - sandbox_mode -> test_mode rename is preserved.
  */
 function cardz3n_gw_maybe_migrate_settings() {
 	$option = 'woocommerce_cardz3n_gateway_settings';
@@ -219,26 +221,52 @@ function cardz3n_gw_maybe_migrate_settings() {
 
 	$changed = false;
 
+	// 1) Pre-1.0.15 sandbox_* -> test_* (only when test_* is empty).
+	if ( empty( $s['test_security_key'] ) && ! empty( $s['sandbox_security_key'] ) ) {
+		$s['test_security_key'] = (string) $s['sandbox_security_key'];
+		$changed                = true;
+	}
+	if ( empty( $s['test_tokenization_key'] ) && ! empty( $s['sandbox_tokenization_key'] ) ) {
+		$s['test_tokenization_key'] = (string) $s['sandbox_tokenization_key'];
+		$changed                    = true;
+	}
+
+	// 2) 1.0.15-1.0.18 unified security_key/tokenization_key -> live_*
+	//    (only when live_* is empty). Those merchants treated the unified pair
+	//    as their real / live keys.
+	if ( empty( $s['live_security_key'] ) && ! empty( $s['security_key'] ) ) {
+		$s['live_security_key'] = (string) $s['security_key'];
+		$changed                = true;
+	}
+	if ( empty( $s['live_tokenization_key'] ) && ! empty( $s['tokenization_key'] ) ) {
+		$s['live_tokenization_key'] = (string) $s['tokenization_key'];
+		$changed                    = true;
+	}
+
+	// 3) Legacy compatibility for the unified keys themselves — if a
+	//    1.0.14-era install is being migrated forward and only has sandbox_*
+	//    populated, still populate the unified fields so any downstream code
+	//    that reads them keeps working.
 	if ( empty( $s['security_key'] ) ) {
-		foreach ( array( 'sandbox_security_key', 'live_security_key' ) as $legacy ) {
-			if ( ! empty( $s[ $legacy ] ) ) {
-				$s['security_key'] = (string) $s[ $legacy ];
+		foreach ( array( 'live_security_key', 'sandbox_security_key', 'test_security_key' ) as $src_key ) {
+			if ( ! empty( $s[ $src_key ] ) ) {
+				$s['security_key'] = (string) $s[ $src_key ];
 				$changed           = true;
 				break;
 			}
 		}
 	}
-
 	if ( empty( $s['tokenization_key'] ) ) {
-		foreach ( array( 'sandbox_tokenization_key', 'live_tokenization_key' ) as $legacy ) {
-			if ( ! empty( $s[ $legacy ] ) ) {
-				$s['tokenization_key'] = (string) $s[ $legacy ];
+		foreach ( array( 'live_tokenization_key', 'sandbox_tokenization_key', 'test_tokenization_key' ) as $src_key ) {
+			if ( ! empty( $s[ $src_key ] ) ) {
+				$s['tokenization_key'] = (string) $s[ $src_key ];
 				$changed               = true;
 				break;
 			}
 		}
 	}
 
+	// 4) sandbox_mode -> test_mode rename, unchanged from 1.0.15.
 	if ( ! isset( $s['test_mode'] ) && isset( $s['sandbox_mode'] ) ) {
 		$s['test_mode'] = $s['sandbox_mode'];
 		$changed        = true;
