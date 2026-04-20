@@ -69,8 +69,34 @@
 			var target = $(this).data('target');
 			activePane = target;
 			$(this).addClass('is-active').siblings().removeClass('is-active');
-			$ui().find('.cardz3n-pane').removeClass('is-active');
-			$ui().find('[data-pane="' + target + '"]').addClass('is-active');
+			/*
+			 * 1.0.21 — `inert` on inactive panes.
+			 *
+			 * The panes are stacked in one CSS Grid cell so every Collect.js
+			 * iframe mounts at the correct width on first render. But that
+			 * also means the INACTIVE pane's iframes occupy the exact same
+			 * rect as the ACTIVE pane's iframes. Even with
+			 * `visibility:hidden` + `pointer-events:none` on the outer pane,
+			 * cross-origin iframes at the same coordinates intercept keyboard
+			 * events in Chromium/WebKit: focus goes to the active iframe but
+			 * keydown routes to the z-order top, which is usually the card
+			 * pane's ccnumber iframe. Buyers then see ACH fields that accept
+			 * focus but never capture typing. Applying `inert` to the
+			 * inactive pane removes every descendant (including iframes)
+			 * from the hit-test and focus tree, so keystrokes flow to the
+			 * active pane only. `aria-hidden` keeps screen readers in sync.
+			 */
+			$ui().find('.cardz3n-pane').each(function () {
+				var isTarget = $(this).attr('data-pane') === target;
+				$(this).toggleClass('is-active', isTarget);
+				if (isTarget) {
+					this.removeAttribute('inert');
+					this.removeAttribute('aria-hidden');
+				} else {
+					this.setAttribute('inert', '');
+					this.setAttribute('aria-hidden', 'true');
+				}
+			});
 
 			/*
 			 * Reconcile saved-token selection with the active pane.

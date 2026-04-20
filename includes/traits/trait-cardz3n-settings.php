@@ -269,7 +269,8 @@ trait Settings_Trait {
 				'title'   => __( 'Enable Level 2/3 Transmission', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
 				'label'   => __( 'Attach enhanced commercial data to every transaction when applicable.', 'cardz3n-gateway' ),
-				'default' => 'yes',
+				/* 1.0.21: opt-in. Level 2/3 is a commercial-card feature most merchants don’t need; enabling it requires meaningful catalog metadata (UPC, commodity code, tax amount) and misconfigured fields can DOWNGRADE interchange rather than improve it. Off by default; merchants who know they qualify enable it intentionally. */
+				'default' => 'no',
 			),
 			'merchant_name_override' => array(
 				'title'       => __( 'Merchant Name Override', 'cardz3n-gateway' ),
@@ -326,7 +327,8 @@ trait Settings_Trait {
 				'title'   => __( 'Checkout PO Number Field', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
 				'label'   => __( 'Show a Purchase Order (PO) number field at checkout.', 'cardz3n-gateway' ),
-				'default' => 'yes',
+				/* 1.0.21: opt-in. PO numbers are a B2B/procurement feature; a retail merchant’s buyer never needs this box and it just adds noise on the checkout. Off by default; B2B stores enable it intentionally. */
+				'default' => 'no',
 			),
 		);
 	}

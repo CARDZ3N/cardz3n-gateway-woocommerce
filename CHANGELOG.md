@@ -3,6 +3,23 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.21] — 2026-04-20
+
+### Fixed
+- **ACH fields still didn’t accept input after 1.0.20 — cross-origin iframe event misrouting.** The 1.0.20 `applePay` removal fixed the `CollectJS.configure()` throw and got all six Collect.js iframes to mount, but ACH name / routing / account fields still rejected keystrokes. Live Playwright diagnostic confirmed the sequence: the iframes load at 346–704px wide, `.cardz3n-pane[data-pane="ach"]` is `.is-active` with `pointer-events:auto`, `document.elementFromPoint()` returns the ACH iframe at the top of the stack. But `page.mouse.click()` lands focus on the ACH iframe while `page.keyboard.type()` never reaches its input — the card pane’s `ccnumber` iframe at the same coordinates intercepts keydown. Chromium and WebKit route keydown to the z-order top cross-origin iframe, which is the inactive pane’s iframe. `visibility:hidden` + `pointer-events:none` on the outer pane stops hit-testing on the container but not on nested cross-origin iframes. 1.0.21 applies the HTML `inert` attribute (plus `aria-hidden="true"`) to every inactive pane in both the initial PHP render and the JS tab switcher, which removes every descendant (including iframes) from focus/hit-test. Grid-stack layout is preserved so Collect.js still mounts iframes at the correct width on first render.
+- **“Payment details could not be tokenized. Please try again.”** was a downstream symptom — `$_POST['cardz3n_payment_token']` was empty at `process_payment()` because Collect.js never received digits in its fields. Fixed by the `inert` change above.
+- **`data-cardz3n-version` attribute on `.cardz3n-gateway-ui`** was dropped between 1.0.19 and 1.0.20. Restored. Support can now confirm the running build at the checkout via that attribute AND via the localized `CARDZ3N_GW.version`.
+
+### Changed
+- **`enable_level3` default is now `no`.** Level 2/3 commercial-card interchange optimization requires meaningful catalog metadata (UPC, commodity code, tax amount). When enabled without that metadata, the processor can DOWNGRADE interchange rather than improve it. Merchants who know they qualify enable it intentionally on `WooCommerce → Payments → CARDZ3N`.
+- **`enable_po_field` default is now `no`.** Purchase Order number is a B2B/procurement feature that adds clutter to a retail checkout. Off by default; B2B stores enable it intentionally.
+
+### Reference — How stored cards are retrieved and used
+- **Save at checkout:** when the buyer is logged in and checks “Save this card for faster checkout next time.” the form submits `wc-cardz3n_gateway-new-payment-method=true`. `process_payment()` detects this via `$should_vault_card`, sends `vault=add_customer` with the single-use Collect.js `payment_token` to `transact.php`, and the gateway responds with a `customer_vault_id`. `Token_Service::save_card_token($user_id, $gateway_id, $vault_id, $card_info)` persists that as a `WC_Payment_Token_CC` whose primary token is the `customer_vault_id` and whose metadata stores last4, brand, exp_month, exp_year. The identical flow works for ACH via `Token_Service::save_ach_token()` → `WC_Payment_Token_ECheck`.
+- **Retrieve on subsequent checkout:** on render, `payment_fields()` calls WooCommerce’s `get_tokens()` for the current user + gateway. If any exist, the **Saved** tab appears and is auto-selected; each saved token renders as a radio under its own `<input name="wc-cardz3n_gateway-payment-token">`. The card brand, last4, and expiry come from token metadata, not from NMI — no network call at render time.
+- **Charge a saved method:** when the buyer submits with a saved-token radio selected, `process_payment()` loads `WC_Payment_Tokens::get( $payment_token_id )`, verifies the token belongs to the current user and to this gateway, pulls `cardz3n_vault_id` metadata (fallback to the token’s primary key), and calls `transact.php` with `customer_vault_id=<id>` instead of `payment_token`. No Collect.js interaction is required on that pageview — saved-method submits never hit the hosted-field iframes.
+- **Delete a saved method:** from `My Account → Payment methods`, `Token_Service::delete_token($token_id)` calls `Api_Client::delete_vault($vault_id)` which posts `customer_vault=delete_customer&customer_vault_id=<id>` to NMI, then removes the local `WC_Payment_Token`. If the remote delete fails the local token is still removed and a warning is logged — avoids leaving an orphan row the buyer can’t get rid of.
+
 ## [1.0.20] — 2026-04-20
 
 ### Fixed
