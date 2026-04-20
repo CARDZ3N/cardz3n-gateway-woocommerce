@@ -8,18 +8,18 @@
 	--cardz3n-muted: #6b7280;
 	font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 	color: #111;
-	margin-top: 10px;
+	margin-top: 6px;
 }
 .cardz3n-brand-icons {
-	display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap;
+	display: flex; gap: 4px; margin-bottom: 6px; flex-wrap: wrap;
 }
-.cardz3n-brand-icons img { height: 22px; width: auto; }
+.cardz3n-brand-icons img { height: 20px; width: auto; }
 
 .cardz3n-wallets {
-	display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px;
+	display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px;
 }
 .cardz3n-wallets > div[data-cardz3n-wallet] {
-	min-height: 44px;
+	min-height: 40px;
 }
 .cardz3n-wallets-divider {
 	display: flex; align-items: center; gap: 10px; color: var(--cardz3n-muted);
@@ -32,11 +32,11 @@
 
 .cardz3n-tabs {
 	display: flex; gap: 4px; border-bottom: 1px solid var(--cardz3n-border);
-	margin-bottom: 14px;
+	margin-bottom: 10px;
 }
 .cardz3n-tab {
 	appearance: none; border: 0; background: transparent;
-	padding: 10px 14px; font-size: 14px; color: var(--cardz3n-muted);
+	padding: 8px 12px; font-size: 14px; color: var(--cardz3n-muted);
 	cursor: pointer; border-bottom: 2px solid transparent; border-radius: 0;
 	font-weight: 500; transition: color .15s, border-color .15s;
 }
@@ -46,13 +46,13 @@
 .cardz3n-pane { display: none; }
 .cardz3n-pane.is-active { display: block; }
 
-.cardz3n-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.cardz3n-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.cardz3n-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cardz3n-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
 .cardz3n-field > label {
 	font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--cardz3n-muted);
 }
 .cardz3n-collect-field {
-	height: 44px; border: 1px solid var(--cardz3n-border); border-radius: 6px;
+	height: 40px; border: 1px solid var(--cardz3n-border); border-radius: 6px;
 	padding: 0 10px; background: var(--cardz3n-bg); transition: border-color .15s;
 }
 .cardz3n-collect-field:focus-within { border-color: var(--cardz3n-primary); }
@@ -62,14 +62,14 @@
 	margin-top: 4px;
 }
 .cardz3n-errors {
-	display: none; margin-top: 10px; color: var(--cardz3n-error);
-	background: #fff5f5; padding: 10px 12px; border-radius: 6px; border: 1px solid #fecaca;
+	display: none; margin-top: 8px; color: var(--cardz3n-error);
+	background: #fff5f5; padding: 8px 10px; border-radius: 6px; border: 1px solid #fecaca;
 	font-size: 14px;
 }
 .cardz3n-po-field { margin-top: 6px; }
 
 .cardz3n-field select {
-	height: 44px; border: 1px solid var(--cardz3n-border); border-radius: 6px; padding: 0 10px;
+	height: 40px; border: 1px solid var(--cardz3n-border); border-radius: 6px; padding: 0 10px;
 	background: #fff; font-size: 14px;
 }
 
@@ -82,3 +82,10 @@ body.cardz3n-brand-aerospacepay .cardz3n-gateway-ui {
 	--cardz3n-primary: #0b3d91;
 	--cardz3n-accent: #d64545;
 }
+
+/* 1.0.15 — collapse wallet wrappers that Collect.js leaves empty on devices
+   that can't render the wallet (Chrome/Windows for Apple Pay, browsers
+   without Google Pay, etc.) so there's no phantom vertical gap. */
+.cardz3n-applepay-button:empty,
+.cardz3n-googlepay-button:empty { display: none; }
+.cardz3n-wallets:not(:has(> div[data-cardz3n-wallet]:not(:empty))) { display: none; }

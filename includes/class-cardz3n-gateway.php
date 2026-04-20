@@ -190,6 +190,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 					'processing'    => __( 'Processing…', 'cardz3n-gateway' ),
 					'invalidFields' => __( 'Please check your payment details and try again.', 'cardz3n-gateway' ),
 					'timeout'       => __( 'Tokenization timed out. Please try again.', 'cardz3n-gateway' ),
+					'initError'     => __( 'Unable to initialize secure payment form. Please refresh the page and try again.', 'cardz3n-gateway' ),
 				),
 			)
 		);
@@ -324,14 +325,36 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			return;
 		}
 		$brands = (array) $this->get_option( 'allowed_card_brands', array( 'visa', 'mastercard', 'amex', 'discover' ) );
-		if ( empty( $brands ) ) {
+		$icons  = array();
+		foreach ( $brands as $b ) {
+			$icons[] = array(
+				'file' => 'icon_cc_' . $b . '.svg',
+				'alt'  => ucfirst( $b ),
+			);
+		}
+
+		// 1.0.15: also surface Apple Pay / Google Pay logos in the brand row
+		// even when the buyer's current device doesn't support the wallet
+		// (the live wallet button still only renders when canMakePayments is
+		// true). This reassures buyers the gateway accepts their wallet.
+		if ( 'yes' === $this->get_option( 'enable_apple_pay', 'yes' ) ) {
+			$icons[] = array( 'file' => 'icon_wallet_applepay.svg', 'alt' => 'Apple Pay' );
+		}
+		if ( 'yes' === $this->get_option( 'enable_google_pay', 'yes' ) ) {
+			$icons[] = array( 'file' => 'icon_wallet_googlepay.svg', 'alt' => 'Google Pay' );
+		}
+
+		if ( empty( $icons ) ) {
 			return;
 		}
 		echo '<div class="cardz3n-brand-icons">';
-		foreach ( $brands as $b ) {
-			$file = 'icon_cc_' . $b . '.svg';
-			$path = CARDZ3N_GW_URL . 'assets/img/' . $file;
-			printf( '<img src="%s" alt="%s" width="38" height="24" loading="lazy" />', esc_url( $path ), esc_attr( ucfirst( $b ) ) );
+		foreach ( $icons as $icon ) {
+			$path = CARDZ3N_GW_URL . 'assets/img/' . $icon['file'];
+			printf(
+				'<img src="%s" alt="%s" width="38" height="24" loading="lazy" />',
+				esc_url( $path ),
+				esc_attr( $icon['alt'] )
+			);
 		}
 		echo '</div>';
 	}
@@ -398,7 +421,9 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		 * `is_ssl()` — the Woo helper handles reverse proxies (InstaWP, WP
 		 * Engine, Cloudflare, etc.) correctly.
 		 */
-		if ( ! is_admin() && 'yes' !== $this->get_option( 'sandbox_mode' ) ) {
+		// 1.0.15: unified 'test_mode' with legacy 'sandbox_mode' fallback.
+		$is_test_mode = 'yes' === $this->get_option( 'test_mode', $this->get_option( 'sandbox_mode', 'no' ) );
+		if ( ! is_admin() && ! $is_test_mode ) {
 			$is_https = function_exists( 'wc_checkout_is_https' )
 				? wc_checkout_is_https()
 				: ( is_ssl() || 'https' === ( $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '' ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput

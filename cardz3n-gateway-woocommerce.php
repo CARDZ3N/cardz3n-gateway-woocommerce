@@ -3,7 +3,7 @@
  * Plugin Name: CARDZ3N Gateway for WooCommerce
  * Plugin URI: https://cardz3n.com/woocommerce
  * Description: Embedded on-site checkout for WooCommerce powered by the CARDZ3N/NMI payment gateway. Cards, ACH, Apple Pay, Google Pay, saved methods, subscriptions, refunds, captures, voids, and automatic Level 2/3 commercial-card data in a single gateway UI.
- * Version: 1.0.14
+ * Version: 1.0.15
  * Requires at least: 6.4
  * Requires PHP: 7.4
  * Requires Plugins: woocommerce
@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Plugin constants
  * -------------------------------------------------------------------------- */
 
-define( 'CARDZ3N_GW_VERSION', '1.0.14' );
+define( 'CARDZ3N_GW_VERSION', '1.0.15' );
 define( 'CARDZ3N_GW_FILE', __FILE__ );
 define( 'CARDZ3N_GW_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CARDZ3N_GW_URL', plugin_dir_url( __FILE__ ) );
@@ -181,7 +181,7 @@ register_activation_hook( __FILE__, 'cardz3n_gw_activate' );
 register_deactivation_hook( __FILE__, 'cardz3n_gw_deactivate' );
 
 function cardz3n_gw_activate() {
-	// Version stamp for future migrations.
+	cardz3n_gw_maybe_migrate_settings();
 	update_option( 'cardz3n_gw_version', CARDZ3N_GW_VERSION );
 	update_option( 'cardz3n_gw_activated_at', current_time( 'timestamp' ) );
 }
@@ -189,3 +189,63 @@ function cardz3n_gw_activate() {
 function cardz3n_gw_deactivate() {
 	// Intentionally no destructive cleanup. Merchant data remains in case of reactivation.
 }
+
+/**
+ * 1.0.15 migration: collapse sandbox_*/live_* keys into a single
+ * security_key + tokenization_key, and rename sandbox_mode to test_mode.
+ *
+ * CARDZ3N has no separate sandbox portal — Test Mode is a toggle on the same
+ * gateway account using the same keys. This migration runs once (idempotent)
+ * on activation and on every plugin-file load as a safety net for sites that
+ * didn't trigger the activation hook (e.g. upgraded via WP.org auto-update).
+ *
+ * Source of truth priority when populating unified keys:
+ *   1. `security_key` / `tokenization_key` — already present, skip.
+ *   2. `sandbox_security_key` / `sandbox_tokenization_key` — preferred
+ *      because the user's earlier clarification was that Test Mode uses the
+ *      same keys, and the sandbox fields were the first ones most merchants
+ *      filled in when setting up.
+ *   3. `live_security_key` / `live_tokenization_key` — fallback.
+ *
+ * Legacy fields are NOT deleted, so downgrade-to-previous-version keeps
+ * working. The API client reads unified first, legacy second.
+ */
+function cardz3n_gw_maybe_migrate_settings() {
+	$option = 'woocommerce_cardz3n_gateway_settings';
+	$s      = get_option( $option, array() );
+	if ( ! is_array( $s ) ) {
+		return;
+	}
+
+	$changed = false;
+
+	if ( empty( $s['security_key'] ) ) {
+		foreach ( array( 'sandbox_security_key', 'live_security_key' ) as $legacy ) {
+			if ( ! empty( $s[ $legacy ] ) ) {
+				$s['security_key'] = (string) $s[ $legacy ];
+				$changed           = true;
+				break;
+			}
+		}
+	}
+
+	if ( empty( $s['tokenization_key'] ) ) {
+		foreach ( array( 'sandbox_tokenization_key', 'live_tokenization_key' ) as $legacy ) {
+			if ( ! empty( $s[ $legacy ] ) ) {
+				$s['tokenization_key'] = (string) $s[ $legacy ];
+				$changed               = true;
+				break;
+			}
+		}
+	}
+
+	if ( ! isset( $s['test_mode'] ) && isset( $s['sandbox_mode'] ) ) {
+		$s['test_mode'] = $s['sandbox_mode'];
+		$changed        = true;
+	}
+
+	if ( $changed ) {
+		update_option( $option, $s );
+	}
+}
+add_action( 'plugins_loaded', 'cardz3n_gw_maybe_migrate_settings', 9 );

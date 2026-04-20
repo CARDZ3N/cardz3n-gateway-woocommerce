@@ -3,6 +3,28 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.15] — 2026-04-19
+
+### Fixed
+- **Critical: "Unable to initialize secure payment form."** Card and ACH fields accepted no input in 1.0.14. Live DevTools diagnostic revealed Collect.js was throwing `You provided too many fields. Unexpected fields for applePay` because we were passing `type`, `style`, `contactFields`, `emailRequired`, and `buttonColor` to its `applePay`/`googlePay` config — all keys Collect.js rejects. That single `configure()` throw also blocked the `ccnumber` / `ccexp` / `cvv` iframes from rendering, so the entire form was dead.
+- `applePay` and `googlePay` config objects now contain only `selector` (the minimal documented field set).
+- Added a defensive fallback: if `configure()` still throws for any reason (e.g. Collect.js updates on NMI's side that change accepted fields), the plugin retries `configure()` without the wallet configs so the card form at least renders. A hidden wallet is a better outcome than a broken checkout.
+
+### Changed
+- **Collapsed four-field credential UI into two fields.** `sandbox_security_key`, `sandbox_tokenization_key`, `live_security_key`, and `live_tokenization_key` are replaced by a single `security_key` + single `tokenization_key`, because CARDZ3N has no separate sandbox portal — Test Mode is a toggle on the same gateway account using the same keys. Merchant-reported requirement.
+- Renamed the "Sandbox Mode" toggle to "Test Mode" and clarified the inline help text.
+- Tightened vertical spacing in the embedded checkout — reduced tab padding, field gaps, and brand-icon gaps; collapsed empty wallet wrappers so there's no phantom blank space when Apple/Google Pay can't render on the buyer's device.
+- Brand-icon row now always surfaces Apple Pay and Google Pay logos when those methods are enabled in settings, even on devices that can't render the live wallet button (so buyers on Chrome/Windows see the gateway accepts Apple Pay).
+
+### Added
+- Maestro card brand option in Accepted Card Brands.
+- `assets/img/icon_cc_maestro.svg`, `assets/img/icon_wallet_applepay.svg`, `assets/img/icon_wallet_googlepay.svg`.
+- One-shot settings migration (`cardz3n_gw_maybe_migrate_settings`) that runs on plugin activation and on every `plugins_loaded` as a safety net for WP.org auto-updates. Populates `security_key` / `tokenization_key` from the legacy `sandbox_*` fields first, falling back to `live_*`. Renames `sandbox_mode` → `test_mode`. Idempotent and non-destructive: legacy fields are left in place so downgrading to 1.0.14 or earlier continues to work.
+
+### API compatibility
+- `Api_Client::security_key()` and `Api_Client::tokenization_key()` now read the unified `security_key` / `tokenization_key` first, then fall back to `sandbox_*` or `live_*` depending on current Test Mode state. No breaking change for existing installs.
+- `Gateway::is_available()` now checks the unified `test_mode` option with a `sandbox_mode` fallback for the HTTPS-gate live-mode check.
+
 ## [1.0.14] — 2026-04-19
 
 ### Fixed

@@ -155,29 +155,60 @@
 		var applePayAvailable  = !!(window.ApplePaySession && window.ApplePaySession.canMakePayments && window.ApplePaySession.canMakePayments());
 		var googlePayAvailable = !!(window.google && window.google.payments && window.google.payments.api && window.google.payments.api.PaymentsClient);
 
+		/*
+		 * Collect.js is extremely strict about the shape of its `applePay` and
+		 * `googlePay` config objects. Passing an unrecognized key (e.g. `type`,
+		 * `style`, `contactFields`, `emailRequired`) causes configure() to
+		 * throw:
+		 *   "You provided too many fields. Unexpected fields for applePay"
+		 * and that throw ALSO prevents the ccnumber/ccexp/cvv iframes from
+		 * rendering. 1.0.15 pares these objects down to the minimal
+		 * documented fields, and if configure() still throws we retry without
+		 * the wallet configs so the card form at least works.
+		 */
 		if (cfg.enableApplePay && applePayAvailable) {
 			collectConfig.applePay = {
-				style: 'black',
-				type: 'buy',
-				selector: '.cardz3n-applepay-button',
-				contactFields: ['email', 'phone']
+				selector: '.cardz3n-applepay-button'
 			};
 		}
 		if (cfg.enableGooglePay && googlePayAvailable) {
 			collectConfig.googlePay = {
-				buttonType: 'buy',
-				buttonColor: 'default',
-				selector: '.cardz3n-googlepay-button',
-				emailRequired: true
+				selector: '.cardz3n-googlepay-button'
 			};
 		}
 
-		try {
-			window.CollectJS.configure(collectConfig);
-			configured = true;
-		} catch (err) {
-			showError('Unable to initialize secure payment form.');
+		function attemptConfigure(config, label) {
+			try {
+				window.CollectJS.configure(config);
+				configured = true;
+				return true;
+			} catch (err) {
+				if (window.console && console.warn) {
+					console.warn('[CARDZ3N] CollectJS.configure failed (' + label + '):', err && err.message ? err.message : err);
+				}
+				return false;
+			}
 		}
+
+		if (attemptConfigure(collectConfig, 'full')) {
+			return;
+		}
+
+		// Retry without wallet configs - card iframes are more important than
+		// Apple/Google Pay buttons, and we'd rather render the card form with
+		// hidden wallets than lose tokenization entirely.
+		var cardOnlyConfig = {};
+		for (var k in collectConfig) {
+			if (Object.prototype.hasOwnProperty.call(collectConfig, k) && k !== 'applePay' && k !== 'googlePay') {
+				cardOnlyConfig[k] = collectConfig[k];
+			}
+		}
+		if (attemptConfigure(cardOnlyConfig, 'card-only fallback')) {
+			$ui().find('.cardz3n-wallets').hide();
+			return;
+		}
+
+		showError(cfg.i18n.initError || 'Unable to initialize secure payment form.');
 	}
 
 	function resetCollect() {

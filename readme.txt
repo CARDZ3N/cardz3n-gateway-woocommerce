@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.14
+Stable tag: 1.0.15
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,16 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Changelog ==
 
+= 1.0.15 =
+* Fix (critical): "Unable to initialize secure payment form" error that prevented any card or ACH data from being entered. Collect.js was throwing `"You provided too many fields. Unexpected fields for applePay"` because the gateway was passing `type`, `style`, `contactFields`, `emailRequired`, and `buttonColor` keys that Collect.js does not accept. That single `configure()` throw also prevented the `ccnumber` / `ccexp` / `cvv` iframes from rendering, so the entire payment form was dead.
+* Fix: `applePay` and `googlePay` Collect.js config objects are now pared down to the minimal documented field set (just `selector`). If `configure()` still throws for any reason, the gateway now retries without the wallet configs so the card form at least renders — a hidden wallet is a better outcome than a broken checkout.
+* Change: Collapsed the four-field credential UI (`sandbox_security_key`, `sandbox_tokenization_key`, `live_security_key`, `live_tokenization_key`) into a single **Security Key** + single **Tokenization Key**, because CARDZ3N does not use a separate sandbox portal — Test Mode is a toggle on the same gateway account using the same keys. Merchant-reported requirement.
+* Change: Renamed the "Sandbox Mode" toggle to "Test Mode" and clarified that it routes transactions through the CARDZ3N test processor on the same merchant account.
+* Migration: Runs once on plugin activation and again (idempotent) on `plugins_loaded` so WP.org auto-updates pick it up. When the new `security_key` is empty, it copies from `sandbox_security_key` (preferred, since Test Mode uses the same keys) or `live_security_key` (fallback). Same logic for the tokenization key. Legacy fields are not deleted — the API client reads unified first with a legacy fallback, so downgrading to 1.0.14 or earlier continues to work.
+* Add: Maestro card brand option in Accepted Card Brands.
+* Add: Apple Pay and Google Pay SVG logos rendered in the brand-icon row alongside Visa/Mastercard/etc., even on devices that can't display the live wallet button (so buyers on Chrome/Windows see that the gateway accepts Apple Pay).
+* UX: Tightened vertical spacing throughout the embedded checkout — reduced padding on tabs, field gaps, and brand-icon gaps; collapsed empty wallet wrappers so there's no phantom blank space when Apple/Google Pay can't render on the buyer's device.
+
 = 1.0.14 =
 * Fix (critical): Checkout Block still showed "There are no payment methods available" after 1.0.13. Live DevTools inspection confirmed `cardz3n_gateway_data` wcSetting was still `null`, the Blocks payment registry was empty, and our Blocks JS bundle was never enqueued — even though the classic `assets/js/checkout.js` was loading correctly. After three iterations trying to diagnose why Woo Blocks wasn't picking up our native `AbstractPaymentMethodType` on this stack, 1.0.14 switches strategy entirely.
 * Change: `declare_compatibility('cart_checkout_blocks', ..., false)` — the same approach used by production NMI-family gateways like Evergreen Payments Northwest 1.1.0. This tells WooCommerce Blocks to render CARDZ3N via its classic-shortcode compatibility layer. The same `payment_fields()` HTML, `assets/js/checkout.js`, and `process_payment()` server path used on classic shortcode checkouts now renders inside the Block checkout too. Single code path, proven pattern, no hook-timing surface.
@@ -212,6 +222,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * HPOS compatibility declared.
 
 == Upgrade Notice ==
+
+= 1.0.15 =
+Required upgrade if card or ACH fields weren't accepting input in 1.0.14. Fixes the "Unable to initialize secure payment form" error, collapses the four-field key UI into a single Security Key + Tokenization Key with automatic migration from the old fields, renames Sandbox Mode to Test Mode, adds Maestro/Apple Pay/Google Pay logos in the brand icon row, and tightens spacing in the embedded checkout.
 
 = 1.0.14 =
 Fixes "There are no payment methods available" on the WooCommerce Checkout Block for good. We now render CARDZ3N inside the Block via the classic-shortcode compatibility layer — same pattern used by Evergreen Payments Northwest 1.1.0 and other production NMI-family gateways. Recommended upgrade for every site using Cart/Checkout Blocks.

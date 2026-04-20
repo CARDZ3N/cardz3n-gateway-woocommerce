@@ -53,31 +53,58 @@ class Api_Client {
 			$settings = get_option( 'woocommerce_' . Brand::id() . '_settings', array() );
 		}
 		$this->settings = $settings;
-		$this->sandbox  = isset( $settings['sandbox_mode'] ) && 'yes' === $settings['sandbox_mode'];
+		/*
+		 * 1.0.15 renamed 'sandbox_mode' to 'test_mode'. Both are read so the
+		 * gateway keeps working if the migration hasn't run yet.
+		 */
+		$this->sandbox = ( isset( $settings['test_mode'] ) && 'yes' === $settings['test_mode'] )
+			|| ( isset( $settings['sandbox_mode'] ) && 'yes' === $settings['sandbox_mode'] );
 	}
 
 	/* ---------------------------------------------------------------------
 	 * Credentials
+	 *
+	 * 1.0.15 collapsed the four-field key UI (sandbox_* + live_*) into a
+	 * single Security Key + single Tokenization Key because CARDZ3N does not
+	 * use a separate sandbox portal — Test Mode is a toggle on the same
+	 * gateway account using the same keys. For backward compatibility we
+	 * fall back to legacy fields when the unified ones are empty.
 	 * ------------------------------------------------------------------ */
+
+	private function first_nonempty( array $keys ) {
+		foreach ( $keys as $k ) {
+			$v = isset( $this->settings[ $k ] ) ? trim( (string) $this->settings[ $k ] ) : '';
+			if ( '' !== $v ) {
+				return $v;
+			}
+		}
+		return '';
+	}
 
 	/**
 	 * Private security key used to sign server-side requests.
 	 */
 	public function security_key() {
-		$key = $this->sandbox
-			? (string) ( $this->settings['sandbox_security_key'] ?? '' )
-			: (string) ( $this->settings['live_security_key'] ?? '' );
-		return trim( $key );
+		return $this->first_nonempty(
+			array(
+				'security_key',
+				$this->sandbox ? 'sandbox_security_key' : 'live_security_key',
+				$this->sandbox ? 'live_security_key' : 'sandbox_security_key',
+			)
+		);
 	}
 
 	/**
 	 * Public tokenization key used by Collect.js in the browser.
 	 */
 	public function tokenization_key() {
-		$key = $this->sandbox
-			? (string) ( $this->settings['sandbox_tokenization_key'] ?? '' )
-			: (string) ( $this->settings['live_tokenization_key'] ?? '' );
-		return trim( $key );
+		return $this->first_nonempty(
+			array(
+				'tokenization_key',
+				$this->sandbox ? 'sandbox_tokenization_key' : 'live_tokenization_key',
+				$this->sandbox ? 'live_tokenization_key' : 'sandbox_tokenization_key',
+			)
+		);
 	}
 
 	public function is_sandbox() {
