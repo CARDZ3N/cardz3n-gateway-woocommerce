@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.17
+Stable tag: 1.0.18
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,15 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Changelog ==
 
+= 1.0.18 =
+* Change: Enable / Disable now defaults to enabled out of the box so new installs are live as soon as credentials are saved.
+* Change: Checkout Title is now locked to “Powered by CARDZ3N”. The settings field is rendered read-only and the runtime value is forced server-side so a merchant can’t accidentally replace the branded label.
+* Change: Removed “We never see or store your payment details” from the default Checkout Description to give merchants a cleaner, more flexible default.
+* Change: 3D Secure controls renamed for clarity. The section is now “3D Secure 2.0”, the checkbox label reads “Enable 3D Secure 2.0”, and the description explains the merchant value (“3D Secure 2.0 can help you avoid fraudulent transactions by authenticating transactions before submitting them to the gateway for processing.”).
+* Change: 3D Secure 2.0 now defaults to OFF so merchants make a conscious decision to enable SCA.
+* New: WooCommerce → Payments listing now shows a “Recurring Payments” support badge (small pill with a recurring icon) next to the CARDZ3N Gateway description so merchants can see subscription support at a glance.
+* New: Refreshed CARDZ3N brand logo — cleaner card mark with chip and contactless arcs, improved typography, and a brand-blue accent on the “3”. Used wherever “Show CARDZ3N logo only” is selected under Gateway Icon Style.
+
 = 1.0.17 =
 * Fix (critical): ACH fields (Name on account, Routing, Account number) would not accept any input. Collect.js mounts its hosted-field iframes by reading the target container's width and height; when the container's parent has `display: none`, the iframe mounts at 0×0 and every click falls through. The Card and ACH panes now share a positioning container and inactive panes are hidden off-screen (absolute position, visibility hidden, opacity 0) instead of `display: none`, so all iframes mount at full size on first render.
 * Fix (critical): On the Card tab, Collect.js iframes overflowed their bordered container because the wrapper had internal padding AND the iframe input had its own internal padding. Removed container padding, forced the iframe to fill 100% × 100% inside a clipped wrapper, and moved typography into Collect.js `customCss`. Text now sits cleanly inside each field's rounded border.
@@ -233,6 +242,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * HPOS compatibility declared.
 
 == Upgrade Notice ==
+
+= 1.0.18 =
+UX polish release. Enable/Disable now defaults to enabled, Checkout Title is locked to “Powered by CARDZ3N”, 3D Secure 2.0 is renamed and now defaults to off, a Recurring Payments support badge is shown on the Payments listing, and the CARDZ3N brand logo has been refreshed. No database changes.
 
 = 1.0.17 =
 Recommended upgrade. Fixes ACH fields that refused input, card-tab field overflow, the confusing "Use a new payment method" radio inside saved tokens, and "Payment Token does not exist" retries. Also adds a helpful buyer-facing error and safer support logging when the gateway rejects a token.

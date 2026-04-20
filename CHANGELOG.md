@@ -3,6 +3,19 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.18] — 2026-04-19
+
+### Changed
+- **Enable / Disable now defaults to enabled.** New installs are live as soon as the merchant saves credentials, matching merchant expectations for a paid gateway plugin.
+- **Checkout Title is locked to "Powered by CARDZ3N".** The settings input is rendered `readonly` and the runtime value is forced server-side via `$this->title = __( 'Powered by CARDZ3N', ... )` in the constructor, so a merchant hacking around the readonly attribute or editing the options row directly still shows the branded label to buyers. The field description explains the lock.
+- **Checkout Description default no longer contains "We never see or store your payment details."** New default: `Pay securely with a credit/debit card, ACH, Apple Pay, or Google Pay.`
+- **3D Secure labels rewritten.** Section renamed from `3-D Secure 2 / SCA` to `3D Secure 2.0`. Checkbox label rewritten from `Attempt 3DS2 authentication when the gateway/account supports it.` to `Enable 3D Secure 2.0`. Added explanatory description: `3D Secure 2.0 can help you avoid fraudulent transactions by authenticating transactions before submitting them to the gateway for processing.`
+- **3D Secure 2.0 now defaults to `no`.** Merchants make a conscious, informed choice to enable SCA.
+
+### Added
+- **Recurring Payments support badge** on the WooCommerce → Payments listing row. Rendered as a small pill (recurring glyph + "Recurring Payments" label) appended to `method_description`. The glyph is an inline SVG encoded as a `data:` URI on a `<span>` background-image so it survives WooCommerce's `wp_kses_post()` pass on method descriptions.
+- **Refreshed CARDZ3N brand logo** (`assets/img/logo-cardz3n.svg`). Previous logo was a simple rect with two white bars; new logo is a gradient card mark with chip, contactless arcs, and a matching drop shadow, paired with an Inter 800 wordmark and a brand-blue accent on the "3". Used everywhere "Show CARDZ3N logo only" is selected under Gateway Icon Style.
+
 ## [1.0.17] — 2026-04-19
 
 ### Fixed

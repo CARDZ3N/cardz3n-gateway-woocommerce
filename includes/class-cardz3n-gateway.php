@@ -29,17 +29,24 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	use Compatibility_Trait;
 
 	public function __construct() {
-		$brand                  = Brand::profile();
-		$this->id               = $brand['gateway_id'];
-		$this->method_title     = $brand['method_title'];
-		$this->method_description = $brand['method_description'];
-		$this->has_fields       = true;
-		$this->icon             = $this->gateway_icon_url();
+		$brand                    = Brand::profile();
+		$this->id                 = $brand['gateway_id'];
+		$this->method_title       = $brand['method_title'];
+		$this->method_description = $this->build_method_description( $brand );
+		$this->has_fields         = true;
+		$this->icon               = $this->gateway_icon_url();
 
 		$this->init_form_fields();
 		$this->init_settings();
 
-		$this->title       = $this->get_option( 'title', $brand['default_title'] );
+		/*
+		 * 1.0.18 — Checkout title is LOCKED to "Powered by CARDZ3N" by product
+		 * decision. The admin input is rendered readonly in the settings UI,
+		 * but we also force the runtime value here so a merchant who hacks
+		 * around the readonly attribute (or a database edit) still presents
+		 * the branded label to buyers at checkout.
+		 */
+		$this->title       = __( 'Powered by CARDZ3N', 'cardz3n-gateway' );
 		$this->description = $this->get_option( 'description' );
 
 		$this->supports = $this->build_supports_array();
@@ -70,6 +77,42 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		 * implementations still live on this class; Admin delegates to them via a
 		 * lazily-resolved Gateway instance.
 		 */
+	}
+
+	/**
+	 * Build the method_description shown on the WooCommerce
+	 * Settings → Payments listing row.
+	 *
+	 * Appends a small recurring-payments support badge so merchants can see
+	 * at a glance that this gateway supports subscriptions/recurring billing.
+	 * The badge is a single SVG "recurring" icon plus a short label, rendered
+	 * in an inline-flex container so it sits cleanly to the right of the
+	 * description text.
+	 *
+	 * @param array<string,mixed> $brand Active brand profile.
+	 * @return string Method description HTML (safe — only uses wp_kses-friendly tags).
+	 */
+	protected function build_method_description( $brand ) {
+		$text = isset( $brand['method_description'] ) ? $brand['method_description'] : '';
+
+		/*
+		 * Recurring-payments support badge.
+		 *
+		 * WooCommerce runs method_description through wp_kses_post() before
+		 * rendering, which strips <svg> and most custom tags but DOES allow
+		 * <span> with a style attribute and <img>. We use a CSS background-image
+		 * on a <span> with a data-URI of our recurring glyph, so the icon
+		 * survives kses and has no external HTTP request, and we pair it with a
+		 * UTF-8 "⟲" fallback in case the background image is blocked.
+		 */
+		$svg      = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="%230a5cff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-7.94-4.76"/><path d="M3 12a9 9 0 0 1 9-9 9 9 0 0 1 7.94 4.76"/><polyline points="21 3 21 7.76 16.24 7.76"/><polyline points="3 21 3 16.24 7.76 16.24"/></svg>';
+		$data_uri = 'data:image/svg+xml;charset=utf-8,' . str_replace( array( '"', '<', '>' ), array( "'", '%3C', '%3E' ), $svg );
+
+		$badge  = '<span style="display:inline-block;margin-left:8px;padding:2px 10px 2px 26px;background:#eef6ff no-repeat 8px center / 14px 14px url(\'' . esc_url( $data_uri ) . '\');border:1px solid #b6d4fe;border-radius:12px;font-size:11px;font-weight:600;color:#0a5cff;vertical-align:middle;line-height:16px;" title="' . esc_attr__( 'Supports WooCommerce Subscriptions and recurring payments', 'cardz3n-gateway' ) . '">';
+		$badge .= esc_html__( 'Recurring Payments', 'cardz3n-gateway' );
+		$badge .= '</span>';
+
+		return $text . ' ' . $badge;
 	}
 
 	/* ------------------------------------------------------------------
