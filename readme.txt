@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.15
+Stable tag: 1.0.16
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Changelog ==
 
+= 1.0.16 =
+* Fix (critical): Plugin would not activate on 1.0.15 — a PHP docblock comment contained `sandbox_*/live_*`, and the embedded `*/` sequence terminated the docblock early, producing a parse error (`syntax error, unexpected identifier "into"`) that prevented the main plugin file from loading. Rewrote the comment to avoid the `*/` sequence. No functional changes; this is a hotfix for 1.0.15.
+
 = 1.0.15 =
 * Fix (critical): "Unable to initialize secure payment form" error that prevented any card or ACH data from being entered. Collect.js was throwing `"You provided too many fields. Unexpected fields for applePay"` because the gateway was passing `type`, `style`, `contactFields`, `emailRequired`, and `buttonColor` keys that Collect.js does not accept. That single `configure()` throw also prevented the `ccnumber` / `ccexp` / `cvv` iframes from rendering, so the entire payment form was dead.
 * Fix: `applePay` and `googlePay` Collect.js config objects are now pared down to the minimal documented field set (just `selector`). If `configure()` still throws for any reason, the gateway now retries without the wallet configs so the card form at least renders — a hidden wallet is a better outcome than a broken checkout.
@@ -222,6 +225,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * HPOS compatibility declared.
 
 == Upgrade Notice ==
+
+= 1.0.16 =
+Critical hotfix. 1.0.15 shipped with a PHP parse error that prevented the plugin from activating. Upgrade immediately. No other changes.
 
 = 1.0.15 =
 Required upgrade if card or ACH fields weren't accepting input in 1.0.14. Fixes the "Unable to initialize secure payment form" error, collapses the four-field key UI into a single Security Key + Tokenization Key with automatic migration from the old fields, renames Sandbox Mode to Test Mode, adds Maestro/Apple Pay/Google Pay logos in the brand icon row, and tightens spacing in the embedded checkout.

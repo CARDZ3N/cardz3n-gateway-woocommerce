@@ -3,7 +3,7 @@
  * Plugin Name: CARDZ3N Gateway for WooCommerce
  * Plugin URI: https://cardz3n.com/woocommerce
  * Description: Embedded on-site checkout for WooCommerce powered by the CARDZ3N/NMI payment gateway. Cards, ACH, Apple Pay, Google Pay, saved methods, subscriptions, refunds, captures, voids, and automatic Level 2/3 commercial-card data in a single gateway UI.
- * Version: 1.0.15
+ * Version: 1.0.16
  * Requires at least: 6.4
  * Requires PHP: 7.4
  * Requires Plugins: woocommerce
@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Plugin constants
  * -------------------------------------------------------------------------- */
 
-define( 'CARDZ3N_GW_VERSION', '1.0.15' );
+define( 'CARDZ3N_GW_VERSION', '1.0.16' );
 define( 'CARDZ3N_GW_FILE', __FILE__ );
 define( 'CARDZ3N_GW_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CARDZ3N_GW_URL', plugin_dir_url( __FILE__ ) );
@@ -191,7 +191,7 @@ function cardz3n_gw_deactivate() {
 }
 
 /**
- * 1.0.15 migration: collapse sandbox_*/live_* keys into a single
+ * 1.0.15 migration: collapse sandbox_* and live_* keys into a single
  * security_key + tokenization_key, and rename sandbox_mode to test_mode.
  *
  * CARDZ3N has no separate sandbox portal — Test Mode is a toggle on the same
@@ -205,7 +205,7 @@ function cardz3n_gw_deactivate() {
  *      because the user's earlier clarification was that Test Mode uses the
  *      same keys, and the sandbox fields were the first ones most merchants
  *      filled in when setting up.
- *   3. `live_security_key` / `live_tokenization_key` — fallback.
+ *   3. `live_security_key` and `live_tokenization_key` — fallback.
  *
  * Legacy fields are NOT deleted, so downgrade-to-previous-version keeps
  * working. The API client reads unified first, legacy second.
