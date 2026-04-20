@@ -3,6 +3,14 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.16] — 2026-04-19
+
+### Fixed
+- **Critical: plugin would not activate on 1.0.15.** A PHP docblock in `cardz3n-gateway-woocommerce.php` contained the literal string `sandbox_*/live_*`. The embedded `*/` sequence terminated the docblock early, producing `syntax error, unexpected identifier "into"` and preventing the entire main plugin file from loading. WordPress's activation safe-mode then refused activation. Rewrote the comment to spell out `sandbox_* and live_*` without the `*/` sequence and linted every PHP file in the distribution to confirm no other occurrences.
+
+### Changed
+- No functional changes. 1.0.16 is a hotfix for 1.0.15 only.
+
 ## [1.0.15] — 2026-04-19
 
 ### Fixed
