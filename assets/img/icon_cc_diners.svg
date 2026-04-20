@@ -1,4 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 38 24" role="img" aria-label="Diners Club">
-  <rect width="38" height="24" rx="4" fill="#0079be"/>
-  <text x="19" y="15" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="6" fill="#fff" text-anchor="middle">DINERS</text>
+  <rect width="38" height="24" rx="3" fill="#ffffff" stroke="#e6e8ec"/>
+  <circle cx="19" cy="12" r="7.2" fill="#0079be"/>
+  <path d="M17.2 6.4a6 6 0 0 0 0 11.2V6.4zm3.6 0v11.2a6 6 0 0 0 0-11.2z" fill="#ffffff"/>
 </svg>

@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.19
+Stable tag: 1.0.20
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,13 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.20 =
+* Fix (critical): Card and ACH fields were rejecting keystrokes with the error **“Unable to initialize secure payment form. Please refresh the page and try again.”** on every device. Root cause surfaced in the Collect.js console: `CollectJS.configure failed: You provided too many fields. Unexpected fields for applePay`. NMI’s current Collect.js build rejects the documented `{selector: '.cardz3n-applepay-button'}` shape; its throw was fatal and prevented the `ccnumber` / `ccexp` / `cvv` / `checkname` / `checkaba` / `checkaccount` iframes from finishing wiring. 1.0.20 removes the `applePay` / `googlePay` blocks from the Collect.js config entirely, so the card and ACH iframes now initialize cleanly on every page load. Native wallets are temporarily suspended in the UI; they will return in a later release over a dedicated PaymentRequest / Apple Pay JS flow.
+* New: **“Save this card for faster checkout next time.”** Logged-in buyers on the Card tab now see an opt-in checkbox. When checked, the returned customer vault id is persisted as a `WC_Payment_Token_CC` via `Token_Service::save_card_token()` and the saved card shows up on the buyer’s account under Payment Methods and on subsequent checkouts via the Saved tab. Matches the existing **“Save this bank account for future orders.”** checkbox on the ACH tab, and both now appear on the first order (previously the boxes only appeared after the buyer already had tokens saved — i.e. too late to actually save the first card).
+* Change: Payment-brand row redrawn with higher-fidelity canonical brand marks for Visa, Mastercard, American Express, Discover, Maestro, JCB, Diners Club, UnionPay, ACH, Apple Pay, and Google Pay. The prior 1.0.15-era icons were colored rectangles with wordmark text and looked unprofessional at the checkout; the new marks use brand-accurate geometry (Mastercard interlocking circles, Maestro circles, JCB tri-color block, UnionPay tri-stripe, Apple Pay with the Apple logotype, G-Pay with the multicolored G). UnionPay is now available as an allowed-card-brand option.
+* New: **Version-mismatch admin banner** on the Plugins list and the WooCommerce → Payments screens. When the version on disk (`CARDZ3N_GW_VERSION`) disagrees with the last-activated version stored in `cardz3n_gw_version`, the banner prompts the merchant to deactivate and reactivate the plugin to finish the upgrade. `admin_init` also syncs the stored version on every admin load so WP.org auto-updates clear the banner without manual intervention. Would have caught the stale-install situation on 1.0.19 in five seconds.
+* New: **Running version is now stamped on the checkout UI** — `data-cardz3n-version` on `.cardz3n-gateway-ui` and `CARDZ3N_GW.version` in the localized script — so merchants and support can confirm which build is actually serving the checkout without digging through file timestamps.
 
 = 1.0.19 =
 * Fix (critical): Saved payment-methods tab on the checkout now only appears when the signed-in customer actually has saved tokens for this gateway. When tokens exist, the Saved tab is auto-selected; when there are none, the tab is suppressed entirely so buyers are not stared at by an empty panel.

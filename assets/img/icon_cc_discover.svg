@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 38 24" role="img" aria-label="Discover">
-  <rect width="38" height="24" rx="4" fill="#f0f0f0"/>
-  <rect x="0" y="14" width="38" height="10" rx="0" fill="#f7931a"/>
-  <text x="19" y="11" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="6" fill="#111" text-anchor="middle">DISCOVER</text>
+  <rect width="38" height="24" rx="3" fill="#ffffff" stroke="#e6e8ec"/>
+  <path d="M38 15 c-6 5-20 7-38 3 V21 a3 3 0 0 0 3 3 h32 a3 3 0 0 0 3-3z" fill="#f68121"/>
+  <circle cx="26" cy="14.5" r="3.2" fill="#f68121"/>
+  <text x="4" y="15" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="6" fill="#231f20">discover</text>
 </svg>

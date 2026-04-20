@@ -3,7 +3,7 @@
  * Plugin Name: CARDZ3N Gateway for WooCommerce
  * Plugin URI: https://cardz3n.com/woocommerce
  * Description: Embedded on-site checkout for WooCommerce powered by the CARDZ3N/NMI payment gateway. Cards, ACH, Apple Pay, Google Pay, saved methods, subscriptions, refunds, captures, voids, and automatic Level 2/3 commercial-card data in a single gateway UI.
- * Version: 1.0.19
+ * Version: 1.0.20
  * Requires at least: 6.4
  * Requires PHP: 7.4
  * Requires Plugins: woocommerce
@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Plugin constants
  * -------------------------------------------------------------------------- */
 
-define( 'CARDZ3N_GW_VERSION', '1.0.19' );
+define( 'CARDZ3N_GW_VERSION', '1.0.20' );
 define( 'CARDZ3N_GW_FILE', __FILE__ );
 define( 'CARDZ3N_GW_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CARDZ3N_GW_URL', plugin_dir_url( __FILE__ ) );
@@ -277,3 +277,73 @@ function cardz3n_gw_maybe_migrate_settings() {
 	}
 }
 add_action( 'plugins_loaded', 'cardz3n_gw_maybe_migrate_settings', 9 );
+
+/* -----------------------------------------------------------------------------
+ * 1.0.20: Version-mismatch admin notice.
+ *
+ * Catches the stale-install situation where the .php / .js / .css on disk
+ * advertise one version but `cardz3n_gw_version` (written on activation) is
+ * still pointing at an older release — usually because the merchant updated
+ * via FTP or extracted a new zip over the old one without re-activating. We
+ * surface this on the Plugins list and on the WooCommerce → Payments screen
+ * so a merchant can see at a glance which build is actually running and that
+ * they need to deactivate + reactivate the plugin to finish the upgrade.
+ * -------------------------------------------------------------------------- */
+
+add_action( 'admin_notices', 'cardz3n_gw_version_mismatch_notice' );
+function cardz3n_gw_version_mismatch_notice() {
+	if ( ! current_user_can( 'manage_woocommerce' ) && ! current_user_can( 'activate_plugins' ) ) {
+		return;
+	}
+
+	// Only render on screens the merchant will actually see.
+	$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+	$show   = false;
+	if ( $screen ) {
+		if ( in_array( $screen->id, array( 'plugins', 'plugins-network' ), true ) ) {
+			$show = true;
+		}
+		if ( isset( $_GET['page'] ) && 'wc-settings' === $_GET['page'] && isset( $_GET['tab'] ) && 'checkout' === $_GET['tab'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$show = true;
+		}
+	}
+	if ( ! $show ) {
+		return;
+	}
+
+	$stored = (string) get_option( 'cardz3n_gw_version', '' );
+	$disk   = (string) CARDZ3N_GW_VERSION;
+
+	if ( '' === $stored ) {
+		// Activation row hasn't written yet (brand-new install). Nothing to warn about.
+		return;
+	}
+	if ( version_compare( $stored, $disk, '==' ) ) {
+		return;
+	}
+
+	$plugins_url = esc_url( admin_url( 'plugins.php' ) );
+	echo '<div class="notice notice-warning"><p>';
+	printf(
+		/* translators: 1: version string on disk, 2: version string recorded on activation, 3: URL to plugins page */
+		esc_html__( 'CARDZ3N Gateway on disk is version %1$s but the last activated version was %2$s. Deactivate then reactivate the plugin from the %3$s screen to finish the upgrade.', 'cardz3n-gateway' ),
+		'<strong>' . esc_html( $disk ) . '</strong>',
+		'<strong>' . esc_html( $stored ) . '</strong>',
+		'<a href="' . $plugins_url . '">' . esc_html__( 'Plugins', 'cardz3n-gateway' ) . '</a>'
+	);
+	echo '</p></div>';
+}
+
+/**
+ * 1.0.20: Keep stored version in sync on every admin load for upgrade-through-WP
+ * (which doesn't re-run register_activation_hook). This way once the merchant
+ * loads any admin page after updating, the mismatch banner clears itself — no
+ * manual deactivate/reactivate cycle needed for WP.org updates.
+ */
+add_action( 'admin_init', 'cardz3n_gw_sync_stored_version' );
+function cardz3n_gw_sync_stored_version() {
+	$stored = (string) get_option( 'cardz3n_gw_version', '' );
+	if ( $stored !== CARDZ3N_GW_VERSION ) {
+		update_option( 'cardz3n_gw_version', CARDZ3N_GW_VERSION );
+	}
+}

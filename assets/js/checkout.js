@@ -177,39 +177,20 @@
 		};
 
 		/*
-		 * Wallets: Collect.js tries to construct PaymentRequestAbstraction for
-		 * every wallet in the config, even in browsers/devices that don't support
-		 * them. That throws "Could not create PaymentRequestAbstraction" in the
-		 * console on Chrome/Windows/Linux (no Apple Pay) and on browsers without
-		 * Google Pay. The throw is non-fatal — Collect.js continues — but it's
-		 * noise that looks like a real bug. We now only pass each wallet's config
-		 * when the browser actually exposes the runtime API.
-		 */
-		var applePayAvailable  = !!(window.ApplePaySession && window.ApplePaySession.canMakePayments && window.ApplePaySession.canMakePayments());
-		var googlePayAvailable = !!(window.google && window.google.payments && window.google.payments.api && window.google.payments.api.PaymentsClient);
-
-		/*
-		 * Collect.js is extremely strict about the shape of its `applePay` and
-		 * `googlePay` config objects. Passing an unrecognized key (e.g. `type`,
-		 * `style`, `contactFields`, `emailRequired`) causes configure() to
-		 * throw:
+		 * 1.0.20: Wallets (Apple Pay / Google Pay) are intentionally NOT passed
+		 * to CollectJS.configure(). The current NMI Collect.js build at
+		 * z3n.transactiongateway.com rejects our supported shape
+		 * ({selector: '.cardz3n-applepay-button'}) with:
 		 *   "You provided too many fields. Unexpected fields for applePay"
-		 * and that throw ALSO prevents the ccnumber/ccexp/cvv iframes from
-		 * rendering. 1.0.15 pares these objects down to the minimal
-		 * documented fields, and if configure() still throws we retry without
-		 * the wallet configs so the card form at least works.
+		 * That throw was fatal — it prevented the ccnumber / ccexp / cvv /
+		 * check* iframes from finishing wiring, so buyers could not type into
+		 * any card or ACH field. The prior fallback that rebuilt a
+		 * card-only config threw the same error (Collect.js appears to retain
+		 * bad state after a failed configure()). Until we migrate wallets to a
+		 * dedicated PaymentRequest / Apple Pay JS flow, we simply omit the
+		 * applePay / googlePay blocks here and hide the wallet UI via PHP so
+		 * the card + ACH iframes always initialize cleanly.
 		 */
-		if (cfg.enableApplePay && applePayAvailable) {
-			collectConfig.applePay = {
-				selector: '.cardz3n-applepay-button'
-			};
-		}
-		if (cfg.enableGooglePay && googlePayAvailable) {
-			collectConfig.googlePay = {
-				selector: '.cardz3n-googlepay-button'
-			};
-		}
-
 		function attemptConfigure(config, label) {
 			try {
 				window.CollectJS.configure(config);
@@ -223,20 +204,9 @@
 			}
 		}
 
-		if (attemptConfigure(collectConfig, 'full')) {
-			return;
-		}
-
-		// Retry without wallet configs - card iframes are more important than
-		// Apple/Google Pay buttons, and we'd rather render the card form with
-		// hidden wallets than lose tokenization entirely.
-		var cardOnlyConfig = {};
-		for (var k in collectConfig) {
-			if (Object.prototype.hasOwnProperty.call(collectConfig, k) && k !== 'applePay' && k !== 'googlePay') {
-				cardOnlyConfig[k] = collectConfig[k];
-			}
-		}
-		if (attemptConfigure(cardOnlyConfig, 'card-only fallback')) {
+		if (attemptConfigure(collectConfig, 'card+ach')) {
+			// Hide any lingering wallet UI — 1.0.20 suspends native wallets
+			// while we migrate them to a dedicated PaymentRequest flow.
 			$ui().find('.cardz3n-wallets').hide();
 			return;
 		}

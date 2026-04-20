@@ -240,6 +240,7 @@ trait Settings_Trait {
 					'maestro'    => __( 'Maestro', 'cardz3n-gateway' ),
 					'jcb'        => __( 'JCB', 'cardz3n-gateway' ),
 					'diners'     => __( 'Diners Club', 'cardz3n-gateway' ),
+					'unionpay'   => __( 'UnionPay', 'cardz3n-gateway' ),
 				),
 				'default'  => array( 'visa', 'mastercard', 'amex', 'discover' ),
 				'desc_tip' => true,
