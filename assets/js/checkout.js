@@ -63,6 +63,55 @@
 	 * Tab switching
 	 * --------------------------------------------------------------- */
 
+	/**
+	 * 1.0.22 — apply the active-pane invariant to the DOM.
+	 *
+	 * This centralizes the state-reconciliation work that used to live only in
+	 * the click handler so the same logic can run after WooCommerce re-renders
+	 * the checkout (updated_checkout), which otherwise reverts panes to their
+	 * PHP-rendered initial state — re-locking the inactive panes with `inert`
+	 * and silently blocking buyer input. That was the 1.0.21 "ACH Name field
+	 * becomes unresponsive after a failed submit" symptom: WC re-rendered the
+	 * checkout, the ACH pane had `inert` again from PHP, and keystrokes went
+	 * nowhere even though the buyer was still conceptually on the ACH tab.
+	 */
+	function applyActivePane(target) {
+		var $root = $ui();
+		if (!$root.length) { return; }
+		activePane = target;
+		$root.find('.cardz3n-tabs .cardz3n-tab').each(function () {
+			$(this).toggleClass('is-active', $(this).data('target') === target);
+		});
+		$root.find('.cardz3n-pane').each(function () {
+			var isTarget = $(this).attr('data-pane') === target;
+			$(this).toggleClass('is-active', isTarget);
+			if (isTarget) {
+				this.removeAttribute('inert');
+				this.removeAttribute('aria-hidden');
+			} else {
+				this.setAttribute('inert', '');
+				this.setAttribute('aria-hidden', 'true');
+			}
+		});
+
+		// Reconcile saved-token radio state with the active pane.
+		var $tokenRadios = $('input[name="wc-' + gatewayId + '-payment-token"]');
+		if (target === 'saved') {
+			if ($tokenRadios.filter(':checked').length === 0) {
+				$tokenRadios.filter('[value!="new"]').first().prop('checked', true).trigger('change');
+			}
+			setHidden('cardz3n_payment_source', 'saved');
+		} else {
+			var $newRadio = $tokenRadios.filter('[value="new"]');
+			if ($newRadio.length) {
+				$newRadio.prop('checked', true);
+			} else {
+				$tokenRadios.prop('checked', false);
+			}
+			setHidden('cardz3n_payment_source', target === 'ach' ? 'ach' : 'card');
+		}
+	}
+
 	function bindTabs() {
 		$(document).on('click', '.cardz3n-tabs .cardz3n-tab', function (e) {
 			e.preventDefault();
@@ -86,48 +135,10 @@
 			 * from the hit-test and focus tree, so keystrokes flow to the
 			 * active pane only. `aria-hidden` keeps screen readers in sync.
 			 */
-			$ui().find('.cardz3n-pane').each(function () {
-				var isTarget = $(this).attr('data-pane') === target;
-				$(this).toggleClass('is-active', isTarget);
-				if (isTarget) {
-					this.removeAttribute('inert');
-					this.removeAttribute('aria-hidden');
-				} else {
-					this.setAttribute('inert', '');
-					this.setAttribute('aria-hidden', 'true');
-				}
-			});
-
-			/*
-			 * Reconcile saved-token selection with the active pane.
-			 *
-			 * - On the Saved pane: make sure SOME saved token radio is selected so
-			 *   WooCommerce's $_POST['wc-<id>-payment-token'] is populated when the
-			 *   form is submitted. If none is checked, auto-check the first one.
-			 * - On the Card/ACH pane: clear any saved-token radio so that
-			 *   process_payment() falls through to the Collect.js tokenized path
-			 *   instead of trying to charge a saved vault that the buyer no longer
-			 *   wants to use.
-			 */
-			var $tokenRadios = $('input[name="wc-' + gatewayId + '-payment-token"]');
-			if (target === 'saved') {
-				if ($tokenRadios.filter(':checked').length === 0) {
-					// skip the "Use a new payment method" radio (value="new") which
-					// our CSS hides but WooCommerce still renders.
-					$tokenRadios.filter('[value!="new"]').first().prop('checked', true).trigger('change');
-				}
-				setHidden('cardz3n_payment_source', 'saved');
-			} else {
-				// Select "new" if it exists so WC doesn't auto-pick a saved token
-				// we're not using.
-				var $newRadio = $tokenRadios.filter('[value="new"]');
-				if ($newRadio.length) {
-					$newRadio.prop('checked', true).trigger('change');
-				} else {
-					$tokenRadios.prop('checked', false);
-				}
-				setHidden('cardz3n_payment_source', target === 'ach' ? 'ach' : 'card');
-				// Clear any stale token so a retry re-tokenizes.
+			applyActivePane(target);
+			if (target !== 'saved') {
+				// Explicit tab switch should invalidate any cached tokenization
+				// so the next submit re-tokenizes for the freshly visible pane.
 				setHidden('cardz3n_payment_token', '');
 				setHidden('cardz3n_token_type', '');
 			}
@@ -316,6 +327,11 @@
 			setHidden('cardz3n_payment_token', '');
 			setHidden('cardz3n_token_type', '');
 			submitting = false;
+			// 1.0.22 — also strip the cardz3n-tokenized marker so bindCheckoutForm's
+			// fast-path (line ~below) doesn't let a retry through WITHOUT a fresh
+			// token. Without this, a failed first attempt leaves the class on the
+			// form and the next click skips Collect.js entirely.
+			$('form.checkout').removeClass('cardz3n-tokenized');
 			if (window.console && console.warn) {
 				console.warn('[CARDZ3N] Checkout error — cleared cached tokenization. Next submit will re-tokenize.');
 			}
@@ -329,6 +345,20 @@
 	function bindCheckoutForm() {
 		var $form = $('form.checkout');
 		if (!$form.length) { return; }
+
+		/*
+		 * 1.0.22 — always detach any prior submit.cardz3n handler before
+		 * re-binding. `bindCheckoutForm()` runs on ready() AND on every
+		 * `updated_checkout` (line ~below). Prior to 1.0.22 that stacked
+		 * duplicate handlers; each one called preventDefault() + Collect.js
+		 * startPaymentRequest() on submit, and only the last token was written
+		 * to the hidden field — but the earlier handlers had already fired
+		 * preventDefault() and the internal `submitting` flag, so the native
+		 * form POST never reached PHP and process_payment() saw an empty
+		 * `cardz3n_payment_token`, yielding "Payment details could not be
+		 * tokenized. Please try again." for card submissions.
+		 */
+		$form.off('submit.cardz3n');
 
 		$form.on('submit.cardz3n', function (e) {
 			if (!isOurGatewaySelected()) { return; }
@@ -386,6 +416,12 @@
 			resetCollect();
 			setTimeout(configureCollect, 50);
 			bindCheckoutForm();
+			// 1.0.22 — restore the active pane invariant that PHP's initial
+			// render just clobbered. Without this, the pane the buyer was
+			// using has `inert` re-applied by the server-rendered markup and
+			// keystrokes silently go nowhere (reported as "ACH Name field
+			// locks up after a failed submit").
+			applyActivePane(activePane);
 		});
 
 		// First render.

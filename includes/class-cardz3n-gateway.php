@@ -668,6 +668,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 					'token_len'         => strlen( (string) $collect_token ),
 					'sec_key_prefix'    => substr( $client->security_key(), 0, 4 ) . '...',
 					'tok_key_prefix'    => substr( $client->tokenization_key(), 0, 4 ) . '...',
+					'credentials_tier'  => method_exists( $client, 'credentials_tier' ) ? $client->credentials_tier() : 'unknown',
 					'test_mode'         => $client->is_sandbox() ? 'yes' : 'no',
 					'normalized_source' => $normalized_source,
 				)
@@ -706,10 +707,11 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				Logger::error(
 					'Gateway rejected Collect.js token — check Security Key / Tokenization Key pair',
 					array(
-						'gateway_text'   => $response['text'],
-						'sec_key_prefix' => substr( $client->security_key(), 0, 4 ) . '...',
-						'tok_key_prefix' => substr( $client->tokenization_key(), 0, 4 ) . '...',
-						'test_mode'      => $client->is_sandbox() ? 'yes' : 'no',
+						'gateway_text'     => $response['text'],
+						'sec_key_prefix'   => substr( $client->security_key(), 0, 4 ) . '...',
+						'tok_key_prefix'   => substr( $client->tokenization_key(), 0, 4 ) . '...',
+						'credentials_tier' => method_exists( $client, 'credentials_tier' ) ? $client->credentials_tier() : 'unknown',
+						'test_mode'        => $client->is_sandbox() ? 'yes' : 'no',
 					)
 				);
 				$user_msg = __(
