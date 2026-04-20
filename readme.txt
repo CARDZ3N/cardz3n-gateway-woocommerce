@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.20
+Stable tag: 1.0.21
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,13 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.21 =
+* Fix (critical): **ACH fields still didn’t accept keyboard input after 1.0.20.** Live diagnostic confirmed all six Collect.js iframes mount at the correct size and the `Unable to initialize secure payment form` Collect.js error is gone — but the inactive pane’s cross-origin iframes at the same grid-stack coordinates were intercepting keydown events in Chromium and WebKit. Focus landed on the ACH-name iframe but keystrokes routed to the card-ccnumber iframe underneath, so ACH name / routing / account fields appeared clickable but never captured typing. 1.0.21 adds the `inert` + `aria-hidden="true"` attributes to every inactive pane, both in the initial PHP render and whenever the buyer clicks a tab. `inert` removes every descendant (including iframes) from the hit-test and focus tree, so keystrokes flow to the active pane only. The grid-stack is kept intact so Collect.js still mounts iframes at the correct width on first render.
+* Fix: “Payment details could not be tokenized. Please try again.” was a downstream symptom of the ACH field issue above — Collect.js returned an empty token on form submit because no digits ever reached its fields. Resolves itself with the `inert` fix.
+* Fix: Restored the **`data-cardz3n-version`** attribute on `.cardz3n-gateway-ui`. The 1.0.20 edit shipped in the localized script only; the DOM attribute was accidentally dropped during the build. Both are now present so support can confirm the running build at the checkout.
+* Change: **Level 2/3 Commercial Data transmission now defaults to OFF.** Enabling L2/L3 without meaningful catalog metadata (UPC, commodity code, tax amount) can DOWNGRADE interchange rather than improve it. Off by default; merchants who know they qualify enable it intentionally on the settings page.
+* Change: **Checkout Purchase Order (PO) number field now defaults to OFF.** PO numbers are a B2B/procurement feature and just add noise at a retail checkout. Off by default; B2B stores enable it intentionally on the settings page.
 
 = 1.0.20 =
 * Fix (critical): Card and ACH fields were rejecting keystrokes with the error **“Unable to initialize secure payment form. Please refresh the page and try again.”** on every device. Root cause surfaced in the Collect.js console: `CollectJS.configure failed: You provided too many fields. Unexpected fields for applePay`. NMI’s current Collect.js build rejects the documented `{selector: '.cardz3n-applepay-button'}` shape; its throw was fatal and prevented the `ccnumber` / `ccexp` / `cvv` / `checkname` / `checkaba` / `checkaccount` iframes from finishing wiring. 1.0.20 removes the `applePay` / `googlePay` blocks from the Collect.js config entirely, so the card and ACH iframes now initialize cleanly on every page load. Native wallets are temporarily suspended in the UI; they will return in a later release over a dedicated PaymentRequest / Apple Pay JS flow.

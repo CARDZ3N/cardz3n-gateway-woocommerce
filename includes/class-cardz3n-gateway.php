@@ -281,7 +281,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		$enable_apple  = false;
 		$enable_google = false;
 		?>
-		<div class="cardz3n-gateway-ui" data-gateway="<?php echo esc_attr( $this->id ); ?>">
+		<div class="cardz3n-gateway-ui" data-gateway="<?php echo esc_attr( $this->id ); ?>" data-cardz3n-version="<?php echo esc_attr( CARDZ3N_GW_VERSION ); ?>">
 
 			<?php if ( $enable_apple || $enable_google ) : ?>
 			<div class="cardz3n-wallets">
@@ -314,13 +314,13 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			<div class="cardz3n-panes">
 
 			<?php if ( $show_saved ) : ?>
-				<div class="cardz3n-pane<?php echo $default_to_saved ? ' is-active' : ''; ?>" data-pane="saved">
+				<div class="cardz3n-pane<?php echo $default_to_saved ? ' is-active' : ''; ?>" data-pane="saved"<?php echo $default_to_saved ? '' : ' inert aria-hidden="true"'; ?>>
 					<?php $this->saved_payment_methods(); ?>
 				</div>
 			<?php endif; ?>
 
 			<?php if ( $enable_cards ) : ?>
-			<div class="cardz3n-pane<?php echo $default_to_saved ? '' : ' is-active'; ?>" data-pane="card">
+			<div class="cardz3n-pane<?php echo $default_to_saved ? '' : ' is-active'; ?>" data-pane="card"<?php echo $default_to_saved ? ' inert aria-hidden="true"' : ''; ?>>
 				<div class="cardz3n-field">
 					<label><?php esc_html_e( 'Card number', 'cardz3n-gateway' ); ?></label>
 					<div id="cardz3n-ccnumber" class="cardz3n-collect-field"></div>
@@ -345,7 +345,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			<?php endif; ?>
 
 			<?php if ( $enable_ach ) : ?>
-			<div class="cardz3n-pane" data-pane="ach">
+			<div class="cardz3n-pane" data-pane="ach" inert aria-hidden="true">
 				<div class="cardz3n-field">
 					<label><?php esc_html_e( 'Name on account', 'cardz3n-gateway' ); ?></label>
 					<div id="cardz3n-checkname" class="cardz3n-collect-field"></div>
