@@ -35,20 +35,21 @@ trait Settings_Trait {
 					__( 'Enable %s', 'cardz3n-gateway' ),
 					$brand['name']
 				),
-				'default' => 'no',
+				'default' => 'yes',
 			),
 			'title'                  => array(
-				'title'       => __( 'Checkout Title', 'cardz3n-gateway' ),
-				'type'        => 'text',
-				'description' => __( 'The label buyers see at checkout.', 'cardz3n-gateway' ),
-				'default'     => $brand['default_title'],
-				'desc_tip'    => true,
+				'title'             => __( 'Checkout Title', 'cardz3n-gateway' ),
+				'type'              => 'text',
+				'description'       => __( 'The label buyers see at checkout. Locked to "Powered by CARDZ3N" to preserve consistent brand trust at payment time.', 'cardz3n-gateway' ),
+				'default'           => __( 'Powered by CARDZ3N', 'cardz3n-gateway' ),
+				'desc_tip'          => true,
+				'custom_attributes' => array( 'readonly' => 'readonly' ),
 			),
 			'description'            => array(
 				'title'       => __( 'Checkout Description', 'cardz3n-gateway' ),
 				'type'        => 'textarea',
 				'description' => __( 'Short explanation shown beneath the payment option at checkout.', 'cardz3n-gateway' ),
-				'default'     => __( 'Pay securely with a credit/debit card, ACH, Apple Pay, or Google Pay. We never see or store your payment details.', 'cardz3n-gateway' ),
+				'default'     => __( 'Pay securely with a credit/debit card, ACH, Apple Pay, or Google Pay.', 'cardz3n-gateway' ),
 			),
 			'thankyou_instructions'  => array(
 				'title'       => __( 'Thank-you Instructions', 'cardz3n-gateway' ),
@@ -236,10 +237,11 @@ trait Settings_Trait {
 				'default' => 'no',
 			),
 			'enable_3ds'             => array(
-				'title'   => __( '3-D Secure 2 / SCA', 'cardz3n-gateway' ),
-				'type'    => 'checkbox',
-				'label'   => __( 'Attempt 3DS2 authentication when the gateway/account supports it.', 'cardz3n-gateway' ),
-				'default' => 'yes',
+				'title'       => __( '3D Secure 2.0', 'cardz3n-gateway' ),
+				'type'        => 'checkbox',
+				'label'       => __( 'Enable 3D Secure 2.0', 'cardz3n-gateway' ),
+				'description' => __( '3D Secure 2.0 can help you avoid fraudulent transactions by authenticating transactions before submitting them to the gateway for processing.', 'cardz3n-gateway' ),
+				'default'     => 'no',
 			),
 
 			/* ---------------- Commercial Data ---------------- */

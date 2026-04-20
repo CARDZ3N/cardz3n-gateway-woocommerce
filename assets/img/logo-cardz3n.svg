@@ -1,12 +1,38 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40" role="img" aria-label="CARDZ3N">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 48" role="img" aria-label="CARDZ3N" shape-rendering="geometricPrecision" text-rendering="geometricPrecision">
   <defs>
-    <linearGradient id="cardz3n-g" x1="0" y1="0" x2="1" y2="1">
+    <linearGradient id="cardz3n-card-g" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#0a5cff"/>
       <stop offset="1" stop-color="#00c48c"/>
     </linearGradient>
+    <linearGradient id="cardz3n-stripe-g" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="1"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.55"/>
+    </linearGradient>
+    <filter id="cardz3n-shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="1" stdDeviation="0.8" flood-color="#0a1f44" flood-opacity="0.18"/>
+    </filter>
   </defs>
-  <rect x="2" y="8" width="28" height="22" rx="4" fill="url(#cardz3n-g)"/>
-  <rect x="6" y="14" width="20" height="2.5" fill="#fff" opacity=".9"/>
-  <rect x="6" y="20" width="10" height="2" fill="#fff" opacity=".8"/>
-  <text x="40" y="27" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="800" fill="#0a1f44" letter-spacing="1">CARDZ3N</text>
+
+  <!-- Card mark -->
+  <g filter="url(#cardz3n-shadow)">
+    <rect x="2" y="8" width="36" height="28" rx="6" fill="url(#cardz3n-card-g)"/>
+    <!-- magnetic stripe -->
+    <rect x="2" y="14" width="36" height="5" fill="#0a1f44" opacity="0.28"/>
+    <!-- chip -->
+    <rect x="7" y="23" width="7" height="5.5" rx="1.2" fill="#ffd56b"/>
+    <rect x="7.7" y="23.7" width="5.6" height="1.1" fill="#b88b1f" opacity="0.7"/>
+    <rect x="7.7" y="26.6" width="5.6" height="1.1" fill="#b88b1f" opacity="0.7"/>
+    <!-- contactless arcs -->
+    <path d="M20 22.5 a3 3 0 0 1 0 7" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round"/>
+    <path d="M23 20.5 a5.5 5.5 0 0 1 0 11" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" opacity="0.8"/>
+    <path d="M26 18.5 a8 8 0 0 1 0 15" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" opacity="0.55"/>
+  </g>
+
+  <!-- Wordmark -->
+  <g font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-weight="800" letter-spacing="1.2">
+    <text x="48" y="31" font-size="22" fill="#0a1f44">CARDZ</text>
+    <!-- The "3" is drawn slightly larger and in brand blue to echo the card gradient -->
+    <text x="127" y="31" font-size="22" fill="#0a5cff">3</text>
+    <text x="140" y="31" font-size="22" fill="#0a1f44">N</text>
+  </g>
 </svg>
