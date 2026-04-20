@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.18
+Stable tag: 1.0.19
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,13 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.19 =
+* Fix (critical): Saved payment-methods tab on the checkout now only appears when the signed-in customer actually has saved tokens for this gateway. When tokens exist, the Saved tab is auto-selected; when there are none, the tab is suppressed entirely so buyers are not stared at by an empty panel.
+* Fix (critical): ACH fields (Name on account, Routing, Account number) once again accept input. The 1.0.17 fix moved inactive panes off-screen with absolute positioning, but absolute children don't inherit width from a non-sized parent, so Collect.js still sometimes mounted ACH iframes at the wrong dimensions. The tab panes are now stacked in a single CSS Grid cell so every pane is laid out at the real container width on first render, and inactive panes are hidden via `opacity / visibility / pointer-events` without leaving the layout flow.
+* Revert / Fix: Restored the four-field credential UI. **Test Mode and Live Mode use DIFFERENT key pairs on CARDZ3N.** The 1.0.15–1.0.18 single-pair model was based on bad guidance and broke test transactions for any merchant who set up with real test keys. Settings now expose **Live Security Key**, **Live Tokenization Key**, **Test Security Key**, and **Test Tokenization Key**. The `test_mode` toggle selects which pair is active at runtime.
+* Migration: Idempotent and non-destructive. On upgrade from 1.0.15–1.0.18, the existing unified `security_key` / `tokenization_key` values are copied into the new `live_*` fields (because merchants on those versions were using that pair against the live processor). Pre-1.0.15 `sandbox_*` values are copied into the new `test_*` fields. Legacy fields are left in place so downgrading to an earlier version continues to work. Re-entering credentials from scratch is not required.
+* Change: Dynamic Descriptor is now blank by default. Previously the brand name ("CARDZ3N" / "AEROSPACEPAY") was pre-filled, which meant every new install shipped a statement descriptor the merchant had not reviewed. Leaving it blank falls back to the processor-assigned descriptor on the MID.
 
 = 1.0.18 =
 * Change: Enable / Disable now defaults to enabled out of the box so new installs are live as soon as credentials are saved.
@@ -242,6 +249,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * HPOS compatibility declared.
 
 == Upgrade Notice ==
+
+= 1.0.19 =
+Recommended upgrade. Fixes the empty Saved tab, restores ACH input (for real this time), restores the separate Test and Live credential pairs that CARDZ3N actually issues, and blanks the Dynamic Descriptor default. Settings migrate automatically — no re-entry required.
 
 = 1.0.18 =
 UX polish release. Enable/Disable now defaults to enabled, Checkout Title is locked to “Powered by CARDZ3N”, 3D Secure 2.0 is renamed and now defaults to off, a Recurring Payments support badge is shown on the Payments listing, and the CARDZ3N brand logo has been refreshed. No database changes.

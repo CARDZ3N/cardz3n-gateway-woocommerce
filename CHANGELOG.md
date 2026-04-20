@@ -3,6 +3,29 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.19] — 2026-04-20
+
+### Fixed
+- **Saved payments tab rendered empty.** On the checkout form the "Saved" tab appeared for every logged-in buyer, even when they had no saved tokens for this gateway, so the panel rendered as a blank box. `payment_fields()` now counts the customer's tokens up front with `\WC_Payment_Tokens::get_customer_tokens( get_current_user_id(), $this->id )` and only exposes the tab when that array is non-empty. When tokens do exist, the Saved tab becomes the default active tab (instead of Card), the active-pane class is applied to `.cardz3n-pane[data-pane="saved"]`, and the hidden `cardz3n_payment_source` input is initialized to `saved` so `process_payment()` takes the tokenized path without the buyer clicking anything.
+- **ACH fields still refused input after the 1.0.17 fix.** The 1.0.17 off-screen positioning (`position: absolute; left: -9999px`) put inactive panes in a detached coordinate space, and because their parent `.cardz3n-panes` had no intrinsic width, the absolutely-positioned children measured out at the wrapper's shrink-to-fit width rather than the checkout column width. Collect.js mounted the `checkname` / `checkaba` / `checkaccount` iframes at the wrong dimensions and key events fell through. `.cardz3n-panes` is now a CSS Grid stack — `display: grid; grid-template-areas: "stack"` with every `.cardz3n-pane` mapped to the `stack` area — so every pane is laid out at the real checkout-column width on first render and stays there. Inactive panes are hidden via `opacity: 0; visibility: hidden; pointer-events: none` (never `display: none`, never absolute), so Collect.js can still measure them and buyers can't tab into hidden fields.
+
+### Changed
+- **Restored the four-field credential UI.** Reverted the 1.0.15 collapse to a single Security Key + single Tokenization Key. CARDZ3N DOES issue separate Test and Live keys; the earlier merchant clarification that was the basis for the collapse was wrong. Settings now expose `live_security_key`, `live_tokenization_key`, `test_security_key`, and `test_tokenization_key`. The `test_mode` toggle selects which pair the API client uses at runtime.
+- **`Api_Client::security_key()` / `Api_Client::tokenization_key()` resolution order rewritten.** New order for each call, walking the first non-empty value:
+  1. `test_*` when `test_mode` is on, else `live_*`.
+  2. Legacy `sandbox_*` when `test_mode` is on (pre-1.0.15 installs).
+  3. Unified `security_key` / `tokenization_key` (1.0.15–1.0.18 installs).
+  4. Opposite-mode `live_*` / `test_*` as a last-resort fallback so a misconfigured site surfaces a gateway-side auth error rather than an empty-key error.
+- **Dynamic Descriptor default is now blank.** Previously pre-filled with the brand name (`CARDZ3N` / `AEROSPACEPAY`), which meant every new install shipped a statement descriptor the merchant had not reviewed. Leaving it blank defers to the processor-assigned descriptor on the MID; merchants can still type their own value.
+
+### Migration
+- `cardz3n_gw_maybe_migrate_settings()` rewritten to be bidirectional and idempotent. It still runs once on activation and again on every `plugins_loaded` for WP.org auto-update safety.
+  - **1.0.15→1.0.19 path:** when `live_security_key` is empty but the unified `security_key` is set, copy unified → live. Same for tokenization. Rationale: merchants on 1.0.15–1.0.18 were using their one pair as the live pair against the live processor, so the unified value belongs in the live slot, not the test slot.
+  - **Pre-1.0.15 path:** when `test_security_key` is empty but `sandbox_security_key` is set, copy sandbox → test. Same for tokenization.
+  - **Legacy `security_key` / `tokenization_key` backfill** is still performed last, so any downstream code that reads the unified fields keeps working.
+  - `sandbox_mode` → `test_mode` rename preserved, unchanged from 1.0.15.
+  - Never clobbers existing values and never deletes legacy fields — downgrading to an earlier version continues to work.
+
 ## [1.0.18] — 2026-04-19
 
 ### Changed

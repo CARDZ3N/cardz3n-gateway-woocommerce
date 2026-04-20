@@ -44,35 +44,50 @@
 .cardz3n-tab.is-active { color: var(--cardz3n-primary); border-bottom-color: var(--cardz3n-primary); }
 
 /*
- * 1.0.17 — DO NOT use `display: none` on inactive panes.
+ * 1.0.19 — All panes share a CSS Grid stack with ONE grid area.
  *
- * Collect.js mounts its hosted-field iframes by reading the width/height of the
- * target container. When the container's parent is `display: none`, the iframe
- * mounts with `width: 0` and `height: 0`, and subsequent clicks into the field
- * hit the zero-sized iframe and do nothing. This is why ACH fields refused any
- * input until 1.0.17.
+ * Why: Collect.js hosted-field iframes mount by reading the target container's
+ * bounding box. If the container's parent is `display: none` or
+ * `position: absolute; left: -9999px` at mount time, the iframe mounts at 0×0
+ * or at a useless off-screen size; every click then falls through. Switching
+ * tabs later does not remeasure or remount the iframe.
  *
- * Instead, inactive panes are visually hidden but still laid out (off-screen
- * absolute-positioned, opacity 0, zero tab-index). When the buyer switches
- * tabs we just swap `.is-active`, the pane fades in, and the already-mounted
- * iframes are there at full size.
+ * Solution: render every pane in the SAME grid area so they all compute the
+ * same width from the natural flow, and toggle visibility/opacity/pointer-
+ * events without ever taking a pane out of the layout tree. All iframes
+ * mount at the correct container width on first render and remain clickable
+ * in whichever pane the buyer activates next.
  */
-.cardz3n-panes { position: relative; }
-.cardz3n-pane {
-	position: absolute;
-	top: 0;
-	left: -9999px;
+.cardz3n-panes {
+	display: grid;
+	grid-template-columns: 1fr;
+	grid-template-areas: "stack";
 	width: 100%;
+}
+.cardz3n-pane {
+	grid-area: stack;
+	width: 100%;
+	min-width: 0;
 	opacity: 0;
-	pointer-events: none;
 	visibility: hidden;
+	pointer-events: none;
+	/* keep it taking the same slot but invisible to AT and click */
+	z-index: 0;
 }
 .cardz3n-pane.is-active {
-	position: static;
-	left: auto;
 	opacity: 1;
-	pointer-events: auto;
 	visibility: visible;
+	pointer-events: auto;
+	z-index: 1;
+}
+.cardz3n-pane-empty {
+	padding: 16px 12px;
+	text-align: center;
+	color: var(--cardz3n-muted);
+	font-size: 13px;
+	background: #f9fafb;
+	border: 1px dashed var(--cardz3n-border);
+	border-radius: 6px;
 }
 
 /*
