@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.23
+Stable tag: 1.0.24
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,12 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.24 =
+* Clean field labels: "Live/Test Private Key (Cart)" and "Live/Test Public Key (Collect Checkout)" match the CARDZ3N Merchant Portal vocabulary exactly.
+* Field descriptions now link to the Merchant Portal and explicitly state the required scope ("Cart" for private, "Collect Checkout" for public).
+* Added watchdog that surfaces a clear, actionable error when Collect.js throws "Invalid tokenization key format" or when hosted-field iframes fail to mount within 2.5s (usually a Tokenization-scoped public key where Collect Checkout is required).
+* Sharper tokenize-failure notice at checkout explaining the Tokenization vs Collect Checkout distinction.
 
 = 1.0.23 =
 * Fix (critical): **Bank (ACH) fields silently discarded keyboard input.** Reproduced live in Playwright with `document.activeElement` inside the `CollectJSInlinecheckname` iframe remaining `<body>` after a real mouse click on the Name-on-account field. Root cause: 1.0.22 and earlier registered BOTH the card and ACH fields with `CollectJS.configure()` on first render, and all six hosted-field iframes mounted at the same grid-stack coordinates. Only the first one to mount (`ccnumber`) received Collect.js's internal auto-focus. When the buyer switched to the ACH tab and clicked the Name field, the browser focused the outer `<iframe>` element, but cross-origin security prevented the parent page from forcing focus into the `<input>` inside — so keystrokes landed on the iframe's `<body>` and were swallowed. 1.0.23 now passes **only the active pane's fields** to `CollectJS.configure()`, and on every tab switch we `resetCollect()` (empties the hosted-field containers) + `configureCollect()` so the iframes for the newly-visible pane mount fresh and the first field receives Collect.js's own auto-focus. Typing works on first click.

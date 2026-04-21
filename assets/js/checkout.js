@@ -24,6 +24,33 @@
 	var submitting = false;
 	var activePane = cfg.enableCards ? 'card' : (cfg.enableAch ? 'ach' : 'saved');
 	var $body = $(document.body);
+	var collectInitErrored = false;
+
+	/*
+	 * 1.0.24 — catch Collect.js init errors (e.g. "Invalid tokenization key format")
+	 * which otherwise throw asynchronously during Config.js evaluation and leave
+	 * the hosted-field iframes silently unresponsive. When we detect this, surface
+	 * a clear, actionable error in the checkout notices area.
+	 */
+	window.addEventListener('error', function (ev) {
+		var msg = ev && ev.message ? String(ev.message) : '';
+		var src = ev && ev.filename ? String(ev.filename) : '';
+		var isCollect = /Collect\.js|Config\.js|transactiongateway\.com/i.test(src) || /tokenization key/i.test(msg);
+		if (!isCollect) { return; }
+		collectInitErrored = true;
+		var notice;
+		if (/Invalid tokenization key format/i.test(msg)) {
+			notice = 'The Public Key configured for this site is not a valid Collect Checkout key. The store owner must open the CARDZ3N Merchant Portal → Settings → Security Keys → Public Security Keys and use a key scoped to "Collect Checkout" (not "Tokenization").';
+		} else if (/tokenization key must be provided/i.test(msg)) {
+			notice = 'The Public Key is missing from the CARDZ3N Gateway settings. The store owner must enter a Collect Checkout key.';
+		} else {
+			notice = 'Secure payment form failed to initialize: ' + msg;
+		}
+		try { showError(notice); } catch (e) {}
+		if (window.console && console.error) {
+			console.error('[CARDZ3N] Collect.js init error:', msg, 'at', src);
+		}
+	}, true);
 
 	/* ------------------------------------------------------------------
 	 * Helpers
@@ -289,6 +316,30 @@
 			// Hide any lingering wallet UI — 1.0.20 suspends native wallets
 			// while we migrate them to a dedicated PaymentRequest flow.
 			$ui().find('.cardz3n-wallets').hide();
+
+			/*
+			 * 1.0.24 — watchdog. If Collect.js accepted configure() but the
+			 * hosted-field iframes never mount within 2.5s, the Public Key is
+			 * almost certainly wrong-scope or the merchant account is disabled.
+			 * Surface a clear error instead of leaving buyers staring at blank,
+			 * un-typeable fields.
+			 */
+			setTimeout(function () {
+				if (collectInitErrored) { return; }
+				var $root = $ui();
+				if (!$root.length) { return; }
+				var expected = pane === 'card'
+					? ['#cardz3n-ccnumber', '#cardz3n-ccexp', '#cardz3n-cvv']
+					: ['#cardz3n-checkname', '#cardz3n-checkaba', '#cardz3n-checkaccount'];
+				var mounted = 0;
+				for (var i = 0; i < expected.length; i++) {
+					if ($root.find(expected[i] + ' iframe').length) { mounted++; }
+				}
+				if (mounted === 0) {
+					showError('The secure payment form did not load. The Public Key in the CARDZ3N Gateway settings may be scoped to "Tokenization" (Source API) instead of "Collect Checkout". Please notify the store owner.');
+				}
+			}, 2500);
+
 			return;
 		}
 
