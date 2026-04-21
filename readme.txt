@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.22
+Stable tag: 1.0.23
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,11 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.23 =
+* Fix (critical): **Bank (ACH) fields silently discarded keyboard input.** Reproduced live in Playwright with `document.activeElement` inside the `CollectJSInlinecheckname` iframe remaining `<body>` after a real mouse click on the Name-on-account field. Root cause: 1.0.22 and earlier registered BOTH the card and ACH fields with `CollectJS.configure()` on first render, and all six hosted-field iframes mounted at the same grid-stack coordinates. Only the first one to mount (`ccnumber`) received Collect.js's internal auto-focus. When the buyer switched to the ACH tab and clicked the Name field, the browser focused the outer `<iframe>` element, but cross-origin security prevented the parent page from forcing focus into the `<input>` inside — so keystrokes landed on the iframe's `<body>` and were swallowed. 1.0.23 now passes **only the active pane's fields** to `CollectJS.configure()`, and on every tab switch we `resetCollect()` (empties the hosted-field containers) + `configureCollect()` so the iframes for the newly-visible pane mount fresh and the first field receives Collect.js's own auto-focus. Typing works on first click.
+* Change: **Accepted Card Brands now default to all eight CARDZ3N-supported brands** — Visa, Mastercard, American Express, Discover, **Maestro, JCB, Diners Club, UnionPay**. Previously only the first four were selected by default. Merchants can still deselect any brand they don't want to advertise in the checkout brand row.
+* Docs: The saved-payment-methods flow was clarified in the settings UI. When “Saved Payment Methods” is enabled (default), logged-in buyers see a “Save this card” / “Save this bank account” checkbox on checkout, and on return the **Saved** tab lists their stored methods alongside the Card and ACH tabs. WooCommerce Subscriptions and Pre-Orders renewals automatically reuse the Customer Vault token for unattended charges.
 
 = 1.0.22 =
 * Fix (critical): **“Payment details could not be tokenized. Please try again.” on card submit.** Root cause: the `submit.cardz3n` handler in `assets/js/checkout.js` was bound once on `ready()` and again on every WooCommerce `updated_checkout` event, stacking duplicate handlers. Each one called `preventDefault()` + `CollectJS.startPaymentRequest()` on the same click, but only one Collect.js callback fired — so the internal `submitting` guard blocked the legitimate resubmit and `process_payment()` saw an empty `cardz3n_payment_token`, returning the “could not be tokenized” notice. 1.0.22 calls `$form.off('submit.cardz3n')` before each re-bind so exactly one handler is ever attached.

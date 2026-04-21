@@ -142,6 +142,18 @@
 				setHidden('cardz3n_payment_token', '');
 				setHidden('cardz3n_token_type', '');
 			}
+			/*
+			 * 1.0.23 — re-mount Collect.js against the newly-visible pane only.
+			 * See the long comment on configureCollect() for the cross-origin
+			 * focus bug this fixes. Without this remount the buyer can switch
+			 * to the ACH tab, click into the Name field, and have their
+			 * typing silently swallowed because Collect.js is still focused
+			 * on the (now hidden) card-ccnumber iframe.
+			 */
+			if (target === 'card' || target === 'ach') {
+				resetCollect();
+				setTimeout(configureCollect, 60);
+			}
 			clearError();
 		});
 	}
@@ -150,14 +162,48 @@
 	 * Collect.js configuration
 	 * --------------------------------------------------------------- */
 
+	/*
+	 * 1.0.23 — PANE-SCOPED FIELDS.
+	 *
+	 * In 1.0.22 and earlier, configureCollect() registered BOTH the card and
+	 * ACH fields with Collect.js on first render. The three card iframes and
+	 * the three ACH iframes all mounted at the same grid-stack coordinates,
+	 * but only the first one to mount (ccnumber) received Collect.js's
+	 * internal auto-focus. When the buyer switched to the ACH tab and clicked
+	 * the Name field, the browser focused the outer IFRAME element — but
+	 * cross-origin security prevents the parent page from forcing focus into
+	 * the <input> inside. Since Collect.js still considered ccnumber its
+	 * focused field, the ACH input body received keystrokes (and swallowed
+	 * them). Net result: ACH fields appeared clickable but silently
+	 * discarded typing. Verified live in Playwright:
+	 * document.activeElement inside the ACH checkname iframe remained <body>
+	 * even after a real mouse click on the field.
+	 *
+	 * Fix: only pass the ACTIVE pane's fields to CollectJS.configure(). When
+	 * the buyer switches tabs we resetCollect() + configureCollect() so the
+	 * iframes for the newly-visible pane mount fresh and the first field in
+	 * that pane's field hash receives Collect.js's own auto-focus. No more
+	 * cross-origin focus-forwarding hack needed.
+	 */
+	function activeCollectPane() {
+		// Only Card or ACH drive Collect.js; Saved reuses existing vault tokens.
+		if (activePane === 'ach' && cfg.enableAch) { return 'ach'; }
+		if (cfg.enableCards) { return 'card'; }
+		if (cfg.enableAch) { return 'ach'; }
+		return null;
+	}
+
 	function configureCollect() {
 		if (configured || typeof window.CollectJS === 'undefined') {
 			return;
 		}
 
+		var pane = activeCollectPane();
+		if (!pane) { return; } // Saved-only — no hosted fields needed.
+
 		var fields = {};
 
-		if (cfg.enableCards) {
+		if (pane === 'card') {
 			fields.ccnumber = {
 				selector: '#cardz3n-ccnumber',
 				title: cfg.i18n.cardNumber,
@@ -174,9 +220,7 @@
 				title: cfg.i18n.cvv,
 				placeholder: 'CVV'
 			};
-		}
-
-		if (cfg.enableAch) {
+		} else if (pane === 'ach') {
 			fields.checkname = { selector: '#cardz3n-checkname', title: cfg.i18n.accountName, placeholder: 'Name on account' };
 			fields.checkaba = { selector: '#cardz3n-checkaba', title: cfg.i18n.routing, placeholder: 'Routing number' };
 			fields.checkaccount = { selector: '#cardz3n-checkaccount', title: cfg.i18n.account, placeholder: 'Account number' };
@@ -254,6 +298,18 @@
 	function resetCollect() {
 		if (typeof window.CollectJS !== 'undefined' && window.CollectJS && typeof window.CollectJS.clearInputs === 'function') {
 			try { window.CollectJS.clearInputs(); } catch (e) {}
+		}
+		/*
+		 * 1.0.23 — remove Collect.js-minted iframes from the hosted-field
+		 * containers so the next configureCollect() re-creates them fresh.
+		 * Without this the previously-mounted iframes stick around and keep
+		 * their stale focus state, defeating the pane-scoped re-mount.
+		 */
+		var $root = $ui();
+		if ($root.length) {
+			$root.find('#cardz3n-ccnumber, #cardz3n-ccexp, #cardz3n-cvv, #cardz3n-checkname, #cardz3n-checkaba, #cardz3n-checkaccount').each(function () {
+				$(this).empty();
+			});
 		}
 		configured = false;
 	}

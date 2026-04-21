@@ -242,7 +242,11 @@ trait Settings_Trait {
 					'diners'     => __( 'Diners Club', 'cardz3n-gateway' ),
 					'unionpay'   => __( 'UnionPay', 'cardz3n-gateway' ),
 				),
-				'default'  => array( 'visa', 'mastercard', 'amex', 'discover' ),
+				// 1.0.23 — Maestro, JCB, Diners Club, and UnionPay are now on by
+				// default so the checkout brand row advertises the full CARDZ3N /
+				// NMI routing coverage out of the box. Merchants can still
+				// deselect any brand they don't want displayed.
+				'default'  => array( 'visa', 'mastercard', 'amex', 'discover', 'maestro', 'jcb', 'diners', 'unionpay' ),
 				'desc_tip' => true,
 			),
 			'gateway_receipts'       => array(
