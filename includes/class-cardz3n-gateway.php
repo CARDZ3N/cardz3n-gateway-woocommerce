@@ -581,7 +581,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			$using_saved = true;
 			$normalized_source = $token instanceof \WC_Payment_Token_ECheck ? 'ach_vault' : 'card_vault';
 		} elseif ( empty( $collect_token ) ) {
-			wc_add_notice( __( 'Payment details could not be tokenized. Please try again.', 'cardz3n-gateway' ), 'error' );
+			wc_add_notice( __( 'Payment details could not be tokenized. This usually means the Public Key in the CARDZ3N settings is scoped to "Tokenization" (Source API) instead of "Collect Checkout". Verify in the CARDZ3N Merchant Portal: Settings → Security Keys → Public Security Keys → scope must be "Collect Checkout".', 'cardz3n-gateway' ), 'error' );
 			return null;
 		}
 
