@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.24
+Stable tag: 1.0.25
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,11 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.25 =
+* Fix (critical): Mirror the hidden `cardz3n_payment_token`, `cardz3n_token_type`, and `cardz3n_payment_source` inputs as direct children of `form.checkout` right before WooCommerce's AJAX submit. Some theme/host combinations (notably SiteGround with page-builder checkouts) reorder DOM nodes during `updated_checkout` in a way that lifts our hidden inputs outside the form's `.serialize()` scope, causing an otherwise-valid token to never reach the server and the gateway to reject the transaction as "Payment details could not be tokenized".
+* Fix: Tab-switch glitches. Card ↔ ACH remounts now skip when the buyer clicks the already-active tab, and the mount delay is extended to 120ms so the DOM fully settles before Collect.js recreates the hosted-field iframes. This eliminates the dropped-keystrokes-on-first-type symptom after rapid tab switching.
+* Diagnostic: When the server sees an empty token, log the posted-field list, credentials tier, declared payment source, and whether the configured public key starts with `checkout_public_`. This produces a single actionable line in the CARDZ3N log explaining any future tokenize-empty error.
 
 = 1.0.24 =
 * Clean field labels: "Live/Test Private Key (Cart)" and "Live/Test Public Key (Collect Checkout)" match the CARDZ3N Merchant Portal vocabulary exactly.

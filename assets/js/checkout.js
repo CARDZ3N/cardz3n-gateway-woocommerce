@@ -143,6 +143,7 @@
 		$(document).on('click', '.cardz3n-tabs .cardz3n-tab', function (e) {
 			e.preventDefault();
 			var target = $(this).data('target');
+			var previousPane = activePane;
 			activePane = target;
 			$(this).addClass('is-active').siblings().removeClass('is-active');
 			/*
@@ -177,9 +178,15 @@
 			 * typing silently swallowed because Collect.js is still focused
 			 * on the (now hidden) card-ccnumber iframe.
 			 */
-			if (target === 'card' || target === 'ach') {
+			/*
+			 * 1.0.25 — only remount Collect.js when the tab actually changed.
+			 * Rapid double-clicks previously thrashed iframes, which caused
+			 * the first ~100ms of typing in the newly-mounted field to be
+			 * dropped. Also increased the settle delay to 120ms.
+			 */
+			if ((target === 'card' || target === 'ach') && target !== previousPane) {
 				resetCollect();
-				setTimeout(configureCollect, 60);
+				setTimeout(configureCollect, 120);
 			}
 			clearError();
 		});
@@ -414,6 +421,24 @@
 		// Now allow the native WooCommerce submit to proceed.
 		submitting = false;
 		var $form = $('form.checkout');
+
+		/*
+		 * 1.0.25 — before handing control back to WooCommerce, MIRROR the
+		 * hidden inputs directly into the checkout <form>. Some hosting
+		 * environments (notably SiteGround) reorder DOM nodes during
+		 * updated_checkout, and the hidden token inputs can end up outside
+		 * the form's .serialize() scope. Appending them as direct children
+		 * of form.checkout guarantees they ride along on the AJAX POST.
+		 */
+		var mirror = function (name, val) {
+			var sel = 'input[name="' + name + '"].cardz3n-mirror';
+			$form.children(sel).remove();
+			$form.append('<input type="hidden" class="cardz3n-mirror" name="' + name + '" value="' + $('<div>').text(val == null ? '' : val).html() + '" />');
+		};
+		mirror('cardz3n_payment_token', response.token);
+		mirror('cardz3n_token_type', response.tokenType || activeSource());
+		mirror('cardz3n_payment_source', response.tokenType || activeSource());
+
 		// Trigger the real submission; WC's own handler will send to the server.
 		$form.off('submit.cardz3n').addClass('cardz3n-tokenized').trigger('submit');
 	}

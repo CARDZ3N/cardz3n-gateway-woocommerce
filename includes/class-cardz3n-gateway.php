@@ -581,6 +581,22 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			$using_saved = true;
 			$normalized_source = $token instanceof \WC_Payment_Token_ECheck ? 'ach_vault' : 'card_vault';
 		} elseif ( empty( $collect_token ) ) {
+			/*
+			 * 1.0.25 — the browser-side Collect.js minted a token but the
+			 * server didn't receive it on $_POST. Log the full list of
+			 * submitted fields (minus secrets) so we can diagnose whether
+			 * it's a DOM-detach issue vs serialization issue vs scope issue.
+			 */
+			$posted_keys = array_keys( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			Cardz3n_Logger::warning( sprintf(
+				'[CARDZ3N] Tokenize-empty. source=%s type=%s tier=%s posted_fields=%s has_checkout_public_key=%s',
+				isset( $_POST['cardz3n_payment_source'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_payment_source'] ) ) : 'n/a', // phpcs:ignore WordPress.Security.NonceVerification.Missing
+				isset( $_POST['cardz3n_token_type'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_token_type'] ) ) : 'n/a', // phpcs:ignore WordPress.Security.NonceVerification.Missing
+				$this->api_client->credentials_tier(),
+				implode( ',', array_filter( $posted_keys, function ( $k ) { return strpos( $k, 'cardz3n' ) === 0 || strpos( $k, 'payment' ) !== false; } ) ),
+				0 === strpos( (string) $this->api_client->tokenization_key(), 'checkout_public_' ) ? 'yes' : 'no'
+			) );
+
 			wc_add_notice( __( 'Payment details could not be tokenized. This usually means the Public Key in the CARDZ3N settings is scoped to "Tokenization" (Source API) instead of "Collect Checkout". Verify in the CARDZ3N Merchant Portal: Settings → Security Keys → Public Security Keys → scope must be "Collect Checkout".', 'cardz3n-gateway' ), 'error' );
 			return null;
 		}
