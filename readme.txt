@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.26
+Stable tag: 1.0.27
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,11 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.27 =
+* Fix (critical): Card processing failed with "There was an error processing your order" while ACH succeeded, in Live Mode, with all four credential fields populated and matched to the merchant account. Root cause: the 1.0.24–1.0.26 settings UI and admin warnings inverted the required public-key scope. This plugin uses NMI's inline **Collect.js** hosted fields, which require a **Public API Key with the "Tokenization" scope** (format: `xxxxxx-xxxxxx-xxxxxx-xxxxxx`, four dash-delimited segments). It does NOT use NMI's Collect Checkout hosted redirect, which is a separate product whose key starts with `checkout_public_`. Earlier versions told merchants the opposite. A `checkout_public_` key caused `ccnumber`/`ccexp`/`cvv` iframes to mount (the endpoint accepts the request) and to emit tokens at submit, but those tokens belong to the Collect Checkout product and `transact.php` cannot redeem them — the card charge is rejected by NMI while the ACH token path coincidentally passed through. 1.0.27 rewrites all four public-key field labels, field descriptions, tokenize-empty notices, admin settings-page warnings, and live-mode runtime errors to direct merchants to the Public API Key with Tokenization scope. If a `checkout_public_`-prefixed key is detected in the Live Public Key field, the settings page and the checkout error both explicitly name the scope mismatch and tell the merchant which key to paste instead.
+* Fix: Remove `payment=creditcard` / `payment=check` from the `transact.php` body when a Collect.js `payment_token` (or a stored `customer_vault_id`) is present. Both reference CARDZ3N/NMI plugins (WPGateways' white-labeled `cardz3n_request()` and the Evergreen Payments Northwest plugin) omit the `payment` field in that case and rely on NMI to infer the instrument from the token. Sending `payment=creditcard` alongside a token that NMI classifies differently can cause card charges to reject while ACH passes, and removing it aligns our request shape with the reference implementations. The `payment` field is still sent when neither a token nor a vault ID is present (raw-PAN path).
+* Docs: README and admin help now consistently refer to the required public key as "Public API Key (Tokenization scope)" — no more "Collect Checkout" references in the wrong place.
 
 = 1.0.26 =
 * Admin warning banner: the CARDZ3N settings page now detects the most common merchant-account mismatches before any buyer hits checkout and prints a targeted error at the top of the gateway settings screen. Covered cases: Test Mode ON with NMI's shared demo Security Key paired with a non-Collect-Checkout Tokenization Key (the #1 cause of "Payment Token does not exist"); Test Mode ON with the Test Public Key re-used from Live; Test Mode ON with one or both Test keys blank; Live Mode with either Live key blank; Live Mode with a Public Key that doesn't start with `checkout_public_`.

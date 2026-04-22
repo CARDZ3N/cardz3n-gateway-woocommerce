@@ -258,21 +258,50 @@ class Gateway extends \WC_Payment_Gateway_CC {
 
 		$warnings = array();
 
+		/*
+		 * 1.0.27 — CORRECTED Public-Key scope guidance.
+		 *
+		 * NMI ships TWO different public key products and only ONE works with
+		 * this plugin:
+		 *
+		 *   a) Public API Key scoped "Tokenization"   ←  correct for this plugin.
+		 *      Format: four dash-delimited segments, e.g.
+		 *              6Yr78e-s93ab9-M9x3dp-ddZnHz
+		 *      Drives inline Collect.js (the on-site card/ACH iframes we use).
+		 *
+		 *   b) Collect Checkout Key                    ←  WRONG for this plugin.
+		 *      Format: starts with `checkout_public_` followed by 32 hex chars.
+		 *      Drives the HOSTED redirect checkout (CollectCheckout.js), which
+		 *      this plugin does NOT use. A token minted against CollectCheckout.js
+		 *      cannot be redeemed by transact.php, so card transactions fail
+		 *      with WooCommerce's generic "There was an error processing your
+		 *      order" while ACH sometimes leaks through. This was the root
+		 *      cause of failing cards on 1.0.24–1.0.26.
+		 *
+		 * Prior versions (1.0.24–1.0.26) warned about the OPPOSITE — telling
+		 * merchants to pick a Collect Checkout key. That advice was wrong.
+		 */
+		$looks_like_checkout_key = function ( $key ) {
+			return 0 === strpos( (string) $key, 'checkout_public_' );
+		};
+
 		if ( $test_on ) {
-			if ( $test_sec === $shared_demo && '' !== $test_tok && 0 !== strpos( $test_tok, 'checkout_public_' ) ) {
-				$warnings[] = __( '<strong>Test Mode is active but will fail on card transactions.</strong> You\'re using NMI\'s shared demo Security Key with a Tokenization Key that isn\'t a Collect Checkout key. The shared demo merchant doesn\'t include a Collect Checkout public key — it only ships the Security Key for server-to-server testing. Either turn Test Mode off and use your Live keys with test PANs (4111&nbsp;1111&nbsp;1111&nbsp;1111 auto-voids in Live Mode), or request a matched Test Collect Checkout Public Key from CARDZ3N support.', 'cardz3n-gateway' );
-			} elseif ( $test_sec === $shared_demo && '' !== $test_tok && $test_tok === $live_tok ) {
-				$warnings[] = __( '<strong>Test Mode will fail on card transactions.</strong> The Test Security Key is NMI\'s shared demo merchant, but the Test Public Key is the same as your Live Public Key — those belong to different merchant accounts. A Collect.js token minted against your Live merchant cannot be redeemed by the demo merchant. Turn Test Mode off and use Live keys with test PANs, or request a matched Test Collect Checkout Public Key from CARDZ3N support.', 'cardz3n-gateway' );
-			} elseif ( '' === $test_sec || '' === $test_tok ) {
-				$warnings[] = __( '<strong>Test Mode is active but one or both Test keys are empty.</strong> Both a Test Private Key (Cart) and a Test Public Key (Collect Checkout) are required for Test Mode to process transactions.', 'cardz3n-gateway' );
+			if ( '' === $test_sec || '' === $test_tok ) {
+				$warnings[] = __( '<strong>Test Mode is active but one or both Test keys are empty.</strong> Both a Test Private Key (API/Cart scope) and a Test Public Key (Tokenization scope) are required. Get matched test keys from CARDZ3N support — the NMI shared-demo Security Key alone will not process card transactions.', 'cardz3n-gateway' );
+			} elseif ( $looks_like_checkout_key( $test_tok ) ) {
+				$warnings[] = __( '<strong>The Test Public Key looks like a Collect Checkout key (starts with <code>checkout_public_</code>) — this is the wrong key type for on-site checkout.</strong> Replace it with a Public API Key scoped "Tokenization" (four dash-delimited segments like <code>xxxxxx-xxxxxx-xxxxxx-xxxxxx</code>) from the CARDZ3N Portal under Settings → Security Keys → Public Security Keys → Tokenization. Collect Checkout keys drive the hosted redirect checkout, which this plugin does not use.', 'cardz3n-gateway' );
+			} elseif ( $test_sec === $shared_demo && $test_tok === $live_tok ) {
+				$warnings[] = __( '<strong>Test Mode will fail on card transactions.</strong> The Test Security Key is NMI\'s shared demo merchant but the Test Public Key is the same as your Live Public Key — those belong to different merchant accounts. A Collect.js token minted against your Live merchant cannot be redeemed by the demo merchant. Turn Test Mode off and use Live keys with test PANs (4111 1111 1111 1111 auto-voids in sandbox mode), or request a matched Test Public API Key (Tokenization scope) from CARDZ3N support.', 'cardz3n-gateway' );
+			} elseif ( $test_sec === $shared_demo ) {
+				$warnings[] = __( '<strong>Using NMI\'s shared demo Security Key (<code>6457…</code>) in Test Mode will likely fail on card transactions.</strong> The shared demo merchant ships a Security Key for server-to-server auth testing but does not reliably mint Collect.js payment tokens that can be redeemed against itself. The most reliable way to test cards is to leave Test Mode OFF, use your Live keys, and run NMI\'s test PAN 4111 1111 1111 1111 — it auto-voids and never settles.', 'cardz3n-gateway' );
 			}
 		}
 
 		if ( ! $test_on ) {
 			if ( '' === $live_sec || '' === $live_tok ) {
-				$warnings[] = __( '<strong>Live Mode is active but one or both Live keys are empty.</strong> Enter both the Live Private Key (Cart) and the Live Public Key (Collect Checkout) before taking real payments.', 'cardz3n-gateway' );
-			} elseif ( 0 !== strpos( $live_tok, 'checkout_public_' ) ) {
-				$warnings[] = __( '<strong>The Live Public Key does not look like a Collect Checkout key.</strong> Collect Checkout keys start with <code>checkout_public_</code>. A key scoped to "Tokenization" (Source API) will cause checkout fields to silently fail. Regenerate in the CARDZ3N Portal under Settings → Security Keys → Public Security Keys → Collect Checkout.', 'cardz3n-gateway' );
+				$warnings[] = __( '<strong>Live Mode is active but one or both Live keys are empty.</strong> Enter both the Live Private Key (API/Cart scope) and the Live Public Key (Tokenization scope) before taking real payments.', 'cardz3n-gateway' );
+			} elseif ( $looks_like_checkout_key( $live_tok ) ) {
+				$warnings[] = __( '<strong>Your Live Public Key looks like a Collect Checkout key (starts with <code>checkout_public_</code>) — this is the wrong key type and is the most likely reason card transactions are failing right now.</strong> Collect Checkout keys drive the hosted redirect checkout (CollectCheckout.js); this plugin uses on-site inline Collect.js, which requires a Public API Key scoped "Tokenization" (four dash-delimited segments like <code>xxxxxx-xxxxxx-xxxxxx-xxxxxx</code>). Go to the CARDZ3N Portal → Settings → Security Keys → Public Security Keys, add a key and pick <strong>Tokenization</strong> (NOT <strong>Collect Checkout</strong>) for scope, then paste that key here. ACH may appear to work with the wrong key, but cards will consistently fail.', 'cardz3n-gateway' );
 			}
 		}
 
@@ -650,7 +679,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				0 === strpos( (string) $this->api_client->tokenization_key(), 'checkout_public_' ) ? 'yes' : 'no'
 			) );
 
-			wc_add_notice( __( 'Payment details could not be tokenized. This usually means the Public Key in the CARDZ3N settings is scoped to "Tokenization" (Source API) instead of "Collect Checkout". Verify in the CARDZ3N Merchant Portal: Settings → Security Keys → Public Security Keys → scope must be "Collect Checkout".', 'cardz3n-gateway' ), 'error' );
+			wc_add_notice( __( 'Payment details could not be tokenized. The most common cause is that the Public Key in the CARDZ3N settings was issued with the wrong scope. This plugin uses inline Collect.js, which requires a Public API Key scoped "Tokenization" (format: xxxxxx-xxxxxx-xxxxxx-xxxxxx). A "Collect Checkout" key (starting with checkout_public_) will NOT work — it drives a different hosted-redirect checkout. Verify in the CARDZ3N Merchant Portal: Settings → Security Keys → Public Security Keys → scope must be "Tokenization".', 'cardz3n-gateway' ), 'error' );
 			return null;
 		}
 
@@ -793,14 +822,32 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				 */
 				if ( $client->is_sandbox() ) {
 					$user_msg = __(
-						'Test Mode is active, but the Test Security Key and Test Public Key in the CARDZ3N settings appear to belong to different merchant accounts. Either turn Test Mode off and use your Live keys (test PANs such as 4111 1111 1111 1111 will still auto-void in Live Mode), or request a matched Test Collect Checkout Public Key from CARDZ3N support for your test merchant.',
+						'Test Mode is active, but the Test Security Key and Test Public Key in the CARDZ3N settings appear to belong to different merchant accounts. Either turn Test Mode off and use your Live keys (test PANs such as 4111 1111 1111 1111 will still auto-void in sandbox mode), or request a matched Test Public API Key with Tokenization scope from CARDZ3N support for your test merchant.',
 						'cardz3n-gateway'
 					);
 				} else {
-					$user_msg = __(
-						'We couldn\'t complete your payment because the gateway did not recognize the secure token. Please refresh the checkout page and try again. If this keeps happening, contact the store — the Security Key and Tokenization Key in the gateway settings may belong to different merchant accounts.',
-						'cardz3n-gateway'
-					);
+					/*
+					 * 1.0.27 — in Live Mode with matched-merchant keys, the
+					 * most common remaining cause of "Payment Token does not
+					 * exist" is that the Public Key was issued with the wrong
+					 * scope. A Collect Checkout key (`checkout_public_…`)
+					 * will mint tokens Collect.js happily accepts in the
+					 * browser, but those tokens cannot be redeemed by
+					 * transact.php — only a Public API Key scoped "Tokenization"
+					 * produces redeemable payment_token values.
+					 */
+					$wrong_scope = 0 === strpos( (string) $client->tokenization_key(), 'checkout_public_' );
+					if ( $wrong_scope ) {
+						$user_msg = __(
+							'We couldn\'t complete your card payment. The store\'s CARDZ3N Public Key is set to a "Collect Checkout" key (starts with checkout_public_), which cannot process on-site card transactions. Please contact the store — the operator needs to replace it with a Public API Key scoped "Tokenization" in the CARDZ3N settings.',
+							'cardz3n-gateway'
+						);
+					} else {
+						$user_msg = __(
+							'We couldn\'t complete your payment because the gateway did not recognize the secure token. Please refresh the checkout page and try again. If this keeps happening, contact the store — the Security Key and Tokenization Key in the gateway settings may belong to different merchant accounts.',
+							'cardz3n-gateway'
+						);
+					}
 				}
 			}
 
