@@ -82,7 +82,7 @@ trait Settings_Trait {
 			'section_credentials'    => array(
 				'title'       => __( 'API Credentials', 'cardz3n-gateway' ),
 				'type'        => 'title',
-				'description' => __( 'Generate these in your CARDZ3N Merchant Portal (z3n.transactiongateway.com) under <strong>Settings → Security Keys</strong>. Keys come in two flavors:<br><br><strong>Private Key</strong> — pick scope <em>&quot;Cart&quot;</em> (or <em>&quot;API and Cart&quot;</em>). Server-side only; signs transact.php requests.<br><strong>Public Key</strong> — pick scope <em>&quot;Collect Checkout&quot;</em>. Browser-side; used by Collect.js to tokenize card &amp; ACH fields. A public key scoped to <em>&quot;Tokenization&quot;</em> (Source API) will NOT work here.<br><br>Test Mode and Live Mode use different merchant accounts — do not mix Test and Live keys.', 'cardz3n-gateway' ),
+				'description' => __( 'Generate these in your CARDZ3N Merchant Portal (z3n.transactiongateway.com) under <strong>Settings → Security Keys</strong>. Keys come in two flavors:<br><br><strong>Private Key</strong> — pick scope <em>&quot;Cart&quot;</em> (or <em>&quot;API and Cart&quot;</em>). Server-side only; signs transact.php requests.<br><strong>Public Key</strong> — pick scope <em>&quot;Tokenization&quot;</em>. Browser-side; used by inline Collect.js to tokenize card &amp; ACH fields. The key looks like <code>xxxxxx-xxxxxx-xxxxxx-xxxxxx</code>. A <em>&quot;Collect Checkout&quot;</em> public key (starting with <code>checkout_public_</code>) will NOT work — that scope drives a different hosted-redirect checkout.<br><br>Test Mode and Live Mode use different merchant accounts — do not mix Test and Live keys.', 'cardz3n-gateway' ),
 			),
 			'test_mode'              => array(
 				'title'       => __( 'Test Mode', 'cardz3n-gateway' ),
@@ -98,10 +98,10 @@ trait Settings_Trait {
 				'description' => __( 'From CARDZ3N Portal → Settings → Security Keys → <strong>Private Security Keys</strong>. Scope must be <em>&quot;Cart&quot;</em> or <em>&quot;API and Cart&quot;</em>. Used server-side only.', 'cardz3n-gateway' ),
 			),
 			'live_tokenization_key'  => array(
-				'title'       => __( 'Live Public Key (Collect Checkout)', 'cardz3n-gateway' ),
+				'title'       => __( 'Live Public Key (Tokenization)', 'cardz3n-gateway' ),
 				'type'        => 'text',
 				'default'     => '',
-				'description' => __( 'From CARDZ3N Portal → Settings → Security Keys → <strong>Public Security Keys</strong>. Scope must be <em>&quot;Collect Checkout&quot;</em> (NOT <em>&quot;Tokenization&quot;</em>). Used by Collect.js in the browser.', 'cardz3n-gateway' ),
+				'description' => __( 'From CARDZ3N Portal → Settings → Security Keys → <strong>Public Security Keys</strong>. Scope must be <em>&quot;Tokenization&quot;</em>. Used by inline Collect.js in the browser (format: <code>xxxxxx-xxxxxx-xxxxxx-xxxxxx</code>). A <em>&quot;Collect Checkout&quot;</em> key (starting <code>checkout_public_</code>) will NOT work.', 'cardz3n-gateway' ),
 			),
 			'test_security_key'      => array(
 				'title'       => __( 'Test Private Key (Cart)', 'cardz3n-gateway' ),
@@ -110,10 +110,10 @@ trait Settings_Trait {
 				'description' => __( 'Test-merchant Private Security Key with <em>Cart</em> scope. The shared NMI demo Security Key is published on the <a href="https://z3n.transactiongateway.com/merchants/resources/integration/integration_portal.php#testing_information" target="_blank">Testing Information page</a>.', 'cardz3n-gateway' ),
 			),
 			'test_tokenization_key'  => array(
-				'title'       => __( 'Test Public Key (Collect Checkout)', 'cardz3n-gateway' ),
+				'title'       => __( 'Test Public Key (Tokenization)', 'cardz3n-gateway' ),
 				'type'        => 'text',
 				'default'     => '',
-				'description' => __( 'Test-merchant Public Security Key with <em>Collect Checkout</em> scope. If the Testing Information page does not list one, request it from CARDZ3N support for your test merchant account. A Tokenization-scoped key will NOT work.', 'cardz3n-gateway' ),
+				'description' => __( 'Test-merchant Public Security Key with <em>Tokenization</em> scope (format: <code>xxxxxx-xxxxxx-xxxxxx-xxxxxx</code>). If your test merchant does not have one, request it from CARDZ3N support. A <em>Collect Checkout</em>-scoped key (starting <code>checkout_public_</code>) will NOT work.', 'cardz3n-gateway' ),
 			),
 			'validate_credentials'   => array(
 				'title'       => __( 'Credential Test', 'cardz3n-gateway' ),

@@ -345,9 +345,42 @@ class Api_Client {
 		$args = array_merge( $defaults, $args );
 
 		$payload = array(
-			'type'    => sanitize_key( $args['type'] ),
-			'payment' => sanitize_key( $args['payment'] ),
+			'type' => sanitize_key( $args['type'] ),
 		);
+
+		/*
+		 * 1.0.27 -- CRITICAL CARD FIX.
+		 *
+		 * When a Collect.js `payment_token` is present, NMI's Payment API
+		 * infers the payment type (card vs check) from the token itself.
+		 * Sending an explicit `payment=creditcard` alongside a Collect.js
+		 * card token can be rejected by transact.php depending on how
+		 * Collect.js internally tagged the minted token (tokenType may be
+		 * 'inline' for cards, 'check' for ACH, or wallet variants for
+		 * Apple/Google Pay). When the explicit `payment` value disagrees
+		 * with the token's embedded type the gateway returns a generic
+		 * error that WooCommerce surfaces as "There was an error
+		 * processing your order" -- and that's exactly what buyers have
+		 * been seeing on cards (ACH silently worked because `payment=check`
+		 * happens to match what Collect.js tags ACH tokens with).
+		 *
+		 * Both reference integrations we audited -- the WPGateways
+		 * white-label CARDZ3N plugin and the Evergreen Payments Northwest
+		 * plugin -- OMIT the `payment` field entirely when posting a
+		 * `payment_token`. NMI's own Quick Start Guide documents the same
+		 * pattern. We now follow suit.
+		 *
+		 * Rules:
+		 *   - payment_token present     -> omit `payment` (token carries type).
+		 *   - customer_vault_id present -> omit `payment` (vault carries type).
+		 *   - raw ccnumber / checkaccount legacy path -> send `payment`.
+		 */
+		$has_token = ! empty( $args['payment_token'] );
+		$has_vault = ! empty( $args['customer_vault_id'] );
+
+		if ( ! $has_token && ! $has_vault ) {
+			$payload['payment'] = sanitize_key( $args['payment'] );
+		}
 
 		if ( null !== $args['amount'] ) {
 			$payload['amount'] = number_format( (float) $args['amount'], 2, '.', '' );
