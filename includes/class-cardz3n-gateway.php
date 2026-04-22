@@ -241,6 +241,53 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	}
 
 	/**
+	 * 1.0.26 — Prepend a targeted warning above the WooCommerce admin
+	 * settings form when Test Mode is enabled with test credentials that
+	 * likely belong to mismatched merchant accounts. The #1 support
+	 * question we see ("why won't Test Mode process a card?") is caused
+	 * by pairing NMI's shared demo Security Key (`6457Thfj…`) with a
+	 * Collect Checkout public key minted on a different merchant.
+	 */
+	public function admin_options() {
+		$test_on     = 'yes' === $this->get_option( 'test_mode' );
+		$test_sec    = (string) $this->get_option( 'test_security_key' );
+		$test_tok    = (string) $this->get_option( 'test_tokenization_key' );
+		$live_sec    = (string) $this->get_option( 'live_security_key' );
+		$live_tok    = (string) $this->get_option( 'live_tokenization_key' );
+		$shared_demo = '6457Thfj624V5r7WUwc5v6a68Zsd6YEm'; // NMI's published demo Security Key.
+
+		$warnings = array();
+
+		if ( $test_on ) {
+			if ( $test_sec === $shared_demo && '' !== $test_tok && 0 !== strpos( $test_tok, 'checkout_public_' ) ) {
+				$warnings[] = __( '<strong>Test Mode is active but will fail on card transactions.</strong> You\'re using NMI\'s shared demo Security Key with a Tokenization Key that isn\'t a Collect Checkout key. The shared demo merchant doesn\'t include a Collect Checkout public key — it only ships the Security Key for server-to-server testing. Either turn Test Mode off and use your Live keys with test PANs (4111&nbsp;1111&nbsp;1111&nbsp;1111 auto-voids in Live Mode), or request a matched Test Collect Checkout Public Key from CARDZ3N support.', 'cardz3n-gateway' );
+			} elseif ( $test_sec === $shared_demo && '' !== $test_tok && $test_tok === $live_tok ) {
+				$warnings[] = __( '<strong>Test Mode will fail on card transactions.</strong> The Test Security Key is NMI\'s shared demo merchant, but the Test Public Key is the same as your Live Public Key — those belong to different merchant accounts. A Collect.js token minted against your Live merchant cannot be redeemed by the demo merchant. Turn Test Mode off and use Live keys with test PANs, or request a matched Test Collect Checkout Public Key from CARDZ3N support.', 'cardz3n-gateway' );
+			} elseif ( '' === $test_sec || '' === $test_tok ) {
+				$warnings[] = __( '<strong>Test Mode is active but one or both Test keys are empty.</strong> Both a Test Private Key (Cart) and a Test Public Key (Collect Checkout) are required for Test Mode to process transactions.', 'cardz3n-gateway' );
+			}
+		}
+
+		if ( ! $test_on ) {
+			if ( '' === $live_sec || '' === $live_tok ) {
+				$warnings[] = __( '<strong>Live Mode is active but one or both Live keys are empty.</strong> Enter both the Live Private Key (Cart) and the Live Public Key (Collect Checkout) before taking real payments.', 'cardz3n-gateway' );
+			} elseif ( 0 !== strpos( $live_tok, 'checkout_public_' ) ) {
+				$warnings[] = __( '<strong>The Live Public Key does not look like a Collect Checkout key.</strong> Collect Checkout keys start with <code>checkout_public_</code>. A key scoped to "Tokenization" (Source API) will cause checkout fields to silently fail. Regenerate in the CARDZ3N Portal under Settings → Security Keys → Public Security Keys → Collect Checkout.', 'cardz3n-gateway' );
+			}
+		}
+
+		if ( ! empty( $warnings ) ) {
+			echo '<div class="notice notice-error" style="padding:12px 16px;margin:12px 0;">';
+			foreach ( $warnings as $w ) {
+				echo '<p style="margin:6px 0;">' . wp_kses_post( $w ) . '</p>';
+			}
+			echo '</div>';
+		}
+
+		parent::admin_options();
+	}
+
+	/**
 	 * Render the embedded checkout UI inside the CARDZ3N gateway panel.
 	 *
 	 * Structure (single gateway, multiple panes):
@@ -280,8 +327,14 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		// buyers still see that the merchant accepts those brands.
 		$enable_apple  = false;
 		$enable_google = false;
+		$test_mode_active = 'yes' === $this->get_option( 'test_mode' );
 		?>
 		<div class="cardz3n-gateway-ui" data-gateway="<?php echo esc_attr( $this->id ); ?>" data-cardz3n-version="<?php echo esc_attr( CARDZ3N_GW_VERSION ); ?>">
+			<?php if ( $test_mode_active ) : ?>
+			<div class="cardz3n-testmode-banner" role="status" style="background:#fff7e6;border:1px solid #f0c36d;color:#7a4d00;padding:8px 12px;border-radius:6px;margin:0 0 12px;font-size:13px;line-height:1.4;">
+				<strong><?php esc_html_e( 'TEST MODE ACTIVE', 'cardz3n-gateway' ); ?></strong> — <?php esc_html_e( 'no real charges will be processed. Transactions are routed to the CARDZ3N test processor.', 'cardz3n-gateway' ); ?>
+			</div>
+			<?php endif; ?>
 
 			<?php if ( $enable_apple || $enable_google ) : ?>
 			<div class="cardz3n-wallets">
@@ -730,10 +783,25 @@ class Gateway extends \WC_Payment_Gateway_CC {
 						'test_mode'        => $client->is_sandbox() ? 'yes' : 'no',
 					)
 				);
-				$user_msg = __(
-					'We couldn\'t complete your payment because the gateway did not recognize the secure token. Please refresh the checkout page and try again. If this keeps happening, contact the store — the Security Key and Tokenization Key in the gateway settings may belong to different merchant accounts.',
-					'cardz3n-gateway'
-				);
+				/*
+				 * 1.0.26 — the #1 cause of "Payment Token does not exist" in
+				 * Test Mode is pairing NMI's shared test-merchant Security Key
+				 * (`6457Thfj…`) with a Collect Checkout public key minted on a
+				 * different merchant. The token exists in merchant A's store;
+				 * merchant B's transact.php can't redeem it. Show a surgical
+				 * message for that exact case.
+				 */
+				if ( $client->is_sandbox() ) {
+					$user_msg = __(
+						'Test Mode is active, but the Test Security Key and Test Public Key in the CARDZ3N settings appear to belong to different merchant accounts. Either turn Test Mode off and use your Live keys (test PANs such as 4111 1111 1111 1111 will still auto-void in Live Mode), or request a matched Test Collect Checkout Public Key from CARDZ3N support for your test merchant.',
+						'cardz3n-gateway'
+					);
+				} else {
+					$user_msg = __(
+						'We couldn\'t complete your payment because the gateway did not recognize the secure token. Please refresh the checkout page and try again. If this keeps happening, contact the store — the Security Key and Tokenization Key in the gateway settings may belong to different merchant accounts.',
+						'cardz3n-gateway'
+					);
+				}
 			}
 
 			wc_add_notice( $user_msg, 'error' );
