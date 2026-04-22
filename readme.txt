@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.25
+Stable tag: 1.0.26
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,11 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.26 =
+* Admin warning banner: the CARDZ3N settings page now detects the most common merchant-account mismatches before any buyer hits checkout and prints a targeted error at the top of the gateway settings screen. Covered cases: Test Mode ON with NMI's shared demo Security Key paired with a non-Collect-Checkout Tokenization Key (the #1 cause of "Payment Token does not exist"); Test Mode ON with the Test Public Key re-used from Live; Test Mode ON with one or both Test keys blank; Live Mode with either Live key blank; Live Mode with a Public Key that doesn't start with `checkout_public_`.
+* Checkout banner: a visible "TEST MODE ACTIVE — no real charges" strip now renders above the payment fields whenever Test Mode is enabled, so buyers and testers have unambiguous visual confirmation of which mode they're in.
+* Sharper gateway error: when transact.php returns "Payment Token does not exist" AND Test Mode is on, the user-facing message now explicitly names the test-merchant vs live-merchant mismatch and gives two actionable paths (turn Test Mode off + use test PANs, or request a Test Collect Checkout key from CARDZ3N support).
 
 = 1.0.25 =
 * Fix (critical): Mirror the hidden `cardz3n_payment_token`, `cardz3n_token_type`, and `cardz3n_payment_source` inputs as direct children of `form.checkout` right before WooCommerce's AJAX submit. Some theme/host combinations (notably SiteGround with page-builder checkouts) reorder DOM nodes during `updated_checkout` in a way that lifts our hidden inputs outside the form's `.serialize()` scope, causing an otherwise-valid token to never reach the server and the gateway to reject the transaction as "Payment details could not be tokenized".
