@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.27
+Stable tag: 1.0.28
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,11 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.28 =
+* Fix (critical): Card sales rejected with `"Custom descriptors are not allowed for this processor"` (response_code=300) on NMI processors that don't permit merchant-supplied descriptors. Confirmed against live transact.php responses by NMI Integration Support. Because Collect.js `payment_token` values are single-use, that first rejection burns the token — every buyer retry then cascades into `"Payment Token does not exist"`, which is the error that's been surfacing on CARDZ3N installs in logs and transaction history.
+* New: "Send Dynamic Descriptor" checkbox in the gateway settings (default OFF). When unchecked, the plugin never writes a `descriptor` field into the transact.php POST body. Merchants who want dynamic descriptors must first enable "Allow merchant to pass Dynamic Billing Descriptors" in the CARDZ3N Partner Portal → Merchant Account → Advanced Merchant Features, then return to the settings page and check the new box. Safe upgrade path for every existing install — no setting changes are required to stop the card rejections.
+* Docs: Dynamic Descriptor settings description now explains the two-step opt-in and links the cause-and-effect chain from the descriptor rejection to the downstream `"Payment Token does not exist"` error so merchants understand why both stop after upgrading.
 
 = 1.0.27 =
 * Fix (critical): Card processing failed with "There was an error processing your order" while ACH succeeded, in Live Mode, with all four credential fields populated and matched to the merchant account. Root cause: the 1.0.24–1.0.26 settings UI and admin warnings inverted the required public-key scope. This plugin uses NMI's inline **Collect.js** hosted fields, which require a **Public API Key with the "Tokenization" scope** (format: `xxxxxx-xxxxxx-xxxxxx-xxxxxx`, four dash-delimited segments). It does NOT use NMI's Collect Checkout hosted redirect, which is a separate product whose key starts with `checkout_public_`. Earlier versions told merchants the opposite. A `checkout_public_` key caused `ccnumber`/`ccexp`/`cvv` iframes to mount (the endpoint accepts the request) and to emit tokens at submit, but those tokens belong to the Collect Checkout product and `transact.php` cannot redeem them — the card charge is rejected by NMI while the ACH token path coincidentally passed through. 1.0.27 rewrites all four public-key field labels, field descriptions, tokenize-empty notices, admin settings-page warnings, and live-mode runtime errors to direct merchants to the Public API Key with Tokenization scope. If a `checkout_public_`-prefixed key is detected in the Live Public Key field, the settings page and the checkout error both explicitly name the scope mismatch and tell the merchant which key to paste instead.

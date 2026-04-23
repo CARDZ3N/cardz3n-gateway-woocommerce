@@ -208,12 +208,19 @@ trait Settings_Trait {
 				),
 				'default' => '',
 			),
+			'allow_dynamic_descriptors' => array(
+				'title'       => __( 'Send Dynamic Descriptor', 'cardz3n-gateway' ),
+				'type'        => 'checkbox',
+				'label'       => __( 'Send a dynamic billing descriptor with every card transaction', 'cardz3n-gateway' ),
+				'description' => __( '<strong>Leave this off unless your processor explicitly supports merchant-supplied descriptors.</strong> Most CARDZ3N / NMI processors reject transactions that include a <code>descriptor</code> field with <em>"Custom descriptors are not allowed for this processor"</em>. To use this feature, first log in to the CARDZ3N Partner Portal, open your merchant account\'s <strong>Advanced Merchant Features</strong>, and enable <strong>Allow merchant to pass Dynamic Billing Descriptors</strong>. Then return here and check this box.', 'cardz3n-gateway' ),
+				'default'     => 'no',
+			),
 			'descriptor'             => array(
 				'title'       => __( 'Dynamic Descriptor', 'cardz3n-gateway' ),
 				'type'        => 'text',
-				'description' => __( 'Up to 25 chars shown on cardholder statements. Leave blank to use your processor-assigned descriptor.', 'cardz3n-gateway' ),
+				'description' => __( 'Up to 25 chars shown on cardholder statements. Leave blank to use your processor-assigned descriptor. <strong>Only sent when "Send Dynamic Descriptor" is checked above.</strong>', 'cardz3n-gateway' ),
 				'default'     => '',
-				'desc_tip'    => true,
+				'desc_tip'    => false,
 			),
 			'descriptor_suffix_source' => array(
 				'title'   => __( 'Descriptor Suffix Source', 'cardz3n-gateway' ),

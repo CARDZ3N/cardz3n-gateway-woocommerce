@@ -3,6 +3,18 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.28] — 2026-04-23
+
+### Fixed
+- **Cards rejected with `"Custom descriptors are not allowed for this processor"` on NMI processors that don't permit merchant-supplied descriptors.** Confirmed by NMI Integration Support against live transact.php responses on CARDZ3N Gateway ID 969835: `response=3 responsetext="Custom descriptors are not allowed for this processor" response_code=300`. Every 1.0.17–1.0.27 card sale included a `descriptor` field in the transact.php POST whenever the merchant's Dynamic Descriptor setting was non-blank (or left at the pre-1.0.26 brand-name default). Processors that route to MIDs without "Allow merchant to pass Dynamic Billing Descriptors" under Advanced Merchant Features reject the sale with response_code=300 on the descriptor line alone. Because Collect.js `payment_token` values are single-use, that first rejection burns the token — and every buyer retry against the same token then returns `"Payment Token does not exist"`, which is the error merchants actually saw in the plugin's logs and in NMI's transaction history.
+  
+  1.0.28 introduces a new `allow_dynamic_descriptors` checkbox (default OFF) immediately above the existing Dynamic Descriptor text field in the gateway settings. When the checkbox is off, `Gateway::process_payment()` passes an empty descriptor to `Api_Client::transaction()`, so the `descriptor` field is never written into the transact.php POST body. Merchants who actively want statement-level dynamic descriptors must (1) enable "Allow merchant to pass Dynamic Billing Descriptors" in the CARDZ3N Partner Portal → Merchant Account → Advanced Merchant Features, then (2) return to the plugin settings and check the new box. This keeps every existing install safe by default without removing the feature for merchants whose processor actually supports it.
+
+### Notes for support
+- If a merchant reports `"Custom descriptors are not allowed for this processor"` in CARDZ3N / NMI logs after upgrading, either their plugin didn't upgrade or another integration is also POSTing to transact.php with a descriptor. Confirm `CARDZ3N_GW_VERSION === '1.0.28'` from the version-mismatch banner and scan for rogue `descriptor=` bodies in server logs.
+- Merchants who previously relied on dynamic descriptors will see their statements fall back to the processor-assigned descriptor after upgrading until they flip the new checkbox. This is documented in the settings description.
+- No change to `process_payment`, capture, void, refund, the Collect.js tokenization flow, or the request shape for ACH (ACH never sent a descriptor anyway).
+
 ## [1.0.27] — 2026-04-21
 
 ### Fixed

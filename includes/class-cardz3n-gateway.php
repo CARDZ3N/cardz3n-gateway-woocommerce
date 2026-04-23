@@ -722,8 +722,31 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		$mapper = new Level3_Mapper( $this->settings );
 		$level3 = $mapper->build( $order );
 
-		// Descriptor.
-		$descriptor = \Cardz3n_Gateway\descriptor_for_order( $order, $this->settings );
+		/*
+		 * 1.0.28 — DESCRIPTOR GATING.
+		 *
+		 * NMI processors reject sales that include a `descriptor` field unless
+		 * the merchant account has "Allow merchant to pass Dynamic Billing
+		 * Descriptors" explicitly enabled under Advanced Merchant Features.
+		 * When it isn't enabled, transact.php returns:
+		 *
+		 *   response=3 responsetext="Custom descriptors are not allowed for this
+		 *   processor" response_code=300
+		 *
+		 * That rejection burns the single-use Collect.js payment_token, so
+		 * every retry then cascades into "Payment Token does not exist".
+		 *
+		 * 1.0.28 flips the default to OFF. The descriptor field is only
+		 * included when the new `allow_dynamic_descriptors` setting is checked,
+		 * which the settings UI tells the merchant to do only after enabling
+		 * the feature in the CARDZ3N Partner Portal. Safe upgrade for every
+		 * existing install; merchants who are actively using dynamic
+		 * descriptors only need to tick one checkbox to restore it.
+		 */
+		$allow_descriptors = 'yes' === $this->get_option( 'allow_dynamic_descriptors', 'no' );
+		$descriptor        = $allow_descriptors
+			? \Cardz3n_Gateway\descriptor_for_order( $order, $this->settings )
+			: '';
 
 		// Whether to also tokenize (vault creation) during this transaction.
 		$should_vault_card = ( $save_card && ! $using_saved && in_array( $normalized_source, array( 'card', 'apple_pay', 'google_pay' ), true ) );
