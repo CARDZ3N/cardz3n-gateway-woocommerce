@@ -55,7 +55,7 @@ jobs:
           zip -rq cardz3n-gateway-${{ steps.v.outputs.version }}.zip cardz3n-gateway
 
       - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: build/cardz3n-gateway-*.zip
           generate_release_notes: true
