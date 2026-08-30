@@ -115,7 +115,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		return $text . ' ' . $badge;
 	}
 
-	/* ------------------------------------------------------------------
+	/*
+	------------------------------------------------------------------
 	 * Assets & rendering
 	 * --------------------------------------------------------------- */
 
@@ -206,20 +207,20 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			'cardz3n-checkout',
 			'CARDZ3N_GW',
 			array(
-				'version'            => CARDZ3N_GW_VERSION,
-				'gatewayId'          => $this->id,
-				'tokenizationKey'    => $pk,
-				'enableCards'        => 'yes' === $this->get_option( 'enable_cards', 'yes' ),
-				'enableAch'          => 'yes' === $this->get_option( 'enable_ach', 'yes' ),
-				'enableApplePay'     => 'yes' === $this->get_option( 'enable_apple_pay', 'yes' ),
-				'enableGooglePay'    => 'yes' === $this->get_option( 'enable_google_pay', 'yes' ),
-				'enableSaved'        => 'yes' === $this->get_option( 'enable_saved_methods', 'yes' ),
-				'allowedBrands'      => (array) $this->get_option( 'allowed_card_brands', array() ),
-				'country'            => ( WC()->customer && WC()->customer->get_billing_country() ) ? WC()->customer->get_billing_country() : 'US',
-				'currency'           => get_woocommerce_currency(),
-				'ajaxUrl'            => admin_url( 'admin-ajax.php' ),
-				'nonce'              => wp_create_nonce( 'cardz3n_gw_nonce' ),
-				'i18n'                => array(
+				'version'         => CARDZ3N_GW_VERSION,
+				'gatewayId'       => $this->id,
+				'tokenizationKey' => $pk,
+				'enableCards'     => 'yes' === $this->get_option( 'enable_cards', 'yes' ),
+				'enableAch'       => 'yes' === $this->get_option( 'enable_ach', 'yes' ),
+				'enableApplePay'  => 'yes' === $this->get_option( 'enable_apple_pay', 'yes' ),
+				'enableGooglePay' => 'yes' === $this->get_option( 'enable_google_pay', 'yes' ),
+				'enableSaved'     => 'yes' === $this->get_option( 'enable_saved_methods', 'yes' ),
+				'allowedBrands'   => (array) $this->get_option( 'allowed_card_brands', array() ),
+				'country'         => ( WC()->customer && WC()->customer->get_billing_country() ) ? WC()->customer->get_billing_country() : 'US',
+				'currency'        => get_woocommerce_currency(),
+				'ajaxUrl'         => admin_url( 'admin-ajax.php' ),
+				'nonce'           => wp_create_nonce( 'cardz3n_gw_nonce' ),
+				'i18n'            => array(
 					'cardTab'       => __( 'Card', 'cardz3n-gateway' ),
 					'achTab'        => __( 'Bank (ACH)', 'cardz3n-gateway' ),
 					'savedTab'      => __( 'Saved', 'cardz3n-gateway' ),
@@ -489,10 +490,16 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		// (the live wallet button still only renders when canMakePayments is
 		// true). This reassures buyers the gateway accepts their wallet.
 		if ( 'yes' === $this->get_option( 'enable_apple_pay', 'yes' ) ) {
-			$icons[] = array( 'file' => 'icon_wallet_applepay.svg', 'alt' => 'Apple Pay' );
+			$icons[] = array(
+				'file' => 'icon_wallet_applepay.svg',
+				'alt'  => 'Apple Pay',
+			);
 		}
 		if ( 'yes' === $this->get_option( 'enable_google_pay', 'yes' ) ) {
-			$icons[] = array( 'file' => 'icon_wallet_googlepay.svg', 'alt' => 'Google Pay' );
+			$icons[] = array(
+				'file' => 'icon_wallet_googlepay.svg',
+				'alt'  => 'Google Pay',
+			);
 		}
 
 		if ( empty( $icons ) ) {
@@ -528,7 +535,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		if ( empty( $_POST['cardz3n_po_number'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			return;
 		}
-		$po = sanitize_text_field( wp_unslash( $_POST['cardz3n_po_number'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$po    = sanitize_text_field( wp_unslash( $_POST['cardz3n_po_number'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$order = wc_get_order( $order_id );
 		if ( $order ) {
 			$order->update_meta_data( '_cardz3n_po_number', $po );
@@ -544,7 +551,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		echo '<div class="cardz3n-thankyou">' . wp_kses_post( wpautop( $msg ) ) . '</div>';
 	}
 
-	/* ------------------------------------------------------------------
+	/*
+	------------------------------------------------------------------
 	 * Availability / admin gates
 	 * --------------------------------------------------------------- */
 
@@ -611,7 +619,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		}
 	}
 
-	/* ------------------------------------------------------------------
+	/*
+	------------------------------------------------------------------
 	 * process_payment — the critical server-side flow.
 	 * --------------------------------------------------------------- */
 
@@ -654,8 +663,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		$save_ach         = ! empty( $_POST[ 'wc-' . $this->id . '-new-ach-method' ] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 
 		// Resolve payment mechanism.
-		$using_saved = false;
-		$vault_id    = '';
+		$using_saved       = false;
+		$vault_id          = '';
 		$normalized_source = Wallet_Service::normalize_source( $token_type ?: $source );
 
 		if ( ! empty( $payment_token_id ) && 'new' !== $payment_token_id ) {
@@ -664,8 +673,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				wc_add_notice( __( 'Invalid saved payment method.', 'cardz3n-gateway' ), 'error' );
 				return null;
 			}
-			$vault_id    = (string) $token->get_meta( 'cardz3n_vault_id' ) ?: $token->get_token();
-			$using_saved = true;
+			$vault_id          = (string) $token->get_meta( 'cardz3n_vault_id' ) ?: $token->get_token();
+			$using_saved       = true;
 			$normalized_source = $token instanceof \WC_Payment_Token_ECheck ? 'ach_vault' : 'card_vault';
 		} elseif ( empty( $collect_token ) ) {
 			/*
@@ -675,14 +684,23 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			 * it's a DOM-detach issue vs serialization issue vs scope issue.
 			 */
 			$posted_keys = array_keys( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
-			Cardz3n_Logger::warning( sprintf(
-				'[CARDZ3N] Tokenize-empty. source=%s type=%s tier=%s posted_fields=%s has_checkout_public_key=%s',
-				isset( $_POST['cardz3n_payment_source'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_payment_source'] ) ) : 'n/a', // phpcs:ignore WordPress.Security.NonceVerification.Missing
-				isset( $_POST['cardz3n_token_type'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_token_type'] ) ) : 'n/a', // phpcs:ignore WordPress.Security.NonceVerification.Missing
-				$this->api_client->credentials_tier(),
-				implode( ',', array_filter( $posted_keys, function ( $k ) { return strpos( $k, 'cardz3n' ) === 0 || strpos( $k, 'payment' ) !== false; } ) ),
-				0 === strpos( (string) $this->api_client->tokenization_key(), 'checkout_public_' ) ? 'yes' : 'no'
-			) );
+			Cardz3n_Logger::warning(
+				sprintf(
+					'[CARDZ3N] Tokenize-empty. source=%s type=%s tier=%s posted_fields=%s has_checkout_public_key=%s',
+					isset( $_POST['cardz3n_payment_source'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_payment_source'] ) ) : 'n/a', // phpcs:ignore WordPress.Security.NonceVerification.Missing
+					isset( $_POST['cardz3n_token_type'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_token_type'] ) ) : 'n/a', // phpcs:ignore WordPress.Security.NonceVerification.Missing
+					$this->api_client->credentials_tier(),
+					implode(
+						',',
+						array_filter(
+							$posted_keys,
+							function ( $k ) {
+								return strpos( $k, 'cardz3n' ) === 0 || strpos( $k, 'payment' ) !== false; }
+						)
+					),
+					0 === strpos( (string) $this->api_client->tokenization_key(), 'checkout_public_' ) ? 'yes' : 'no'
+				)
+			);
 
 			wc_add_notice( __( 'Payment details could not be tokenized. The most common cause is that the Public Key in the CARDZ3N settings was issued with the wrong scope. This plugin uses inline Collect.js, which requires a Public API Key scoped "Tokenization" (format: xxxxxx-xxxxxx-xxxxxx-xxxxxx). A "Collect Checkout" key (starting with checkout_public_) will NOT work — it drives a different hosted-redirect checkout. Verify in the CARDZ3N Merchant Portal: Settings → Security Keys → Public Security Keys → scope must be "Tokenization".', 'cardz3n-gateway' ), 'error' );
 			return null;
@@ -698,7 +716,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		}
 
 		// Collect billing / shipping from the order.
-		$billing = array(
+		$billing  = array(
 			'first_name' => $order->get_billing_first_name(),
 			'last_name'  => $order->get_billing_last_name(),
 			'company'    => $order->get_billing_company(),
@@ -936,7 +954,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		);
 	}
 
-	/* ------------------------------------------------------------------
+	/*
+	------------------------------------------------------------------
 	 * AJAX endpoints
 	 * --------------------------------------------------------------- */
 
@@ -977,7 +996,12 @@ class Gateway extends \WC_Payment_Gateway_CC {
 
 		// The API client only returns arrays (never WP_Error), but guard anyway.
 		if ( is_wp_error( $result ) ) {
-			wp_send_json_error( array( 'ok' => false, 'msg' => $result->get_error_message() ) );
+			wp_send_json_error(
+				array(
+					'ok'  => false,
+					'msg' => $result->get_error_message(),
+				)
+			);
 		}
 
 		if ( ! empty( $result['ok'] ) ) {

@@ -61,7 +61,8 @@ class Api_Client {
 			|| ( isset( $settings['sandbox_mode'] ) && 'yes' === $settings['sandbox_mode'] );
 	}
 
-	/* ---------------------------------------------------------------------
+	/*
+	---------------------------------------------------------------------
 	 * Credentials
 	 *
 	 * 1.0.19 restored the four-field key UI: Test Mode and Live Mode use
@@ -105,17 +106,17 @@ class Api_Client {
 	private function resolve_key_pair() {
 		if ( $this->sandbox ) {
 			$tiers = array(
-				'test_pair'        => array( 'test_security_key',    'test_tokenization_key' ),
-				'sandbox_pair'     => array( 'sandbox_security_key', 'sandbox_tokenization_key' ),
-				'unified_pair'     => array( 'security_key',          'tokenization_key' ),
-				'live_fallback'    => array( 'live_security_key',     'live_tokenization_key' ),
+				'test_pair'     => array( 'test_security_key', 'test_tokenization_key' ),
+				'sandbox_pair'  => array( 'sandbox_security_key', 'sandbox_tokenization_key' ),
+				'unified_pair'  => array( 'security_key', 'tokenization_key' ),
+				'live_fallback' => array( 'live_security_key', 'live_tokenization_key' ),
 			);
 		} else {
 			$tiers = array(
-				'live_pair'        => array( 'live_security_key',     'live_tokenization_key' ),
-				'unified_pair'     => array( 'security_key',          'tokenization_key' ),
-				'test_fallback'    => array( 'test_security_key',     'test_tokenization_key' ),
-				'sandbox_fallback' => array( 'sandbox_security_key',  'sandbox_tokenization_key' ),
+				'live_pair'        => array( 'live_security_key', 'live_tokenization_key' ),
+				'unified_pair'     => array( 'security_key', 'tokenization_key' ),
+				'test_fallback'    => array( 'test_security_key', 'test_tokenization_key' ),
+				'sandbox_fallback' => array( 'sandbox_security_key', 'sandbox_tokenization_key' ),
 			);
 		}
 
@@ -124,14 +125,18 @@ class Api_Client {
 			$sec = $this->setting( $pair[0] );
 			$tok = $this->setting( $pair[1] );
 			if ( '' !== $sec && '' !== $tok ) {
-				return array( 'security' => $sec, 'tokenization' => $tok, 'tier' => $label );
+				return array(
+					'security'     => $sec,
+					'tokenization' => $tok,
+					'tier'         => $label,
+				);
 			}
 		}
 
 		// 2) No complete pair; best-effort per-field lookup so an incomplete
-		//    install surfaces a gateway-side auth error rather than an empty
-		//    key. We deliberately do NOT cross tiers to mix merchant accounts;
-		//    this path only returns a single key when it's the only one set.
+		// install surfaces a gateway-side auth error rather than an empty
+		// key. We deliberately do NOT cross tiers to mix merchant accounts;
+		// this path only returns a single key when it's the only one set.
 		$sec_fallback = '';
 		$tok_fallback = '';
 		foreach ( $tiers as $pair ) {
@@ -142,7 +147,11 @@ class Api_Client {
 				$tok_fallback = $this->setting( $pair[1] );
 			}
 		}
-		return array( 'security' => $sec_fallback, 'tokenization' => $tok_fallback, 'tier' => 'incomplete' );
+		return array(
+			'security'     => $sec_fallback,
+			'tokenization' => $tok_fallback,
+			'tier'         => 'incomplete',
+		);
 	}
 
 	/**
@@ -215,7 +224,8 @@ class Api_Client {
 		return '' !== $this->security_key() && '' !== $this->tokenization_key();
 	}
 
-	/* ---------------------------------------------------------------------
+	/*
+	---------------------------------------------------------------------
 	 * Request plumbing
 	 * ------------------------------------------------------------------ */
 
@@ -312,7 +322,8 @@ class Api_Client {
 		);
 	}
 
-	/* ---------------------------------------------------------------------
+	/*
+	---------------------------------------------------------------------
 	 * Transaction verbs
 	 * ------------------------------------------------------------------ */
 
@@ -470,7 +481,6 @@ class Api_Client {
 	/**
 	 * Convenience wrappers.
 	 */
-
 	public function capture( $transaction_id, $amount = null ) {
 		$args = array(
 			'type'          => 'capture',

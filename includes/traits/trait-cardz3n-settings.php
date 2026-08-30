@@ -22,12 +22,12 @@ trait Settings_Trait {
 		$this->form_fields = array(
 
 			/* ---------------- General ---------------- */
-			'section_general'        => array(
+			'section_general'           => array(
 				'title'       => __( 'General', 'cardz3n-gateway' ),
 				'type'        => 'title',
 				'description' => '',
 			),
-			'enabled'                => array(
+			'enabled'                   => array(
 				'title'   => __( 'Enable / Disable', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
 				'label'   => sprintf(
@@ -37,7 +37,7 @@ trait Settings_Trait {
 				),
 				'default' => 'yes',
 			),
-			'title'                  => array(
+			'title'                     => array(
 				'title'             => __( 'Checkout Title', 'cardz3n-gateway' ),
 				'type'              => 'text',
 				'description'       => __( 'The label buyers see at checkout. Locked to "Powered by CARDZ3N" to preserve consistent brand trust at payment time.', 'cardz3n-gateway' ),
@@ -45,19 +45,19 @@ trait Settings_Trait {
 				'desc_tip'          => true,
 				'custom_attributes' => array( 'readonly' => 'readonly' ),
 			),
-			'description'            => array(
+			'description'               => array(
 				'title'       => __( 'Checkout Description', 'cardz3n-gateway' ),
 				'type'        => 'textarea',
 				'description' => __( 'Short explanation shown beneath the payment option at checkout.', 'cardz3n-gateway' ),
 				'default'     => __( 'Pay securely with a credit/debit card, ACH, Apple Pay, or Google Pay.', 'cardz3n-gateway' ),
 			),
-			'thankyou_instructions'  => array(
+			'thankyou_instructions'     => array(
 				'title'       => __( 'Thank-you Instructions', 'cardz3n-gateway' ),
 				'type'        => 'textarea',
 				'description' => __( 'Optional message shown on the order-received page.', 'cardz3n-gateway' ),
 				'default'     => '',
 			),
-			'icon_style'             => array(
+			'icon_style'                => array(
 				'title'   => __( 'Gateway Icon Style', 'cardz3n-gateway' ),
 				'type'    => 'select',
 				'options' => array(
@@ -71,104 +71,104 @@ trait Settings_Trait {
 				),
 				'default' => 'brands',
 			),
-			'debug_mode'             => array(
-				'title'       => __( 'Debug Mode', 'cardz3n-gateway' ),
-				'type'        => 'checkbox',
-				'label'       => __( 'Log transaction diagnostics (no sensitive data) to WooCommerce → Status → Logs.', 'cardz3n-gateway' ),
-				'default'     => 'no',
+			'debug_mode'                => array(
+				'title'   => __( 'Debug Mode', 'cardz3n-gateway' ),
+				'type'    => 'checkbox',
+				'label'   => __( 'Log transaction diagnostics (no sensitive data) to WooCommerce → Status → Logs.', 'cardz3n-gateway' ),
+				'default' => 'no',
 			),
 
 			/* ---------------- Credentials ---------------- */
-			'section_credentials'    => array(
+			'section_credentials'       => array(
 				'title'       => __( 'API Credentials', 'cardz3n-gateway' ),
 				'type'        => 'title',
 				'description' => __( 'Generate these in your CARDZ3N Merchant Portal (z3n.transactiongateway.com) under <strong>Settings → Security Keys</strong>. Keys come in two flavors:<br><br><strong>Private Key</strong> — pick scope <em>&quot;Cart&quot;</em> (or <em>&quot;API and Cart&quot;</em>). Server-side only; signs transact.php requests.<br><strong>Public Key</strong> — pick scope <em>&quot;Tokenization&quot;</em>. Browser-side; used by inline Collect.js to tokenize card &amp; ACH fields. The key looks like <code>xxxxxx-xxxxxx-xxxxxx-xxxxxx</code>. A <em>&quot;Collect Checkout&quot;</em> public key (starting with <code>checkout_public_</code>) will NOT work — that scope drives a different hosted-redirect checkout.<br><br>Test Mode and Live Mode use different merchant accounts — do not mix Test and Live keys.', 'cardz3n-gateway' ),
 			),
-			'test_mode'              => array(
+			'test_mode'                 => array(
 				'title'       => __( 'Test Mode', 'cardz3n-gateway' ),
 				'type'        => 'checkbox',
 				'label'       => __( 'Enable Test Mode', 'cardz3n-gateway' ),
 				'description' => __( 'When enabled, the plugin uses the Test Private &amp; Public keys to route transactions through the CARDZ3N test processor. No real card is charged. Turn off to use the Live keys for real transactions.', 'cardz3n-gateway' ),
 				'default'     => 'yes',
 			),
-			'live_security_key'      => array(
+			'live_security_key'         => array(
 				'title'       => __( 'Live Private Key (Cart)', 'cardz3n-gateway' ),
 				'type'        => 'password',
 				'default'     => '',
 				'description' => __( 'From CARDZ3N Portal → Settings → Security Keys → <strong>Private Security Keys</strong>. Scope must be <em>&quot;Cart&quot;</em> or <em>&quot;API and Cart&quot;</em>. Used server-side only.', 'cardz3n-gateway' ),
 			),
-			'live_tokenization_key'  => array(
+			'live_tokenization_key'     => array(
 				'title'       => __( 'Live Public Key (Tokenization)', 'cardz3n-gateway' ),
 				'type'        => 'text',
 				'default'     => '',
 				'description' => __( 'From CARDZ3N Portal → Settings → Security Keys → <strong>Public Security Keys</strong>. Scope must be <em>&quot;Tokenization&quot;</em>. Used by inline Collect.js in the browser (format: <code>xxxxxx-xxxxxx-xxxxxx-xxxxxx</code>). A <em>&quot;Collect Checkout&quot;</em> key (starting <code>checkout_public_</code>) will NOT work.', 'cardz3n-gateway' ),
 			),
-			'test_security_key'      => array(
+			'test_security_key'         => array(
 				'title'       => __( 'Test Private Key (Cart)', 'cardz3n-gateway' ),
 				'type'        => 'password',
 				'default'     => '',
 				'description' => __( 'Test-merchant Private Security Key with <em>Cart</em> scope. The shared NMI demo Security Key is published on the <a href="https://z3n.transactiongateway.com/merchants/resources/integration/integration_portal.php#testing_information" target="_blank">Testing Information page</a>.', 'cardz3n-gateway' ),
 			),
-			'test_tokenization_key'  => array(
+			'test_tokenization_key'     => array(
 				'title'       => __( 'Test Public Key (Tokenization)', 'cardz3n-gateway' ),
 				'type'        => 'text',
 				'default'     => '',
 				'description' => __( 'Test-merchant Public Security Key with <em>Tokenization</em> scope (format: <code>xxxxxx-xxxxxx-xxxxxx-xxxxxx</code>). If your test merchant does not have one, request it from CARDZ3N support. A <em>Collect Checkout</em>-scoped key (starting <code>checkout_public_</code>) will NOT work.', 'cardz3n-gateway' ),
 			),
-			'validate_credentials'   => array(
+			'validate_credentials'      => array(
 				'title'       => __( 'Credential Test', 'cardz3n-gateway' ),
 				'type'        => 'cardz3n_validate_button',
 				'description' => __( 'Save changes first, then click to verify the gateway accepts your keys.', 'cardz3n-gateway' ),
 			),
 
 			/* ---------------- Payment Methods ---------------- */
-			'section_payments'       => array(
+			'section_payments'          => array(
 				'title' => __( 'Payment Methods', 'cardz3n-gateway' ),
 				'type'  => 'title',
 			),
-			'enable_cards'           => array(
+			'enable_cards'              => array(
 				'title'   => __( 'Credit / Debit Cards', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
 				'label'   => __( 'Enable card payments.', 'cardz3n-gateway' ),
 				'default' => 'yes',
 			),
-			'enable_ach'             => array(
+			'enable_ach'                => array(
 				'title'   => __( 'ACH / eCheck', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
 				'label'   => __( 'Enable ACH bank-account payments.', 'cardz3n-gateway' ),
 				'default' => 'yes',
 			),
-			'enable_ach_reuse'       => array(
+			'enable_ach_reuse'          => array(
 				'title'   => __( 'Tokenized ACH Reuse', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
 				'label'   => __( 'Allow buyers to save ACH for reuse. Only enable if your CARDZ3N account permits tokenized ACH.', 'cardz3n-gateway' ),
 				'default' => 'no',
 			),
-			'enable_apple_pay'       => array(
+			'enable_apple_pay'          => array(
 				'title'   => __( 'Apple Pay', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
 				'label'   => __( 'Offer Apple Pay when the buyer is on a supported device.', 'cardz3n-gateway' ),
 				'default' => 'yes',
 			),
-			'enable_google_pay'      => array(
+			'enable_google_pay'         => array(
 				'title'   => __( 'Google Pay', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
 				'label'   => __( 'Offer Google Pay when the buyer is on a supported device.', 'cardz3n-gateway' ),
 				'default' => 'yes',
 			),
-			'enable_saved_methods'   => array(
+			'enable_saved_methods'      => array(
 				'title'   => __( 'Saved Payment Methods', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
 				'label'   => __( 'Let logged-in buyers save cards/ACH for reuse.', 'cardz3n-gateway' ),
 				'default' => 'yes',
 			),
-			'enable_subscriptions'   => array(
+			'enable_subscriptions'      => array(
 				'title'   => __( 'Subscriptions Support', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
 				'label'   => __( 'Enable recurring billing when WooCommerce Subscriptions is installed.', 'cardz3n-gateway' ),
 				'default' => 'yes',
 			),
-			'enable_preorders'       => array(
+			'enable_preorders'          => array(
 				'title'   => __( 'Pre-Orders Support', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
 				'label'   => __( 'Enable tokenized pre-order handling when WooCommerce Pre-Orders is installed.', 'cardz3n-gateway' ),
@@ -176,11 +176,11 @@ trait Settings_Trait {
 			),
 
 			/* ---------------- Processing ---------------- */
-			'section_processing'     => array(
+			'section_processing'        => array(
 				'title' => __( 'Processing Rules', 'cardz3n-gateway' ),
 				'type'  => 'title',
 			),
-			'transaction_mode'       => array(
+			'transaction_mode'          => array(
 				'title'   => __( 'Transaction Mode', 'cardz3n-gateway' ),
 				'type'    => 'select',
 				'options' => array(
@@ -189,7 +189,7 @@ trait Settings_Trait {
 				),
 				'default' => 'sale',
 			),
-			'auto_capture_status'    => array(
+			'auto_capture_status'       => array(
 				'title'       => __( 'Auto-capture on Status Change', 'cardz3n-gateway' ),
 				'type'        => 'select',
 				'options'     => $capture_choices,
@@ -197,7 +197,7 @@ trait Settings_Trait {
 				'default'     => '',
 				'desc_tip'    => true,
 			),
-			'success_order_status'   => array(
+			'success_order_status'      => array(
 				'title'   => __( 'Status After Successful Payment', 'cardz3n-gateway' ),
 				'type'    => 'select',
 				'options' => array(
@@ -215,14 +215,14 @@ trait Settings_Trait {
 				'description' => __( '<strong>Leave this off unless your processor explicitly supports merchant-supplied descriptors.</strong> Most CARDZ3N / NMI processors reject transactions that include a <code>descriptor</code> field with <em>"Custom descriptors are not allowed for this processor"</em>. To use this feature, first log in to the CARDZ3N Partner Portal, open your merchant account\'s <strong>Advanced Merchant Features</strong>, and enable <strong>Allow merchant to pass Dynamic Billing Descriptors</strong>. Then return here and check this box.', 'cardz3n-gateway' ),
 				'default'     => 'no',
 			),
-			'descriptor'             => array(
+			'descriptor'                => array(
 				'title'       => __( 'Dynamic Descriptor', 'cardz3n-gateway' ),
 				'type'        => 'text',
 				'description' => __( 'Up to 25 chars shown on cardholder statements. Leave blank to use your processor-assigned descriptor. <strong>Only sent when "Send Dynamic Descriptor" is checked above.</strong>', 'cardz3n-gateway' ),
 				'default'     => '',
 				'desc_tip'    => false,
 			),
-			'descriptor_suffix_source' => array(
+			'descriptor_suffix_source'  => array(
 				'title'   => __( 'Descriptor Suffix Source', 'cardz3n-gateway' ),
 				'type'    => 'select',
 				'options' => array(
@@ -231,7 +231,7 @@ trait Settings_Trait {
 				),
 				'default' => '',
 			),
-			'allowed_card_brands'    => array(
+			'allowed_card_brands'       => array(
 				'title'    => __( 'Accepted Card Brands', 'cardz3n-gateway' ),
 				'type'     => 'multiselect',
 				'class'    => 'wc-enhanced-select',
@@ -252,13 +252,13 @@ trait Settings_Trait {
 				'default'  => array( 'visa', 'mastercard', 'amex', 'discover', 'maestro', 'jcb', 'diners', 'unionpay' ),
 				'desc_tip' => true,
 			),
-			'gateway_receipts'       => array(
+			'gateway_receipts'          => array(
 				'title'   => __( 'Gateway Receipts', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
 				'label'   => __( 'Also send the gateway-generated receipt email (WooCommerce receipt is primary).', 'cardz3n-gateway' ),
 				'default' => 'no',
 			),
-			'enable_3ds'             => array(
+			'enable_3ds'                => array(
 				'title'       => __( '3D Secure 2.0', 'cardz3n-gateway' ),
 				'type'        => 'checkbox',
 				'label'       => __( 'Enable 3D Secure 2.0', 'cardz3n-gateway' ),
@@ -267,50 +267,50 @@ trait Settings_Trait {
 			),
 
 			/* ---------------- Commercial Data ---------------- */
-			'section_commercial'     => array(
+			'section_commercial'        => array(
 				'title'       => __( 'Level 2 / Level 3 Commercial Data', 'cardz3n-gateway' ),
 				'type'        => 'title',
 				'description' => __( 'Send enhanced data on commercial/purchasing cards to qualify for lower interchange. Fields are populated automatically from WooCommerce order data; any not available are omitted, not fabricated.', 'cardz3n-gateway' ),
 			),
-			'enable_level3'          => array(
+			'enable_level3'             => array(
 				'title'   => __( 'Enable Level 2/3 Transmission', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
 				'label'   => __( 'Attach enhanced commercial data to every transaction when applicable.', 'cardz3n-gateway' ),
 				/* 1.0.21: opt-in. Level 2/3 is a commercial-card feature most merchants don’t need; enabling it requires meaningful catalog metadata (UPC, commodity code, tax amount) and misconfigured fields can DOWNGRADE interchange rather than improve it. Off by default; merchants who know they qualify enable it intentionally. */
 				'default' => 'no',
 			),
-			'merchant_name_override' => array(
+			'merchant_name_override'    => array(
 				'title'       => __( 'Merchant Name Override', 'cardz3n-gateway' ),
 				'type'        => 'text',
 				'description' => __( 'Leave blank to use the WooCommerce store name.', 'cardz3n-gateway' ),
 				'default'     => '',
 				'desc_tip'    => true,
 			),
-			'merchant_tin'           => array(
+			'merchant_tin'              => array(
 				'title'       => __( 'Merchant Tax ID (TIN)', 'cardz3n-gateway' ),
 				'type'        => 'text',
 				'description' => __( 'Required for some Visa/MC commercial programs. Never inferred.', 'cardz3n-gateway' ),
 				'default'     => '',
 				'desc_tip'    => true,
 			),
-			'merchant_state'         => array(
+			'merchant_state'            => array(
 				'title'   => __( 'Merchant State Code Override', 'cardz3n-gateway' ),
 				'type'    => 'text',
 				'default' => '',
 			),
-			'merchant_postal'        => array(
+			'merchant_postal'           => array(
 				'title'   => __( 'Ship-from Postal Code Override', 'cardz3n-gateway' ),
 				'type'    => 'text',
 				'default' => '',
 			),
-			'default_uom'            => array(
+			'default_uom'               => array(
 				'title'       => __( 'Default Unit of Measure (UOM)', 'cardz3n-gateway' ),
 				'type'        => 'text',
 				'default'     => 'EA',
 				'description' => __( 'Used when a product has no _cardz3n_uom meta value.', 'cardz3n-gateway' ),
 				'desc_tip'    => true,
 			),
-			'commodity_source'       => array(
+			'commodity_source'          => array(
 				'title'   => __( 'Commodity Code Source', 'cardz3n-gateway' ),
 				'type'    => 'select',
 				'options' => array(
@@ -320,17 +320,17 @@ trait Settings_Trait {
 				),
 				'default' => 'category',
 			),
-			'upc_meta_key'           => array(
+			'upc_meta_key'              => array(
 				'title'   => __( 'UPC Meta Key', 'cardz3n-gateway' ),
 				'type'    => 'text',
 				'default' => '_cardz3n_upc',
 			),
-			'commodity_meta_key'     => array(
+			'commodity_meta_key'        => array(
 				'title'   => __( 'Commodity Code Meta Key', 'cardz3n-gateway' ),
 				'type'    => 'text',
 				'default' => '_cardz3n_commodity_code',
 			),
-			'enable_po_field'        => array(
+			'enable_po_field'           => array(
 				'title'   => __( 'Checkout PO Number Field', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
 				'label'   => __( 'Show a Purchase Order (PO) number field at checkout.', 'cardz3n-gateway' ),

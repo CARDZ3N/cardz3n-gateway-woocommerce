@@ -93,7 +93,13 @@ class Token_Service {
 		if ( $result['success'] ) {
 			Logger::info( 'Deleted remote vault', array( 'vault_id' => $vault_id ) );
 		} else {
-			Logger::warning( 'Could not delete remote vault', array( 'vault_id' => $vault_id, 'text' => $result['text'] ) );
+			Logger::warning(
+				'Could not delete remote vault',
+				array(
+					'vault_id' => $vault_id,
+					'text'     => $result['text'],
+				)
+			);
 		}
 	}
 }

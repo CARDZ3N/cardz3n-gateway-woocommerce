@@ -138,9 +138,9 @@ class Level3_Mapper {
 		}
 
 		// ------- Item-level fields -------
-		$default_uom       = trim( (string) ( $this->settings['default_uom'] ?? 'EA' ) );
-		$commodity_source  = (string) ( $this->settings['commodity_source'] ?? 'category' ); // category | meta | none
-		$upc_meta_key      = trim( (string) ( $this->settings['upc_meta_key'] ?? '_cardz3n_upc' ) );
+		$default_uom        = trim( (string) ( $this->settings['default_uom'] ?? 'EA' ) );
+		$commodity_source   = (string) ( $this->settings['commodity_source'] ?? 'category' ); // category | meta | none
+		$upc_meta_key       = trim( (string) ( $this->settings['upc_meta_key'] ?? '_cardz3n_upc' ) );
 		$commodity_meta_key = trim( (string) ( $this->settings['commodity_meta_key'] ?? '_cardz3n_commodity_code' ) );
 
 		$index = 1;

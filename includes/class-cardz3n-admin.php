@@ -74,7 +74,12 @@ class Admin {
 		$result = $client->validate_credentials();
 
 		if ( is_wp_error( $result ) ) {
-			wp_send_json_error( array( 'ok' => false, 'msg' => $result->get_error_message() ) );
+			wp_send_json_error(
+				array(
+					'ok'  => false,
+					'msg' => $result->get_error_message(),
+				)
+			);
 		}
 
 		if ( ! empty( $result['ok'] ) ) {
@@ -135,11 +140,11 @@ class Admin {
 				'no_credentials'     => __( 'No Security Key is saved for the currently active mode. If Sandbox Mode is ON, the Sandbox Security Key must be filled in. If Sandbox Mode is OFF, the Live Security Key must be filled in.', 'cardz3n-gateway' ),
 				'parent_unavailable' => __( 'WooCommerce itself is hiding this gateway. The most common cause is a currency/country restriction on the gateway, or the shopper\'s cart contents not matching the allowed product/category rules. Check WooCommerce → Settings → General for currency, and verify no filters are restricting this gateway.', 'cardz3n-gateway' ),
 			);
-			$msg   = isset( $reasons[ $reason ] )
+			$msg     = isset( $reasons[ $reason ] )
 				? $reasons[ $reason ]
 				: sprintf( /* translators: %s: machine reason code */ __( 'Gateway is hidden. Reason code: %s', 'cardz3n-gateway' ), esc_html( $reason ) );
-			$msg   = __( 'Status: Gateway is NOT appearing on the checkout.', 'cardz3n-gateway' ) . ' ' . $msg;
-			$class = 'notice-warning';
+			$msg     = __( 'Status: Gateway is NOT appearing on the checkout.', 'cardz3n-gateway' ) . ' ' . $msg;
+			$class   = 'notice-warning';
 		}
 
 		printf(
@@ -223,22 +228,26 @@ class Admin {
 		$res    = $client->capture( $txn, $authorized );
 
 		if ( ! $res['success'] ) {
-			$order->add_order_note( sprintf(
+			$order->add_order_note(
+				sprintf(
 				/* translators: 1: code, 2: text */
-				__( 'CARDZ3N manual capture failed. Code %1$s: %2$s', 'cardz3n-gateway' ),
-				$res['code'],
-				$res['text']
-			) );
+					__( 'CARDZ3N manual capture failed. Code %1$s: %2$s', 'cardz3n-gateway' ),
+					$res['code'],
+					$res['text']
+				)
+			);
 			wp_send_json_error( array( 'msg' => $res['text'] ) );
 		}
 
 		$order->update_meta_data( '_cardz3n_captured_amount', (string) $authorized );
-		$order->add_order_note( sprintf(
+		$order->add_order_note(
+			sprintf(
 			/* translators: 1: amount, 2: txn id */
-			__( 'CARDZ3N: captured %1$s on transaction %2$s.', 'cardz3n-gateway' ),
-			wc_price( $authorized ),
-			$txn
-		) );
+				__( 'CARDZ3N: captured %1$s on transaction %2$s.', 'cardz3n-gateway' ),
+				wc_price( $authorized ),
+				$txn
+			)
+		);
 		$order->payment_complete( $res['transaction_id'] );
 		$order->save();
 
