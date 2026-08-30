@@ -3,6 +3,16 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.29] - 2026-08-30
+### Fixed
+- **Native Apple Pay / Google Pay wallet buttons restored** (suspended since 1.0.20). Root cause found via NMI's Collect.js documentation (docs.nmi.com/docs/digital-wallet-setup and /docs/advanced-integrations): the old `fields.applePay` config mixed in Google-Pay-only keys (`emailRequired`, `buttonColor`) and an incorrectly-shaped `style` object. Collect.js validates each wallet's config against its own attribute set and throws on any unrecognized key -- which is also why card and ACH iframes went dead alongside the wallets, since a single `configure()` throw is fatal to the whole form.
+- `enable_apple`/`enable_google` in `class-cardz3n-gateway.php` were hardcoded to `false` regardless of the merchant's saved settings (a 1.0.20 stopgap that was never reverted). Both now read the actual `enable_apple_pay`/`enable_google_pay` options.
+- `fields.applePay` and `fields.googlePay` in `checkout.js` now receive only their own minimal, documented attributes (`selector`, and `type` for Apple Pay), and each is feature-detected (`ApplePaySession.canMakePayments()` / `google.payments.api`) before being added to the Collect.js config, so an ineligible device or browser is never sent a wallet config at all.
+- Escaped `$plugins_url` at the point of output in the version-mismatch admin notice (`cardz3n-gateway-woocommerce.php`). It was already escaped at assignment via `esc_url()`, but WPCS's `OutputNotEscaped` sniff checks escaping at the output/concatenation site, not assignment, and can't trace it back -- calling `esc_url()` again at output is the standard, safe (idempotent) fix for this pattern.
+### Changed
+- Repo-wide WPCS/coding-standards cleanup via `phpcbf` -- array/equals alignment, comment formatting, multi-line function-call formatting across ~14 files. Reviewed diff-by-diff; no logic, values, or control flow changed. Missing doc-comments and a handful of non-auto-fixable style items (Yoda conditions, disallowed short ternaries) remain open as follow-up work.
+- CI pipeline: fixed a Composer `allow-plugins` block on `dealerdirect/phpcodesniffer-composer-installer` that had silently prevented the PHP lint + WPCS job from ever running past dependency install on any prior PR; fixed a false-positive in the inline JS/CSS security-heuristic regex that was flagging PHP doc-comments merely mentioning script tags in prose.
+
 ## [1.0.28] — 2026-04-23
 
 ### Fixed
