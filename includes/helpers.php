@@ -40,7 +40,7 @@ function parse_ccexp( $ccexp ) {
  * @return string
  */
 function brand_slug( $input ) {
-		$v = strtolower( trim( (string) $input ) );
+			$v    = strtolower( trim( (string) $input ) );
 	$map = array(
 		'visa'             => 'visa',
 		'mastercard'       => 'mastercard',
@@ -71,7 +71,7 @@ function brand_slug( $input ) {
 function descriptor_for_order( \WC_Order $order, array $settings ) {
 	$base = trim( (string) ( $settings['descriptor'] ?? '' ) );
 	$src  = (string) ( $settings['descriptor_suffix_source'] ?? '' );
- 
+
 	if ( 'order_id' === $src ) {
 		$suffix    = '*' . $order->get_id();
 		$max_total = 25;
