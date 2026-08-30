@@ -40,6 +40,9 @@ class Blocks_Support extends AbstractPaymentMethodType {
 	 */
 	private $gateway = null;
 
+	/**
+	 * Set up the gateway instance name from the Brand profile.
+	 */
 	public function __construct() {
 		$this->name = Brand::profile()['gateway_id'];
 	}
@@ -165,7 +168,6 @@ class Blocks_Support extends AbstractPaymentMethodType {
 	 * @return array
 	 */
 	public function get_payment_method_data() {
-
 		/*
 		 * Prefer the live Gateway instance when available (lets us honor runtime
 		 * WC_Payment_Gateway::get_option() filters), but fall back to the raw
@@ -179,11 +181,11 @@ class Blocks_Support extends AbstractPaymentMethodType {
 		$gateway  = $this->get_gateway();
 		$settings = is_array( $this->settings ) ? $this->settings : array();
 
-		$opt = static function ( $key, $default = '' ) use ( $gateway, $settings ) {
+		$opt = static function ( $key, $fallback = '' ) use ( $gateway, $settings ) {
 			if ( $gateway ) {
-				return $gateway->get_option( $key, $default );
+				return $gateway->get_option( $key, $fallback );
 			}
-			return isset( $settings[ $key ] ) ? $settings[ $key ] : $default;
+			return isset( $settings[ $key ] ) ? $settings[ $key ] : $fallback;
 		};
 
 		$client = new Api_Client( $settings );
