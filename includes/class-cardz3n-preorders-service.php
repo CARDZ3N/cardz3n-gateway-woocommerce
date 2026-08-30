@@ -12,10 +12,21 @@ namespace Cardz3n_Gateway;
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * Handles the WooCommerce Pre-Orders integration.
+  */
 class Preorders_Service {
+	/**
+	 * Singleton instance.
+	 *
+	 * @var Preorders_Service|null
+	 */
 
 	private static $instance = null;
 
+	/**
+	 * Get the singleton instance, initializing hooks on first use.
+	 */
 	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -23,6 +34,9 @@ class Preorders_Service {
 		return self::$instance;
 	}
 
+	/**
+	 * Hook into Pre-Orders when the extension is active.
+	 */
 	private function __construct() {
 		if ( ! class_exists( 'WC_Pre_Orders' ) ) {
 			return;
@@ -32,6 +46,8 @@ class Preorders_Service {
 
 	/**
 	 * Charge the pre-order when fulfillment is triggered.
+	  *
+	 * @param \WC_Order $order The order being released for payment.
 	 */
 	public function process_release( $order ) {
 		if ( ! $order instanceof \WC_Order ) {
