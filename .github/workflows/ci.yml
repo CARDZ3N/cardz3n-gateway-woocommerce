@@ -72,3 +72,6 @@ jobs:
         run: |
           ! grep -RnE "\b(eval|create_function|assert|exec|shell_exec|passthru|system|popen)\s*\(" includes/ cardz3n-gateway-woocommerce.php
       - name: No inline JS/CSS in PHP
+
+        run: |
+                  ! grep -RnE "<script[^>]*>[^<]*[A-Za-z]" includes/ cardz3n-gateway-woocommerce.php | grep -vE "^[^:]+:[0-9]+:[[:space:]]*(\*|//|#)"
