@@ -65,3 +65,16 @@ composer run lint
 ## Reporting security issues
 
 Do not open a public issue. See [`SECURITY.md`](SECURITY.md).
+
+
+## Process note (2026-08)
+
+An audit found that v1.0.1 through v1.0.28 were committed directly to `develop`
+rather than through the PR flow documented above -- bypassing the QA-TEST-MATRIX
+and review-approval steps this document already required. The branch protection
+rule on `develop` currently allows administrators to bypass "Require approvals",
+which is how this happened. Until someone with repo admin access enables
+"Do not allow bypassing the above settings" under Settings -> Branches for both
+`develop` and `main` (Settings/Branches -> edit the rule), treat that bypass as
+off-limits by policy even though the UI still permits it. Every merge --
+including your own -- goes through a PR with the QA checklist actually checked.
