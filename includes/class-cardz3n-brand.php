@@ -13,6 +13,9 @@ namespace Cardz3n_Gateway;
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * Resolves per-brand configuration for the active CARDZ3N_GW_BRAND value.
+ */
 class Brand {
 
 	/**
@@ -67,18 +70,27 @@ class Brand {
 		return apply_filters( 'cardz3n_gw_brand_profile', $profile, $brand );
 	}
 
+	/**
+	 * Get the gateway ID for the active brand.
+	 */
 	public static function id() {
 		$p = self::profile();
 		return $p['gateway_id'];
 	}
 
+	/**
+	 * Get the human-readable brand display name.
+	 */
 	public static function name() {
 		$p = self::profile();
 		return $p['name'];
 	}
 
-	public static function get( $key, $default = '' ) {
+		/**
+		 * Fetch a single brand-profile value by key.
+		 */
+	public static function get( $key, $fallback = '' ) {
 		$p = self::profile();
-		return isset( $p[ $key ] ) ? $p[ $key ] : $default;
+		return isset( $p[ $key ] ) ? $p[ $key ] : $fallback;
 	}
 }
