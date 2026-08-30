@@ -259,6 +259,16 @@
 			fields.checkaba = { selector: '#cardz3n-checkaba', title: cfg.i18n.routing, placeholder: 'Routing number' };
 			fields.checkaccount = { selector: '#cardz3n-checkaccount', title: cfg.i18n.account, placeholder: 'Account number' };
 		}
+		// 1.0.29: Apple Pay / Google Pay -- each wallet gets ONLY its own
+		// documented attributes (see the note above configureCollect()) and
+		// is feature-detected so an ineligible device/browser never gets it
+		// passed to Collect.js at all.
+		if (cfg.enableApplePay && window.ApplePaySession && window.ApplePaySession.canMakePayments && window.ApplePaySession.canMakePayments()) {
+			fields.applePay = { selector: '.cardz3n-applepay-button', type: 'buy' };
+		}
+		if (cfg.enableGooglePay && window.google && window.google.payments && window.google.payments.api) {
+			fields.googlePay = { selector: '.cardz3n-googlepay-button' };
+		}
 
 		var collectConfig = {
 			variant: 'inline',
@@ -291,21 +301,15 @@
 			}
 		};
 
-		/*
-		 * 1.0.20: Wallets (Apple Pay / Google Pay) are intentionally NOT passed
-		 * to CollectJS.configure(). The current NMI Collect.js build at
-		 * z3n.transactiongateway.com rejects our supported shape
-		 * ({selector: '.cardz3n-applepay-button'}) with:
-		 *   "You provided too many fields. Unexpected fields for applePay"
-		 * That throw was fatal — it prevented the ccnumber / ccexp / cvv /
-		 * check* iframes from finishing wiring, so buyers could not type into
-		 * any card or ACH field. The prior fallback that rebuilt a
-		 * card-only config threw the same error (Collect.js appears to retain
-		 * bad state after a failed configure()). Until we migrate wallets to a
-		 * dedicated PaymentRequest / Apple Pay JS flow, we simply omit the
-		 * applePay / googlePay blocks here and hide the wallet UI via PHP so
-		 * the card + ACH iframes always initialize cleanly.
-		 */
+		// 1.0.29: Wallets restored. The 1.0.20 fatal throw was caused by scoping
+		// errors, not a Collect.js limitation: fields.applePay had Google-Pay-only
+		// keys mixed in (emailRequired, buttonColor) plus an incorrectly-shaped
+		// `style` object. Collect.js validates each wallet against its own
+		// attribute set and throws on any unrecognized key, taking the whole
+		// configure() call down with it (why card/ACH broke too). Fixed by giving
+		// each wallet only its own documented, minimal attributes -- see
+		// fields.applePay / fields.googlePay below -- and by feature-detecting
+		// each wallet before including it, matching the approach from 1.0.10.
 		function attemptConfigure(config, label) {
 			try {
 				window.CollectJS.configure(config);
@@ -320,9 +324,8 @@
 		}
 
 		if (attemptConfigure(collectConfig, 'card+ach')) {
-			// Hide any lingering wallet UI — 1.0.20 suspends native wallets
-			// while we migrate them to a dedicated PaymentRequest flow.
-			$ui().find('.cardz3n-wallets').hide();
+		// 1.0.29: wallets now stay visible -- each was feature-detected before
+			// being added to `fields` above, so only eligible wallets render here.
 
 			/*
 			 * 1.0.24 — watchdog. If Collect.js accepted configure() but the

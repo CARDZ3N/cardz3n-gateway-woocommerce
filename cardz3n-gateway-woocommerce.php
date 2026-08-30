@@ -3,7 +3,7 @@
  * Plugin Name: CARDZ3N Gateway for WooCommerce
  * Plugin URI: https://cardz3n.com/woocommerce
  * Description: Embedded on-site checkout for WooCommerce powered by the CARDZ3N/NMI payment gateway. Cards, ACH, Apple Pay, Google Pay, saved methods, subscriptions, refunds, captures, voids, and automatic Level 2/3 commercial-card data in a single gateway UI.
- * Version: 1.0.28
+ * Version: 1.0.29
  * Requires at least: 6.4
  * Requires PHP: 7.4
  * Requires Plugins: woocommerce
@@ -22,11 +22,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/* -----------------------------------------------------------------------------
+/*
+-----------------------------------------------------------------------------
  * Plugin constants
  * -------------------------------------------------------------------------- */
 
-define( 'CARDZ3N_GW_VERSION', '1.0.28' );
+define( 'CARDZ3N_GW_VERSION', '1.0.29' );
 define( 'CARDZ3N_GW_FILE', __FILE__ );
 define( 'CARDZ3N_GW_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CARDZ3N_GW_URL', plugin_dir_url( __FILE__ ) );
@@ -47,7 +48,8 @@ if ( ! defined( 'CARDZ3N_GW_BRAND' ) ) {
 	define( 'CARDZ3N_GW_BRAND', 'cardz3n' );
 }
 
-/* -----------------------------------------------------------------------------
+/*
+-----------------------------------------------------------------------------
  * HPOS compatibility declaration (WooCommerce 8+)
  * -------------------------------------------------------------------------- */
 
@@ -70,7 +72,8 @@ add_action(
 	}
 );
 
-/* -----------------------------------------------------------------------------
+/*
+-----------------------------------------------------------------------------
  * Bootstrapping
  * -------------------------------------------------------------------------- */
 
@@ -166,14 +169,15 @@ function cardz3n_gw_register_gateway( $gateways ) {
  * @return array
  */
 function cardz3n_gw_action_links( $links ) {
-	$brand_id  = Cardz3n_Gateway\Brand::id();
-	$url       = admin_url( 'admin.php?page=wc-settings&tab=checkout&section=' . $brand_id );
-	$settings  = '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Settings', 'cardz3n-gateway' ) . '</a>';
+	$brand_id = Cardz3n_Gateway\Brand::id();
+	$url      = admin_url( 'admin.php?page=wc-settings&tab=checkout&section=' . $brand_id );
+	$settings = '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Settings', 'cardz3n-gateway' ) . '</a>';
 	array_unshift( $links, $settings );
 	return $links;
 }
 
-/* -----------------------------------------------------------------------------
+/*
+-----------------------------------------------------------------------------
  * Activation / deactivation
  * -------------------------------------------------------------------------- */
 
@@ -232,8 +236,8 @@ function cardz3n_gw_maybe_migrate_settings() {
 	}
 
 	// 2) 1.0.15-1.0.18 unified security_key/tokenization_key -> live_*
-	//    (only when live_* is empty). Those merchants treated the unified pair
-	//    as their real / live keys.
+	// (only when live_* is empty). Those merchants treated the unified pair
+	// as their real / live keys.
 	if ( empty( $s['live_security_key'] ) && ! empty( $s['security_key'] ) ) {
 		$s['live_security_key'] = (string) $s['security_key'];
 		$changed                = true;
@@ -244,9 +248,9 @@ function cardz3n_gw_maybe_migrate_settings() {
 	}
 
 	// 3) Legacy compatibility for the unified keys themselves — if a
-	//    1.0.14-era install is being migrated forward and only has sandbox_*
-	//    populated, still populate the unified fields so any downstream code
-	//    that reads them keeps working.
+	// 1.0.14-era install is being migrated forward and only has sandbox_*
+	// populated, still populate the unified fields so any downstream code
+	// that reads them keeps working.
 	if ( empty( $s['security_key'] ) ) {
 		foreach ( array( 'live_security_key', 'sandbox_security_key', 'test_security_key' ) as $src_key ) {
 			if ( ! empty( $s[ $src_key ] ) ) {
@@ -278,7 +282,8 @@ function cardz3n_gw_maybe_migrate_settings() {
 }
 add_action( 'plugins_loaded', 'cardz3n_gw_maybe_migrate_settings', 9 );
 
-/* -----------------------------------------------------------------------------
+/*
+-----------------------------------------------------------------------------
  * 1.0.20: Version-mismatch admin notice.
  *
  * Catches the stale-install situation where the .php / .js / .css on disk
@@ -329,7 +334,7 @@ function cardz3n_gw_version_mismatch_notice() {
 		esc_html__( 'CARDZ3N Gateway on disk is version %1$s but the last activated version was %2$s. Deactivate then reactivate the plugin from the %3$s screen to finish the upgrade.', 'cardz3n-gateway' ),
 		'<strong>' . esc_html( $disk ) . '</strong>',
 		'<strong>' . esc_html( $stored ) . '</strong>',
-		'<a href="' . $plugins_url . '">' . esc_html__( 'Plugins', 'cardz3n-gateway' ) . '</a>'
+		'<a href="' . esc_url( $plugins_url ) . '">' . esc_html__( 'Plugins', 'cardz3n-gateway' ) . '</a>'
 	);
 	echo '</p></div>';
 }
