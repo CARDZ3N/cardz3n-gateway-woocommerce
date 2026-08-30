@@ -49,7 +49,7 @@ class Wallet_Service {
 
 	/**
 	 * Whether Google Pay is enabled in settings.
-	 		 	 */
+	 */
 	public static function google_enabled() {
 
 		$s = get_option( 'woocommerce_' . Brand::id() . '_settings', array() );
