@@ -347,15 +347,20 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		$default_to_saved = $show_saved; // Saved is the default active tab when tokens exist.
 		$enable_cards  = 'yes' === $this->get_option( 'enable_cards', 'yes' );
 		$enable_ach    = 'yes' === $this->get_option( 'enable_ach', 'yes' );
-		// 1.0.20: Native wallet buttons are temporarily suspended — the current
-		// NMI Collect.js build rejects our documented applePay/googlePay config
-		// shape and throws "Unexpected fields for applePay", which broke the
-		// card + ACH iframes. Wallets will return in a later release over a
-		// dedicated PaymentRequest / Apple Pay JS flow. The enable_* flags on
-		// the settings page still control the brand-row logos (below) so
-		// buyers still see that the merchant accepts those brands.
-		$enable_apple  = false;
-		$enable_google = false;
+				// 1.0.29: Native wallet buttons restored. Root cause of the 1.0.20
+				// "Unexpected fields for applePay" throw: the fields.applePay config
+				// mixed in Google-Pay-only keys (emailRequired, buttonColor) and an
+				// incorrectly-shaped `style` object; Collect.js's strict validator
+				// rejected the whole config, which also broke card + ACH iframes.
+				// Fixed by scoping each wallet's config to its own documented
+				// attribute set per https://docs.nmi.com/docs/digital-wallet-setup
+				// and https://docs.nmi.com/docs/advanced-integrations (ApplePay vs
+				// GooglePay attribute tables are disjoint). See checkout.js
+				// configureCollect() for the corrected fields.applePay/googlePay
+				// shapes. REQUIRES live sandbox verification with an eligible
+				// device/browser before this ships to merchants.
+		$enable_apple  = ( 'yes' === $this->get_option( 'enable_apple_pay', 'yes' ) );
+		$enable_google = ( 'yes' === $this->get_option( 'enable_google_pay', 'yes' ) );
 		$test_mode_active = 'yes' === $this->get_option( 'test_mode' );
 		?>
 		<div class="cardz3n-gateway-ui" data-gateway="<?php echo esc_attr( $this->id ); ?>" data-cardz3n-version="<?php echo esc_attr( CARDZ3N_GW_VERSION ); ?>">
