@@ -345,7 +345,7 @@ trait Settings_Trait {
 
 	/**
 	 * Custom "Test" button field type for credential validation.
- 	 *
+	 *
 	 * @param string $key  Form-field key.
 	 * @param array  $data Field definition (title, description, etc.).
 	 * @return string
