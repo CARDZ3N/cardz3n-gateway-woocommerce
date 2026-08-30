@@ -31,23 +31,33 @@ jobs:
 
       - name: Stage plugin folder
         run: |
-          mkdir -p build/cardz3n-gateway-woocommerce
-          rsync -a --exclude='.git*' --exclude='.github' --exclude='build' \
-                --exclude='tests' --exclude='phpcs.xml.dist' \
-                --exclude='WPORG-SUBMISSION-CHECKLIST.md' \
-                --exclude='CONTRIBUTING.md' --exclude='CODE_OF_CONDUCT.md' \
-                --exclude='SECURITY.md' --exclude='node_modules' \
-                ./ build/cardz3n-gateway-woocommerce/
+          # WP.org slug is 'cardz3n-gateway' (the name 'cardz3n-gateway-woocommerce'
+          # is reserved because 'woocommerce' is a restricted trademark term).
+          mkdir -p build/cardz3n-gateway
+          rsync -a \
+                --exclude='.git' --exclude='.gitignore' --exclude='.gitattributes' \
+                --exclude='.github' --exclude='.DS_Store' --exclude='.editorconfig' \
+                --exclude='build' --exclude='tests' --exclude='node_modules' \
+                --exclude='phpcs.xml.dist' --exclude='composer.json' --exclude='composer.lock' \
+                --exclude='CONTRIBUTING.md' --exclude='CODE_OF_CONDUCT.md' --exclude='SECURITY.md' \
+                --exclude='docs/WPORG-SUBMISSION-CHECKLIST.md' \
+                ./ build/cardz3n-gateway/
+          # Rename the main plugin file to match the slug — WP requires the
+          # primary PHP file basename to equal the plugin slug.
+          mv build/cardz3n-gateway/cardz3n-gateway-woocommerce.php build/cardz3n-gateway/cardz3n-gateway.php
+          # Double-check: remove any stray hidden files the zip would contain.
+          find build/cardz3n-gateway -name '.*' -type f -delete
+          find build/cardz3n-gateway -name '.*' -type d -exec rm -rf {} +
 
       - name: Create zip
         run: |
           cd build
-          zip -rq cardz3n-gateway-woocommerce-${{ steps.v.outputs.version }}.zip cardz3n-gateway-woocommerce
+          zip -rq cardz3n-gateway-${{ steps.v.outputs.version }}.zip cardz3n-gateway
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: build/cardz3n-gateway-woocommerce-*.zip
+          files: build/cardz3n-gateway-*.zip
           generate_release_notes: true
           draft: false
           prerelease: false

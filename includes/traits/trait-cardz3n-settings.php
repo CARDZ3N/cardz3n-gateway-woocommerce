@@ -35,20 +35,21 @@ trait Settings_Trait {
 					__( 'Enable %s', 'cardz3n-gateway' ),
 					$brand['name']
 				),
-				'default' => 'no',
+				'default' => 'yes',
 			),
 			'title'                  => array(
-				'title'       => __( 'Checkout Title', 'cardz3n-gateway' ),
-				'type'        => 'text',
-				'description' => __( 'The label buyers see at checkout.', 'cardz3n-gateway' ),
-				'default'     => $brand['default_title'],
-				'desc_tip'    => true,
+				'title'             => __( 'Checkout Title', 'cardz3n-gateway' ),
+				'type'              => 'text',
+				'description'       => __( 'The label buyers see at checkout. Locked to "Powered by CARDZ3N" to preserve consistent brand trust at payment time.', 'cardz3n-gateway' ),
+				'default'           => __( 'Powered by CARDZ3N', 'cardz3n-gateway' ),
+				'desc_tip'          => true,
+				'custom_attributes' => array( 'readonly' => 'readonly' ),
 			),
 			'description'            => array(
 				'title'       => __( 'Checkout Description', 'cardz3n-gateway' ),
 				'type'        => 'textarea',
 				'description' => __( 'Short explanation shown beneath the payment option at checkout.', 'cardz3n-gateway' ),
-				'default'     => __( 'Pay securely with a credit/debit card, ACH, Apple Pay, or Google Pay. We never see or store your payment details.', 'cardz3n-gateway' ),
+				'default'     => __( 'Pay securely with a credit/debit card, ACH, Apple Pay, or Google Pay.', 'cardz3n-gateway' ),
 			),
 			'thankyou_instructions'  => array(
 				'title'       => __( 'Thank-you Instructions', 'cardz3n-gateway' ),
@@ -81,37 +82,38 @@ trait Settings_Trait {
 			'section_credentials'    => array(
 				'title'       => __( 'API Credentials', 'cardz3n-gateway' ),
 				'type'        => 'title',
-				'description' => __( 'Generate these in your CARDZ3N / NMI Merchant Portal under Settings → Security Keys. The Tokenization Key is public (safe for the browser). The Security Key is private and never leaves your server.', 'cardz3n-gateway' ),
+				'description' => __( 'Generate these in your CARDZ3N Merchant Portal (z3n.transactiongateway.com) under <strong>Settings → Security Keys</strong>. Keys come in two flavors:<br><br><strong>Private Key</strong> — pick scope <em>&quot;Cart&quot;</em> (or <em>&quot;API and Cart&quot;</em>). Server-side only; signs transact.php requests.<br><strong>Public Key</strong> — pick scope <em>&quot;Tokenization&quot;</em>. Browser-side; used by inline Collect.js to tokenize card &amp; ACH fields. The key looks like <code>xxxxxx-xxxxxx-xxxxxx-xxxxxx</code>. A <em>&quot;Collect Checkout&quot;</em> public key (starting with <code>checkout_public_</code>) will NOT work — that scope drives a different hosted-redirect checkout.<br><br>Test Mode and Live Mode use different merchant accounts — do not mix Test and Live keys.', 'cardz3n-gateway' ),
 			),
-			'sandbox_mode'           => array(
-				'title'   => __( 'Sandbox Mode', 'cardz3n-gateway' ),
-				'type'    => 'checkbox',
-				'label'   => __( 'Route transactions through the sandbox environment.', 'cardz3n-gateway' ),
-				'default' => 'yes',
-			),
-			'sandbox_security_key'   => array(
-				'title'    => __( 'Sandbox Security Key', 'cardz3n-gateway' ),
-				'type'     => 'password',
-				'default'  => '',
-				'desc_tip' => true,
-			),
-			'sandbox_tokenization_key' => array(
-				'title'    => __( 'Sandbox Tokenization Key (public)', 'cardz3n-gateway' ),
-				'type'     => 'text',
-				'default'  => '',
-				'desc_tip' => true,
+			'test_mode'              => array(
+				'title'       => __( 'Test Mode', 'cardz3n-gateway' ),
+				'type'        => 'checkbox',
+				'label'       => __( 'Enable Test Mode', 'cardz3n-gateway' ),
+				'description' => __( 'When enabled, the plugin uses the Test Private &amp; Public keys to route transactions through the CARDZ3N test processor. No real card is charged. Turn off to use the Live keys for real transactions.', 'cardz3n-gateway' ),
+				'default'     => 'yes',
 			),
 			'live_security_key'      => array(
-				'title'    => __( 'Live Security Key', 'cardz3n-gateway' ),
-				'type'     => 'password',
-				'default'  => '',
-				'desc_tip' => true,
+				'title'       => __( 'Live Private Key (Cart)', 'cardz3n-gateway' ),
+				'type'        => 'password',
+				'default'     => '',
+				'description' => __( 'From CARDZ3N Portal → Settings → Security Keys → <strong>Private Security Keys</strong>. Scope must be <em>&quot;Cart&quot;</em> or <em>&quot;API and Cart&quot;</em>. Used server-side only.', 'cardz3n-gateway' ),
 			),
 			'live_tokenization_key'  => array(
-				'title'    => __( 'Live Tokenization Key (public)', 'cardz3n-gateway' ),
-				'type'     => 'text',
-				'default'  => '',
-				'desc_tip' => true,
+				'title'       => __( 'Live Public Key (Tokenization)', 'cardz3n-gateway' ),
+				'type'        => 'text',
+				'default'     => '',
+				'description' => __( 'From CARDZ3N Portal → Settings → Security Keys → <strong>Public Security Keys</strong>. Scope must be <em>&quot;Tokenization&quot;</em>. Used by inline Collect.js in the browser (format: <code>xxxxxx-xxxxxx-xxxxxx-xxxxxx</code>). A <em>&quot;Collect Checkout&quot;</em> key (starting <code>checkout_public_</code>) will NOT work.', 'cardz3n-gateway' ),
+			),
+			'test_security_key'      => array(
+				'title'       => __( 'Test Private Key (Cart)', 'cardz3n-gateway' ),
+				'type'        => 'password',
+				'default'     => '',
+				'description' => __( 'Test-merchant Private Security Key with <em>Cart</em> scope. The shared NMI demo Security Key is published on the <a href="https://z3n.transactiongateway.com/merchants/resources/integration/integration_portal.php#testing_information" target="_blank">Testing Information page</a>.', 'cardz3n-gateway' ),
+			),
+			'test_tokenization_key'  => array(
+				'title'       => __( 'Test Public Key (Tokenization)', 'cardz3n-gateway' ),
+				'type'        => 'text',
+				'default'     => '',
+				'description' => __( 'Test-merchant Public Security Key with <em>Tokenization</em> scope (format: <code>xxxxxx-xxxxxx-xxxxxx-xxxxxx</code>). If your test merchant does not have one, request it from CARDZ3N support. A <em>Collect Checkout</em>-scoped key (starting <code>checkout_public_</code>) will NOT work.', 'cardz3n-gateway' ),
 			),
 			'validate_credentials'   => array(
 				'title'       => __( 'Credential Test', 'cardz3n-gateway' ),
@@ -206,12 +208,19 @@ trait Settings_Trait {
 				),
 				'default' => '',
 			),
+			'allow_dynamic_descriptors' => array(
+				'title'       => __( 'Send Dynamic Descriptor', 'cardz3n-gateway' ),
+				'type'        => 'checkbox',
+				'label'       => __( 'Send a dynamic billing descriptor with every card transaction', 'cardz3n-gateway' ),
+				'description' => __( '<strong>Leave this off unless your processor explicitly supports merchant-supplied descriptors.</strong> Most CARDZ3N / NMI processors reject transactions that include a <code>descriptor</code> field with <em>"Custom descriptors are not allowed for this processor"</em>. To use this feature, first log in to the CARDZ3N Partner Portal, open your merchant account\'s <strong>Advanced Merchant Features</strong>, and enable <strong>Allow merchant to pass Dynamic Billing Descriptors</strong>. Then return here and check this box.', 'cardz3n-gateway' ),
+				'default'     => 'no',
+			),
 			'descriptor'             => array(
 				'title'       => __( 'Dynamic Descriptor', 'cardz3n-gateway' ),
 				'type'        => 'text',
-				'description' => __( 'Up to 25 chars shown on cardholder statements.', 'cardz3n-gateway' ),
-				'default'     => $brand['default_descriptor'],
-				'desc_tip'    => true,
+				'description' => __( 'Up to 25 chars shown on cardholder statements. Leave blank to use your processor-assigned descriptor. <strong>Only sent when "Send Dynamic Descriptor" is checked above.</strong>', 'cardz3n-gateway' ),
+				'default'     => '',
+				'desc_tip'    => false,
 			),
 			'descriptor_suffix_source' => array(
 				'title'   => __( 'Descriptor Suffix Source', 'cardz3n-gateway' ),
@@ -231,10 +240,16 @@ trait Settings_Trait {
 					'mastercard' => __( 'Mastercard', 'cardz3n-gateway' ),
 					'amex'       => __( 'American Express', 'cardz3n-gateway' ),
 					'discover'   => __( 'Discover', 'cardz3n-gateway' ),
+					'maestro'    => __( 'Maestro', 'cardz3n-gateway' ),
 					'jcb'        => __( 'JCB', 'cardz3n-gateway' ),
 					'diners'     => __( 'Diners Club', 'cardz3n-gateway' ),
+					'unionpay'   => __( 'UnionPay', 'cardz3n-gateway' ),
 				),
-				'default'  => array( 'visa', 'mastercard', 'amex', 'discover' ),
+				// 1.0.23 — Maestro, JCB, Diners Club, and UnionPay are now on by
+				// default so the checkout brand row advertises the full CARDZ3N /
+				// NMI routing coverage out of the box. Merchants can still
+				// deselect any brand they don't want displayed.
+				'default'  => array( 'visa', 'mastercard', 'amex', 'discover', 'maestro', 'jcb', 'diners', 'unionpay' ),
 				'desc_tip' => true,
 			),
 			'gateway_receipts'       => array(
@@ -244,10 +259,11 @@ trait Settings_Trait {
 				'default' => 'no',
 			),
 			'enable_3ds'             => array(
-				'title'   => __( '3-D Secure 2 / SCA', 'cardz3n-gateway' ),
-				'type'    => 'checkbox',
-				'label'   => __( 'Attempt 3DS2 authentication when the gateway/account supports it.', 'cardz3n-gateway' ),
-				'default' => 'yes',
+				'title'       => __( '3D Secure 2.0', 'cardz3n-gateway' ),
+				'type'        => 'checkbox',
+				'label'       => __( 'Enable 3D Secure 2.0', 'cardz3n-gateway' ),
+				'description' => __( '3D Secure 2.0 can help you avoid fraudulent transactions by authenticating transactions before submitting them to the gateway for processing.', 'cardz3n-gateway' ),
+				'default'     => 'no',
 			),
 
 			/* ---------------- Commercial Data ---------------- */
@@ -260,7 +276,8 @@ trait Settings_Trait {
 				'title'   => __( 'Enable Level 2/3 Transmission', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
 				'label'   => __( 'Attach enhanced commercial data to every transaction when applicable.', 'cardz3n-gateway' ),
-				'default' => 'yes',
+				/* 1.0.21: opt-in. Level 2/3 is a commercial-card feature most merchants don’t need; enabling it requires meaningful catalog metadata (UPC, commodity code, tax amount) and misconfigured fields can DOWNGRADE interchange rather than improve it. Off by default; merchants who know they qualify enable it intentionally. */
+				'default' => 'no',
 			),
 			'merchant_name_override' => array(
 				'title'       => __( 'Merchant Name Override', 'cardz3n-gateway' ),
@@ -317,7 +334,8 @@ trait Settings_Trait {
 				'title'   => __( 'Checkout PO Number Field', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
 				'label'   => __( 'Show a Purchase Order (PO) number field at checkout.', 'cardz3n-gateway' ),
-				'default' => 'yes',
+				/* 1.0.21: opt-in. PO numbers are a B2B/procurement feature; a retail merchant’s buyer never needs this box and it just adds noise on the checkout. Off by default; B2B stores enable it intentionally. */
+				'default' => 'no',
 			),
 		);
 	}

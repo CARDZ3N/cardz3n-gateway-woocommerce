@@ -8,18 +8,18 @@
 	--cardz3n-muted: #6b7280;
 	font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 	color: #111;
-	margin-top: 10px;
+	margin-top: 6px;
 }
 .cardz3n-brand-icons {
-	display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap;
+	display: flex; gap: 4px; margin-bottom: 6px; flex-wrap: wrap;
 }
-.cardz3n-brand-icons img { height: 22px; width: auto; }
+.cardz3n-brand-icons img { height: 20px; width: auto; }
 
 .cardz3n-wallets {
-	display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px;
+	display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px;
 }
 .cardz3n-wallets > div[data-cardz3n-wallet] {
-	min-height: 44px;
+	min-height: 40px;
 }
 .cardz3n-wallets-divider {
 	display: flex; align-items: center; gap: 10px; color: var(--cardz3n-muted);
@@ -32,45 +32,115 @@
 
 .cardz3n-tabs {
 	display: flex; gap: 4px; border-bottom: 1px solid var(--cardz3n-border);
-	margin-bottom: 14px;
+	margin-bottom: 10px;
 }
 .cardz3n-tab {
 	appearance: none; border: 0; background: transparent;
-	padding: 10px 14px; font-size: 14px; color: var(--cardz3n-muted);
+	padding: 8px 12px; font-size: 14px; color: var(--cardz3n-muted);
 	cursor: pointer; border-bottom: 2px solid transparent; border-radius: 0;
 	font-weight: 500; transition: color .15s, border-color .15s;
 }
 .cardz3n-tab:hover { color: #111; }
 .cardz3n-tab.is-active { color: var(--cardz3n-primary); border-bottom-color: var(--cardz3n-primary); }
 
-.cardz3n-pane { display: none; }
-.cardz3n-pane.is-active { display: block; }
+/*
+ * 1.0.19 — All panes share a CSS Grid stack with ONE grid area.
+ *
+ * Why: Collect.js hosted-field iframes mount by reading the target container's
+ * bounding box. If the container's parent is `display: none` or
+ * `position: absolute; left: -9999px` at mount time, the iframe mounts at 0×0
+ * or at a useless off-screen size; every click then falls through. Switching
+ * tabs later does not remeasure or remount the iframe.
+ *
+ * Solution: render every pane in the SAME grid area so they all compute the
+ * same width from the natural flow, and toggle visibility/opacity/pointer-
+ * events without ever taking a pane out of the layout tree. All iframes
+ * mount at the correct container width on first render and remain clickable
+ * in whichever pane the buyer activates next.
+ */
+.cardz3n-panes {
+	display: grid;
+	grid-template-columns: 1fr;
+	grid-template-areas: "stack";
+	width: 100%;
+}
+.cardz3n-pane {
+	grid-area: stack;
+	width: 100%;
+	min-width: 0;
+	opacity: 0;
+	visibility: hidden;
+	pointer-events: none;
+	/* keep it taking the same slot but invisible to AT and click */
+	z-index: 0;
+}
+.cardz3n-pane.is-active {
+	opacity: 1;
+	visibility: visible;
+	pointer-events: auto;
+	z-index: 1;
+}
+.cardz3n-pane-empty {
+	padding: 16px 12px;
+	text-align: center;
+	color: var(--cardz3n-muted);
+	font-size: 13px;
+	background: #f9fafb;
+	border: 1px dashed var(--cardz3n-border);
+	border-radius: 6px;
+}
 
-.cardz3n-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.cardz3n-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+/*
+ * 1.0.17 — The Collect.js iframe fills its container 100% × 100%. If the
+ * container also has internal padding, the iframe (whose inputs have their
+ * own internal padding) overflows the container's visible border. That was
+ * the "card tab fields run over data boxes" bug. The container now has no
+ * padding and clips overflow; the hosted fields carry their own padding via
+ * the `customCss` block in checkout.js.
+ */
+.cardz3n-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cardz3n-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
 .cardz3n-field > label {
 	font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--cardz3n-muted);
 }
 .cardz3n-collect-field {
-	height: 44px; border: 1px solid var(--cardz3n-border); border-radius: 6px;
-	padding: 0 10px; background: var(--cardz3n-bg); transition: border-color .15s;
+	display: block;
+	width: 100%;
+	height: 40px;
+	box-sizing: border-box;
+	border: 1px solid var(--cardz3n-border);
+	border-radius: 6px;
+	padding: 0;
+	background: var(--cardz3n-bg);
+	transition: border-color .15s;
+	overflow: hidden;
 }
 .cardz3n-collect-field:focus-within { border-color: var(--cardz3n-primary); }
+.cardz3n-collect-field iframe {
+	display: block;
+	width: 100% !important;
+	height: 100% !important;
+	border: 0 !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	background: transparent !important;
+}
 
 .cardz3n-save-method {
 	display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--cardz3n-muted);
 	margin-top: 4px;
 }
 .cardz3n-errors {
-	display: none; margin-top: 10px; color: var(--cardz3n-error);
-	background: #fff5f5; padding: 10px 12px; border-radius: 6px; border: 1px solid #fecaca;
+	display: none; margin-top: 8px; color: var(--cardz3n-error);
+	background: #fff5f5; padding: 8px 10px; border-radius: 6px; border: 1px solid #fecaca;
 	font-size: 14px;
 }
 .cardz3n-po-field { margin-top: 6px; }
 
-.cardz3n-field select {
-	height: 44px; border: 1px solid var(--cardz3n-border); border-radius: 6px; padding: 0 10px;
-	background: #fff; font-size: 14px;
+.cardz3n-field select,
+.cardz3n-field input[type="text"] {
+	height: 40px; border: 1px solid var(--cardz3n-border); border-radius: 6px; padding: 0 10px;
+	background: #fff; font-size: 14px; box-sizing: border-box; width: 100%;
 }
 
 @media (max-width: 640px) {
@@ -81,4 +151,50 @@
 body.cardz3n-brand-aerospacepay .cardz3n-gateway-ui {
 	--cardz3n-primary: #0b3d91;
 	--cardz3n-accent: #d64545;
+}
+
+/* 1.0.15 — collapse wallet wrappers that Collect.js leaves empty on devices
+   that can't render the wallet (Chrome/Windows for Apple Pay, browsers
+   without Google Pay, etc.) so there's no phantom vertical gap. */
+.cardz3n-applepay-button:empty,
+.cardz3n-googlepay-button:empty { display: none; }
+.cardz3n-wallets:not(:has(> div[data-cardz3n-wallet]:not(:empty))) { display: none; }
+
+/*
+ * 1.0.17 — Hide WooCommerce's native "Use a new payment method" radio inside
+ * the Saved pane. Our tabbed UI already separates saved-from-new selection
+ * (Saved tab = pay with saved token, Card/ACH tab = pay with new), so
+ * exposing a second radio with the same purpose is confusing. If the buyer
+ * is on the Saved tab, they're paying with a saved token; if they want a new
+ * card/ACH, they click the Card/ACH tab, which clears any token selection.
+ */
+.cardz3n-pane[data-pane="saved"] .woocommerce-SavedPaymentMethods-new,
+.cardz3n-pane[data-pane="saved"] li.woocommerce-SavedPaymentMethods-new {
+	display: none !important;
+}
+.cardz3n-pane[data-pane="saved"] .woocommerce-SavedPaymentMethods {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.cardz3n-pane[data-pane="saved"] .woocommerce-SavedPaymentMethods li {
+	margin: 0 0 8px 0;
+	padding: 10px 12px;
+	border: 1px solid var(--cardz3n-border);
+	border-radius: 6px;
+	background: #fff;
+	font-size: 14px;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	cursor: pointer;
+}
+.cardz3n-pane[data-pane="saved"] .woocommerce-SavedPaymentMethods li:hover {
+	border-color: var(--cardz3n-primary);
+}
+.cardz3n-pane[data-pane="saved"] .woocommerce-SavedPaymentMethods li label {
+	margin: 0;
+	cursor: pointer;
+	flex: 1 1 auto;
+	color: #111;
 }

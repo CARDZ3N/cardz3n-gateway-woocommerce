@@ -97,6 +97,12 @@ class Logger {
 			'routing_number',
 			'security_key',
 			'tokenization_key',
+			'live_security_key',
+			'live_tokenization_key',
+			'test_security_key',
+			'test_tokenization_key',
+			'sandbox_security_key',
+			'sandbox_tokenization_key',
 			'password',
 			'merchant_password',
 		);

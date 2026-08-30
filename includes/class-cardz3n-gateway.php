@@ -29,17 +29,24 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	use Compatibility_Trait;
 
 	public function __construct() {
-		$brand                  = Brand::profile();
-		$this->id               = $brand['gateway_id'];
-		$this->method_title     = $brand['method_title'];
-		$this->method_description = $brand['method_description'];
-		$this->has_fields       = true;
-		$this->icon             = $this->gateway_icon_url();
+		$brand                    = Brand::profile();
+		$this->id                 = $brand['gateway_id'];
+		$this->method_title       = $brand['method_title'];
+		$this->method_description = $this->build_method_description( $brand );
+		$this->has_fields         = true;
+		$this->icon               = $this->gateway_icon_url();
 
 		$this->init_form_fields();
 		$this->init_settings();
 
-		$this->title       = $this->get_option( 'title', $brand['default_title'] );
+		/*
+		 * 1.0.18 — Checkout title is LOCKED to "Powered by CARDZ3N" by product
+		 * decision. The admin input is rendered readonly in the settings UI,
+		 * but we also force the runtime value here so a merchant who hacks
+		 * around the readonly attribute (or a database edit) still presents
+		 * the branded label to buyers at checkout.
+		 */
+		$this->title       = __( 'Powered by CARDZ3N', 'cardz3n-gateway' );
 		$this->description = $this->get_option( 'description' );
 
 		$this->supports = $this->build_supports_array();
@@ -57,11 +64,55 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		// Thank-you instructions.
 		add_action( 'woocommerce_thankyou_' . $this->id, array( $this, 'render_thankyou' ) );
 
-		// Admin AJAX for credential validation.
-		add_action( 'wp_ajax_cardz3n_validate_credentials', array( $this, 'ajax_validate_credentials' ) );
+		/*
+		 * NOTE: The `wp_ajax_cardz3n_validate_credentials` and
+		 * `wp_ajax_cardz3n_delete_token` hooks are intentionally NOT registered here.
+		 * This Gateway class is only instantiated when WooCommerce builds its
+		 * `woocommerce_payment_gateways` list, which does not happen on a bare
+		 * admin-ajax.php request. Hooks registered here would never fire for AJAX,
+		 * causing WordPress to return HTTP 400 with an empty auth-check payload.
+		 *
+		 * Both AJAX actions are now registered in Cardz3n_Gateway\Admin, which boots
+		 * unconditionally on every admin request (including admin-ajax). The handler
+		 * implementations still live on this class; Admin delegates to them via a
+		 * lazily-resolved Gateway instance.
+		 */
+	}
 
-		// Checkout AJAX (non-blocking vault-delete from the account area).
-		add_action( 'wp_ajax_cardz3n_delete_token', array( $this, 'ajax_delete_token' ) );
+	/**
+	 * Build the method_description shown on the WooCommerce
+	 * Settings → Payments listing row.
+	 *
+	 * Appends a small recurring-payments support badge so merchants can see
+	 * at a glance that this gateway supports subscriptions/recurring billing.
+	 * The badge is a single SVG "recurring" icon plus a short label, rendered
+	 * in an inline-flex container so it sits cleanly to the right of the
+	 * description text.
+	 *
+	 * @param array<string,mixed> $brand Active brand profile.
+	 * @return string Method description HTML (safe — only uses wp_kses-friendly tags).
+	 */
+	protected function build_method_description( $brand ) {
+		$text = isset( $brand['method_description'] ) ? $brand['method_description'] : '';
+
+		/*
+		 * Recurring-payments support badge.
+		 *
+		 * WooCommerce runs method_description through wp_kses_post() before
+		 * rendering, which strips <svg> and most custom tags but DOES allow
+		 * <span> with a style attribute and <img>. We use a CSS background-image
+		 * on a <span> with a data-URI of our recurring glyph, so the icon
+		 * survives kses and has no external HTTP request, and we pair it with a
+		 * UTF-8 "⟲" fallback in case the background image is blocked.
+		 */
+		$svg      = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="%230a5cff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-7.94-4.76"/><path d="M3 12a9 9 0 0 1 9-9 9 9 0 0 1 7.94 4.76"/><polyline points="21 3 21 7.76 16.24 7.76"/><polyline points="3 21 3 16.24 7.76 16.24"/></svg>';
+		$data_uri = 'data:image/svg+xml;charset=utf-8,' . str_replace( array( '"', '<', '>' ), array( "'", '%3C', '%3E' ), $svg );
+
+		$badge  = '<span style="display:inline-block;margin-left:8px;padding:2px 10px 2px 26px;background:#eef6ff no-repeat 8px center / 14px 14px url(\'' . esc_url( $data_uri ) . '\');border:1px solid #b6d4fe;border-radius:12px;font-size:11px;font-weight:600;color:#0a5cff;vertical-align:middle;line-height:16px;" title="' . esc_attr__( 'Supports WooCommerce Subscriptions and recurring payments', 'cardz3n-gateway' ) . '">';
+		$badge .= esc_html__( 'Recurring Payments', 'cardz3n-gateway' );
+		$badge .= '</span>';
+
+		return $text . ' ' . $badge;
 	}
 
 	/* ------------------------------------------------------------------
@@ -93,13 +144,46 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			return;
 		}
 
-		// NMI Collect.js (loaded from secure.nmi.com per NMI docs).
+		/*
+		 * CARDZ3N Collect.js tokenization script (white-labeled NMI host).
+		 *
+		 * CRITICAL: Collect.js reads its Public Tokenization Key from a
+		 * `data-tokenization-key` attribute on its own <script> tag during load.
+		 * Without it, Collect.js throws "A tokenization key must be provided by
+		 * including a data-tokenization-key attribute" and every hosted field on
+		 * the page fails to mount.
+		 *
+		 * WordPress's wp_enqueue_script() has no direct way to set attributes on
+		 * the <script> tag, so we enqueue here and use the `script_loader_tag`
+		 * filter below to inject the attribute when WordPress prints the tag.
+		 */
 		wp_enqueue_script(
 			'cardz3n-collectjs',
-			'https://secure.nmi.com/token/Collect.js',
+			Api_Client::collectjs_url(),
 			array(),
 			null,
 			true
+		);
+
+		// Inject data-tokenization-key onto the <script> tag that loads Collect.js.
+		add_filter(
+			'script_loader_tag',
+			static function ( $tag, $handle ) use ( $pk ) {
+				if ( 'cardz3n-collectjs' !== $handle ) {
+					return $tag;
+				}
+				// Idempotent — avoid double-injecting if something already added the attr.
+				if ( false !== strpos( $tag, 'data-tokenization-key' ) ) {
+					return $tag;
+				}
+				$attrs = sprintf(
+					' data-tokenization-key="%s" data-variant="inline"',
+					esc_attr( $pk )
+				);
+				return preg_replace( '/<script\b/', '<script' . $attrs, $tag, 1 );
+			},
+			10,
+			2
 		);
 
 		// Our static checkout bundle (no inline JS, no synchronous AJAX).
@@ -122,6 +206,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			'cardz3n-checkout',
 			'CARDZ3N_GW',
 			array(
+				'version'            => CARDZ3N_GW_VERSION,
 				'gatewayId'          => $this->id,
 				'tokenizationKey'    => $pk,
 				'enableCards'        => 'yes' === $this->get_option( 'enable_cards', 'yes' ),
@@ -149,9 +234,86 @@ class Gateway extends \WC_Payment_Gateway_CC {
 					'processing'    => __( 'Processing…', 'cardz3n-gateway' ),
 					'invalidFields' => __( 'Please check your payment details and try again.', 'cardz3n-gateway' ),
 					'timeout'       => __( 'Tokenization timed out. Please try again.', 'cardz3n-gateway' ),
+					'initError'     => __( 'Unable to initialize secure payment form. Please refresh the page and try again.', 'cardz3n-gateway' ),
 				),
 			)
 		);
+	}
+
+	/**
+	 * 1.0.26 — Prepend a targeted warning above the WooCommerce admin
+	 * settings form when Test Mode is enabled with test credentials that
+	 * likely belong to mismatched merchant accounts. The #1 support
+	 * question we see ("why won't Test Mode process a card?") is caused
+	 * by pairing NMI's shared demo Security Key (`6457Thfj…`) with a
+	 * Collect Checkout public key minted on a different merchant.
+	 */
+	public function admin_options() {
+		$test_on     = 'yes' === $this->get_option( 'test_mode' );
+		$test_sec    = (string) $this->get_option( 'test_security_key' );
+		$test_tok    = (string) $this->get_option( 'test_tokenization_key' );
+		$live_sec    = (string) $this->get_option( 'live_security_key' );
+		$live_tok    = (string) $this->get_option( 'live_tokenization_key' );
+		$shared_demo = '6457Thfj624V5r7WUwc5v6a68Zsd6YEm'; // NMI's published demo Security Key.
+
+		$warnings = array();
+
+		/*
+		 * 1.0.27 — CORRECTED Public-Key scope guidance.
+		 *
+		 * NMI ships TWO different public key products and only ONE works with
+		 * this plugin:
+		 *
+		 *   a) Public API Key scoped "Tokenization"   ←  correct for this plugin.
+		 *      Format: four dash-delimited segments, e.g.
+		 *              6Yr78e-s93ab9-M9x3dp-ddZnHz
+		 *      Drives inline Collect.js (the on-site card/ACH iframes we use).
+		 *
+		 *   b) Collect Checkout Key                    ←  WRONG for this plugin.
+		 *      Format: starts with `checkout_public_` followed by 32 hex chars.
+		 *      Drives the HOSTED redirect checkout (CollectCheckout.js), which
+		 *      this plugin does NOT use. A token minted against CollectCheckout.js
+		 *      cannot be redeemed by transact.php, so card transactions fail
+		 *      with WooCommerce's generic "There was an error processing your
+		 *      order" while ACH sometimes leaks through. This was the root
+		 *      cause of failing cards on 1.0.24–1.0.26.
+		 *
+		 * Prior versions (1.0.24–1.0.26) warned about the OPPOSITE — telling
+		 * merchants to pick a Collect Checkout key. That advice was wrong.
+		 */
+		$looks_like_checkout_key = function ( $key ) {
+			return 0 === strpos( (string) $key, 'checkout_public_' );
+		};
+
+		if ( $test_on ) {
+			if ( '' === $test_sec || '' === $test_tok ) {
+				$warnings[] = __( '<strong>Test Mode is active but one or both Test keys are empty.</strong> Both a Test Private Key (API/Cart scope) and a Test Public Key (Tokenization scope) are required. Get matched test keys from CARDZ3N support — the NMI shared-demo Security Key alone will not process card transactions.', 'cardz3n-gateway' );
+			} elseif ( $looks_like_checkout_key( $test_tok ) ) {
+				$warnings[] = __( '<strong>The Test Public Key looks like a Collect Checkout key (starts with <code>checkout_public_</code>) — this is the wrong key type for on-site checkout.</strong> Replace it with a Public API Key scoped "Tokenization" (four dash-delimited segments like <code>xxxxxx-xxxxxx-xxxxxx-xxxxxx</code>) from the CARDZ3N Portal under Settings → Security Keys → Public Security Keys → Tokenization. Collect Checkout keys drive the hosted redirect checkout, which this plugin does not use.', 'cardz3n-gateway' );
+			} elseif ( $test_sec === $shared_demo && $test_tok === $live_tok ) {
+				$warnings[] = __( '<strong>Test Mode will fail on card transactions.</strong> The Test Security Key is NMI\'s shared demo merchant but the Test Public Key is the same as your Live Public Key — those belong to different merchant accounts. A Collect.js token minted against your Live merchant cannot be redeemed by the demo merchant. Turn Test Mode off and use Live keys with test PANs (4111 1111 1111 1111 auto-voids in sandbox mode), or request a matched Test Public API Key (Tokenization scope) from CARDZ3N support.', 'cardz3n-gateway' );
+			} elseif ( $test_sec === $shared_demo ) {
+				$warnings[] = __( '<strong>Using NMI\'s shared demo Security Key (<code>6457…</code>) in Test Mode will likely fail on card transactions.</strong> The shared demo merchant ships a Security Key for server-to-server auth testing but does not reliably mint Collect.js payment tokens that can be redeemed against itself. The most reliable way to test cards is to leave Test Mode OFF, use your Live keys, and run NMI\'s test PAN 4111 1111 1111 1111 — it auto-voids and never settles.', 'cardz3n-gateway' );
+			}
+		}
+
+		if ( ! $test_on ) {
+			if ( '' === $live_sec || '' === $live_tok ) {
+				$warnings[] = __( '<strong>Live Mode is active but one or both Live keys are empty.</strong> Enter both the Live Private Key (API/Cart scope) and the Live Public Key (Tokenization scope) before taking real payments.', 'cardz3n-gateway' );
+			} elseif ( $looks_like_checkout_key( $live_tok ) ) {
+				$warnings[] = __( '<strong>Your Live Public Key looks like a Collect Checkout key (starts with <code>checkout_public_</code>) — this is the wrong key type and is the most likely reason card transactions are failing right now.</strong> Collect Checkout keys drive the hosted redirect checkout (CollectCheckout.js); this plugin uses on-site inline Collect.js, which requires a Public API Key scoped "Tokenization" (four dash-delimited segments like <code>xxxxxx-xxxxxx-xxxxxx-xxxxxx</code>). Go to the CARDZ3N Portal → Settings → Security Keys → Public Security Keys, add a key and pick <strong>Tokenization</strong> (NOT <strong>Collect Checkout</strong>) for scope, then paste that key here. ACH may appear to work with the wrong key, but cards will consistently fail.', 'cardz3n-gateway' );
+			}
+		}
+
+		if ( ! empty( $warnings ) ) {
+			echo '<div class="notice notice-error" style="padding:12px 16px;margin:12px 0;">';
+			foreach ( $warnings as $w ) {
+				echo '<p style="margin:6px 0;">' . wp_kses_post( $w ) . '</p>';
+			}
+			echo '</div>';
+		}
+
+		parent::admin_options();
 	}
 
 	/**
@@ -168,18 +330,40 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		$brand = Brand::profile();
 
 		if ( $this->get_description() ) {
-			echo wpautop( wp_kses_post( $this->get_description() ) );
+			echo wp_kses_post( wpautop( wp_kses_post( $this->get_description() ) ) );
 		}
 
 		$this->render_brand_icons();
 
-		$show_saved    = $this->supports( 'tokenization' ) && is_user_logged_in();
+		// 1.0.19: only show the Saved tab when the logged-in customer actually
+		// has saved tokens for this gateway. Prevents the empty Saved pane
+		// reported in 1.0.18.
+		$has_tokenization = $this->supports( 'tokenization' ) && is_user_logged_in();
+		$saved_tokens     = array();
+		if ( $has_tokenization && class_exists( '\WC_Payment_Tokens' ) ) {
+			$saved_tokens = \WC_Payment_Tokens::get_customer_tokens( get_current_user_id(), $this->id );
+		}
+		$show_saved       = $has_tokenization && ! empty( $saved_tokens );
+		$default_to_saved = $show_saved; // Saved is the default active tab when tokens exist.
 		$enable_cards  = 'yes' === $this->get_option( 'enable_cards', 'yes' );
 		$enable_ach    = 'yes' === $this->get_option( 'enable_ach', 'yes' );
-		$enable_apple  = Wallet_Service::apple_enabled();
-		$enable_google = Wallet_Service::google_enabled();
+		// 1.0.20: Native wallet buttons are temporarily suspended — the current
+		// NMI Collect.js build rejects our documented applePay/googlePay config
+		// shape and throws "Unexpected fields for applePay", which broke the
+		// card + ACH iframes. Wallets will return in a later release over a
+		// dedicated PaymentRequest / Apple Pay JS flow. The enable_* flags on
+		// the settings page still control the brand-row logos (below) so
+		// buyers still see that the merchant accepts those brands.
+		$enable_apple  = false;
+		$enable_google = false;
+		$test_mode_active = 'yes' === $this->get_option( 'test_mode' );
 		?>
-		<div class="cardz3n-gateway-ui" data-gateway="<?php echo esc_attr( $this->id ); ?>">
+		<div class="cardz3n-gateway-ui" data-gateway="<?php echo esc_attr( $this->id ); ?>" data-cardz3n-version="<?php echo esc_attr( CARDZ3N_GW_VERSION ); ?>">
+			<?php if ( $test_mode_active ) : ?>
+			<div class="cardz3n-testmode-banner" role="status" style="background:#fff7e6;border:1px solid #f0c36d;color:#7a4d00;padding:8px 12px;border-radius:6px;margin:0 0 12px;font-size:13px;line-height:1.4;">
+				<strong><?php esc_html_e( 'TEST MODE ACTIVE', 'cardz3n-gateway' ); ?></strong> — <?php esc_html_e( 'no real charges will be processed. Transactions are routed to the CARDZ3N test processor.', 'cardz3n-gateway' ); ?>
+			</div>
+			<?php endif; ?>
 
 			<?php if ( $enable_apple || $enable_google ) : ?>
 			<div class="cardz3n-wallets">
@@ -195,28 +379,30 @@ class Gateway extends \WC_Payment_Gateway_CC {
 
 			<div class="cardz3n-tabs" role="tablist">
 				<?php if ( $show_saved ) : ?>
-					<button type="button" class="cardz3n-tab" data-target="saved" role="tab"><?php esc_html_e( 'Saved', 'cardz3n-gateway' ); ?></button>
+					<button type="button" class="cardz3n-tab<?php echo $default_to_saved ? ' is-active' : ''; ?>" data-target="saved" role="tab"><?php esc_html_e( 'Saved', 'cardz3n-gateway' ); ?></button>
 				<?php endif; ?>
 				<?php if ( $enable_cards ) : ?>
-					<button type="button" class="cardz3n-tab is-active" data-target="card" role="tab"><?php esc_html_e( 'Card', 'cardz3n-gateway' ); ?></button>
+					<button type="button" class="cardz3n-tab<?php echo $default_to_saved ? '' : ' is-active'; ?>" data-target="card" role="tab"><?php esc_html_e( 'Card', 'cardz3n-gateway' ); ?></button>
 				<?php endif; ?>
 				<?php if ( $enable_ach ) : ?>
 					<button type="button" class="cardz3n-tab" data-target="ach" role="tab"><?php esc_html_e( 'Bank (ACH)', 'cardz3n-gateway' ); ?></button>
 				<?php endif; ?>
 			</div>
 
-			<input type="hidden" name="cardz3n_payment_source" value="card" />
+			<input type="hidden" name="cardz3n_payment_source" value="<?php echo $default_to_saved ? 'saved' : 'card'; ?>" />
 			<input type="hidden" name="cardz3n_payment_token" value="" />
 			<input type="hidden" name="cardz3n_token_type" value="" />
 
+			<div class="cardz3n-panes">
+
 			<?php if ( $show_saved ) : ?>
-				<div class="cardz3n-pane" data-pane="saved">
+				<div class="cardz3n-pane<?php echo $default_to_saved ? ' is-active' : ''; ?>" data-pane="saved"<?php echo $default_to_saved ? '' : ' inert aria-hidden="true"'; ?>>
 					<?php $this->saved_payment_methods(); ?>
 				</div>
 			<?php endif; ?>
 
 			<?php if ( $enable_cards ) : ?>
-			<div class="cardz3n-pane is-active" data-pane="card">
+			<div class="cardz3n-pane<?php echo $default_to_saved ? '' : ' is-active'; ?>" data-pane="card"<?php echo $default_to_saved ? ' inert aria-hidden="true"' : ''; ?>>
 				<div class="cardz3n-field">
 					<label><?php esc_html_e( 'Card number', 'cardz3n-gateway' ); ?></label>
 					<div id="cardz3n-ccnumber" class="cardz3n-collect-field"></div>
@@ -231,7 +417,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 						<div id="cardz3n-cvv" class="cardz3n-collect-field"></div>
 					</div>
 				</div>
-				<?php if ( $show_saved ) : ?>
+				<?php if ( $has_tokenization ) : /* 1.0.20: always offer save when the buyer is logged in with tokenization support. */ ?>
 				<label class="cardz3n-save-method">
 					<input type="checkbox" name="wc-<?php echo esc_attr( $this->id ); ?>-new-payment-method" value="true" />
 					<?php esc_html_e( 'Save this card for faster checkout next time.', 'cardz3n-gateway' ); ?>
@@ -241,7 +427,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			<?php endif; ?>
 
 			<?php if ( $enable_ach ) : ?>
-			<div class="cardz3n-pane" data-pane="ach">
+			<div class="cardz3n-pane" data-pane="ach" inert aria-hidden="true">
 				<div class="cardz3n-field">
 					<label><?php esc_html_e( 'Name on account', 'cardz3n-gateway' ); ?></label>
 					<div id="cardz3n-checkname" class="cardz3n-collect-field"></div>
@@ -263,7 +449,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 						<option value="savings"><?php esc_html_e( 'Savings', 'cardz3n-gateway' ); ?></option>
 					</select>
 				</div>
-				<?php if ( ACH_Service::reuse_allowed() && $show_saved ) : ?>
+				<?php if ( ACH_Service::reuse_allowed() && $has_tokenization ) : ?>
 				<label class="cardz3n-save-method">
 					<input type="checkbox" name="wc-<?php echo esc_attr( $this->id ); ?>-new-ach-method" value="true" />
 					<?php esc_html_e( 'Save this bank account for future orders.', 'cardz3n-gateway' ); ?>
@@ -271,6 +457,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				<?php endif; ?>
 			</div>
 			<?php endif; ?>
+
+			</div><!-- /.cardz3n-panes -->
 
 			<div class="cardz3n-errors" role="alert" aria-live="polite"></div>
 		</div>
@@ -283,14 +471,36 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			return;
 		}
 		$brands = (array) $this->get_option( 'allowed_card_brands', array( 'visa', 'mastercard', 'amex', 'discover' ) );
-		if ( empty( $brands ) ) {
+		$icons  = array();
+		foreach ( $brands as $b ) {
+			$icons[] = array(
+				'file' => 'icon_cc_' . $b . '.svg',
+				'alt'  => ucfirst( $b ),
+			);
+		}
+
+		// 1.0.15: also surface Apple Pay / Google Pay logos in the brand row
+		// even when the buyer's current device doesn't support the wallet
+		// (the live wallet button still only renders when canMakePayments is
+		// true). This reassures buyers the gateway accepts their wallet.
+		if ( 'yes' === $this->get_option( 'enable_apple_pay', 'yes' ) ) {
+			$icons[] = array( 'file' => 'icon_wallet_applepay.svg', 'alt' => 'Apple Pay' );
+		}
+		if ( 'yes' === $this->get_option( 'enable_google_pay', 'yes' ) ) {
+			$icons[] = array( 'file' => 'icon_wallet_googlepay.svg', 'alt' => 'Google Pay' );
+		}
+
+		if ( empty( $icons ) ) {
 			return;
 		}
 		echo '<div class="cardz3n-brand-icons">';
-		foreach ( $brands as $b ) {
-			$file = 'icon_cc_' . $b . '.svg';
-			$path = CARDZ3N_GW_URL . 'assets/img/' . $file;
-			printf( '<img src="%s" alt="%s" width="38" height="24" loading="lazy" />', esc_url( $path ), esc_attr( ucfirst( $b ) ) );
+		foreach ( $icons as $icon ) {
+			$path = CARDZ3N_GW_URL . 'assets/img/' . $icon['file'];
+			printf(
+				'<img src="%s" alt="%s" width="38" height="24" loading="lazy" />',
+				esc_url( $path ),
+				esc_attr( $icon['alt'] )
+			);
 		}
 		echo '</div>';
 	}
@@ -334,18 +544,66 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	 * --------------------------------------------------------------- */
 
 	public function is_available() {
+		$reason = $this->availability_reason();
+		self::remember_availability_reason( $reason );
+		return ( 'available' === $reason );
+	}
+
+	/**
+	 * Return a short machine-readable token describing why the gateway is
+	 * available, or why it isn't. Separated from is_available() so we can
+	 * surface it in an admin notice without duplicating gate logic.
+	 *
+	 * @return string One of: 'available', 'disabled', 'https_required',
+	 *                'no_credentials', 'parent_unavailable'.
+	 */
+	private function availability_reason() {
 		if ( 'yes' !== $this->get_option( 'enabled' ) ) {
-			return false;
+			return 'disabled';
 		}
-		if ( ! is_admin() && ! is_ssl() && 'yes' !== $this->get_option( 'sandbox_mode' ) ) {
-			Logger::warning( 'Gateway hidden: live mode requires HTTPS.' );
-			return false;
+
+		/*
+		 * HTTPS gate for live mode. Use `wc_checkout_is_https()` instead of
+		 * `is_ssl()` — the Woo helper handles reverse proxies (InstaWP, WP
+		 * Engine, Cloudflare, etc.) correctly.
+		 */
+		// 1.0.15: unified 'test_mode' with legacy 'sandbox_mode' fallback.
+		$is_test_mode = 'yes' === $this->get_option( 'test_mode', $this->get_option( 'sandbox_mode', 'no' ) );
+		if ( ! is_admin() && ! $is_test_mode ) {
+			$is_https = function_exists( 'wc_checkout_is_https' )
+				? wc_checkout_is_https()
+				: ( is_ssl() || 'https' === ( $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '' ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+			if ( ! $is_https ) {
+				return 'https_required';
+			}
 		}
+
 		$client = new Api_Client( $this->settings );
 		if ( ! $client->has_credentials() ) {
-			return false;
+			return 'no_credentials';
 		}
-		return parent::is_available();
+
+		if ( ! parent::is_available() ) {
+			return 'parent_unavailable';
+		}
+
+		return 'available';
+	}
+
+	/**
+	 * Store the most recent availability reason in a transient so the admin UI
+	 * can surface it. Stored per-brand so the CARDZ3N and AerospacePay white-
+	 * label instances don't stomp on each other.
+	 *
+	 * @param string $reason One of the tokens from availability_reason().
+	 */
+	private static function remember_availability_reason( $reason ) {
+		if ( ! empty( $reason ) ) {
+			set_transient( 'cardz3n_gw_last_avail_' . Brand::id(), $reason, 5 * MINUTE_IN_SECONDS );
+		}
+		if ( 'available' !== $reason ) {
+			Logger::warning( 'Gateway hidden. Reason: ' . $reason );
+		}
 	}
 
 	/* ------------------------------------------------------------------
@@ -367,6 +625,19 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		if ( ! $client->has_credentials() ) {
 			wc_add_notice( __( 'Payment gateway is not configured. Please contact the store.', 'cardz3n-gateway' ), 'error' );
 			return null;
+		}
+
+		// Blocks Checkout compatibility: the block bundle posts a slightly
+		// different key shape (cardz3n_payment_kind, cardz3n_saved_token_id,
+		// wc_payment_source=blocks). Normalize to the classic keys so the rest
+		// of this method runs unchanged.
+		if ( isset( $_POST['wc_payment_source'] ) && 'blocks' === $_POST['wc_payment_source'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			if ( ! empty( $_POST['cardz3n_payment_kind'] ) && empty( $_POST['cardz3n_payment_source'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+				$_POST['cardz3n_payment_source'] = sanitize_text_field( wp_unslash( $_POST['cardz3n_payment_kind'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			}
+			if ( ! empty( $_POST['cardz3n_saved_token_id'] ) && empty( $_POST[ 'wc-' . $this->id . '-payment-token' ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+				$_POST[ 'wc-' . $this->id . '-payment-token' ] = sanitize_text_field( wp_unslash( $_POST['cardz3n_saved_token_id'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			}
 		}
 
 		// Gather inputs from checkout. POST is nonce-protected by WooCommerce itself.
@@ -392,7 +663,23 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			$using_saved = true;
 			$normalized_source = $token instanceof \WC_Payment_Token_ECheck ? 'ach_vault' : 'card_vault';
 		} elseif ( empty( $collect_token ) ) {
-			wc_add_notice( __( 'Payment details could not be tokenized. Please try again.', 'cardz3n-gateway' ), 'error' );
+			/*
+			 * 1.0.25 — the browser-side Collect.js minted a token but the
+			 * server didn't receive it on $_POST. Log the full list of
+			 * submitted fields (minus secrets) so we can diagnose whether
+			 * it's a DOM-detach issue vs serialization issue vs scope issue.
+			 */
+			$posted_keys = array_keys( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			Cardz3n_Logger::warning( sprintf(
+				'[CARDZ3N] Tokenize-empty. source=%s type=%s tier=%s posted_fields=%s has_checkout_public_key=%s',
+				isset( $_POST['cardz3n_payment_source'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_payment_source'] ) ) : 'n/a', // phpcs:ignore WordPress.Security.NonceVerification.Missing
+				isset( $_POST['cardz3n_token_type'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_token_type'] ) ) : 'n/a', // phpcs:ignore WordPress.Security.NonceVerification.Missing
+				$this->api_client->credentials_tier(),
+				implode( ',', array_filter( $posted_keys, function ( $k ) { return strpos( $k, 'cardz3n' ) === 0 || strpos( $k, 'payment' ) !== false; } ) ),
+				0 === strpos( (string) $this->api_client->tokenization_key(), 'checkout_public_' ) ? 'yes' : 'no'
+			) );
+
+			wc_add_notice( __( 'Payment details could not be tokenized. The most common cause is that the Public Key in the CARDZ3N settings was issued with the wrong scope. This plugin uses inline Collect.js, which requires a Public API Key scoped "Tokenization" (format: xxxxxx-xxxxxx-xxxxxx-xxxxxx). A "Collect Checkout" key (starting with checkout_public_) will NOT work — it drives a different hosted-redirect checkout. Verify in the CARDZ3N Merchant Portal: Settings → Security Keys → Public Security Keys → scope must be "Tokenization".', 'cardz3n-gateway' ), 'error' );
 			return null;
 		}
 
@@ -435,8 +722,31 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		$mapper = new Level3_Mapper( $this->settings );
 		$level3 = $mapper->build( $order );
 
-		// Descriptor.
-		$descriptor = \Cardz3n_Gateway\descriptor_for_order( $order, $this->settings );
+		/*
+		 * 1.0.28 — DESCRIPTOR GATING.
+		 *
+		 * NMI processors reject sales that include a `descriptor` field unless
+		 * the merchant account has "Allow merchant to pass Dynamic Billing
+		 * Descriptors" explicitly enabled under Advanced Merchant Features.
+		 * When it isn't enabled, transact.php returns:
+		 *
+		 *   response=3 responsetext="Custom descriptors are not allowed for this
+		 *   processor" response_code=300
+		 *
+		 * That rejection burns the single-use Collect.js payment_token, so
+		 * every retry then cascades into "Payment Token does not exist".
+		 *
+		 * 1.0.28 flips the default to OFF. The descriptor field is only
+		 * included when the new `allow_dynamic_descriptors` setting is checked,
+		 * which the settings UI tells the merchant to do only after enabling
+		 * the feature in the CARDZ3N Partner Portal. Safe upgrade for every
+		 * existing install; merchants who are actively using dynamic
+		 * descriptors only need to tick one checkbox to restore it.
+		 */
+		$allow_descriptors = 'yes' === $this->get_option( 'allow_dynamic_descriptors', 'no' );
+		$descriptor        = $allow_descriptors
+			? \Cardz3n_Gateway\descriptor_for_order( $order, $this->settings )
+			: '';
 
 		// Whether to also tokenize (vault creation) during this transaction.
 		$should_vault_card = ( $save_card && ! $using_saved && in_array( $normalized_source, array( 'card', 'apple_pay', 'google_pay' ), true ) );
@@ -465,6 +775,25 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			if ( $should_vault_card || $should_vault_ach ) {
 				$args['vault'] = 'add_customer';
 			}
+			/*
+			 * 1.0.17 — log the first 8 chars of the Collect.js token plus the
+			 * first 4 chars of each key so support can verify at a glance
+			 * whether the Security Key and Tokenization Key belong to the
+			 * same merchant account. The full token and keys are never
+			 * logged; Logger::redact() scrubs them from transaction logs too.
+			 */
+			Logger::info(
+				'Submitting Collect.js token to transact.php',
+				array(
+					'token_prefix'      => substr( (string) $collect_token, 0, 8 ) . '...',
+					'token_len'         => strlen( (string) $collect_token ),
+					'sec_key_prefix'    => substr( $client->security_key(), 0, 4 ) . '...',
+					'tok_key_prefix'    => substr( $client->tokenization_key(), 0, 4 ) . '...',
+					'credentials_tier'  => method_exists( $client, 'credentials_tier' ) ? $client->credentials_tier() : 'unknown',
+					'test_mode'         => $client->is_sandbox() ? 'yes' : 'no',
+					'normalized_source' => $normalized_source,
+				)
+			);
 		}
 
 		$response = $client->transaction( $args );
@@ -486,7 +815,66 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		if ( ! $response['success'] ) {
 			$note = Order_Service::failure_note( $response, $extra );
 			$order->add_order_note( $note );
-			wc_add_notice( $response['text'] ? $response['text'] : __( 'Payment could not be processed.', 'cardz3n-gateway' ), 'error' );
+
+			/*
+			 * 1.0.17 — translate the gateway's most common opaque error
+			 * ("Payment Token does not exist REFID:...") into a plain-English
+			 * message that tells the buyer and the merchant what to do. The
+			 * raw text is still stored in the order note for support
+			 * troubleshooting.
+			 */
+			$user_msg = $response['text'] ? $response['text'] : __( 'Payment could not be processed.', 'cardz3n-gateway' );
+			if ( false !== stripos( (string) $response['text'], 'payment token does not exist' ) ) {
+				Logger::error(
+					'Gateway rejected Collect.js token — check Security Key / Tokenization Key pair',
+					array(
+						'gateway_text'     => $response['text'],
+						'sec_key_prefix'   => substr( $client->security_key(), 0, 4 ) . '...',
+						'tok_key_prefix'   => substr( $client->tokenization_key(), 0, 4 ) . '...',
+						'credentials_tier' => method_exists( $client, 'credentials_tier' ) ? $client->credentials_tier() : 'unknown',
+						'test_mode'        => $client->is_sandbox() ? 'yes' : 'no',
+					)
+				);
+				/*
+				 * 1.0.26 — the #1 cause of "Payment Token does not exist" in
+				 * Test Mode is pairing NMI's shared test-merchant Security Key
+				 * (`6457Thfj…`) with a Collect Checkout public key minted on a
+				 * different merchant. The token exists in merchant A's store;
+				 * merchant B's transact.php can't redeem it. Show a surgical
+				 * message for that exact case.
+				 */
+				if ( $client->is_sandbox() ) {
+					$user_msg = __(
+						'Test Mode is active, but the Test Security Key and Test Public Key in the CARDZ3N settings appear to belong to different merchant accounts. Either turn Test Mode off and use your Live keys (test PANs such as 4111 1111 1111 1111 will still auto-void in sandbox mode), or request a matched Test Public API Key with Tokenization scope from CARDZ3N support for your test merchant.',
+						'cardz3n-gateway'
+					);
+				} else {
+					/*
+					 * 1.0.27 — in Live Mode with matched-merchant keys, the
+					 * most common remaining cause of "Payment Token does not
+					 * exist" is that the Public Key was issued with the wrong
+					 * scope. A Collect Checkout key (`checkout_public_…`)
+					 * will mint tokens Collect.js happily accepts in the
+					 * browser, but those tokens cannot be redeemed by
+					 * transact.php — only a Public API Key scoped "Tokenization"
+					 * produces redeemable payment_token values.
+					 */
+					$wrong_scope = 0 === strpos( (string) $client->tokenization_key(), 'checkout_public_' );
+					if ( $wrong_scope ) {
+						$user_msg = __(
+							'We couldn\'t complete your card payment. The store\'s CARDZ3N Public Key is set to a "Collect Checkout" key (starts with checkout_public_), which cannot process on-site card transactions. Please contact the store — the operator needs to replace it with a Public API Key scoped "Tokenization" in the CARDZ3N settings.',
+							'cardz3n-gateway'
+						);
+					} else {
+						$user_msg = __(
+							'We couldn\'t complete your payment because the gateway did not recognize the secure token. Please refresh the checkout page and try again. If this keeps happening, contact the store — the Security Key and Tokenization Key in the gateway settings may belong to different merchant accounts.',
+							'cardz3n-gateway'
+						);
+					}
+				}
+			}
+
+			wc_add_notice( $user_msg, 'error' );
 			return null;
 		}
 
@@ -548,14 +936,56 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	 * --------------------------------------------------------------- */
 
 	public function ajax_validate_credentials() {
-		check_ajax_referer( 'cardz3n_gw_nonce', 'nonce' );
+		// Capability check first so unauthorized users always get a clean 403.
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
 			wp_send_json_error( array( 'msg' => __( 'Insufficient permissions.', 'cardz3n-gateway' ) ), 403 );
 		}
 
-		$client = new Api_Client( $this->settings );
+		// Nonce check with $die=false so we return a clean JSON body (not a 0/-1 text response).
+		if ( ! check_ajax_referer( 'cardz3n_gw_nonce', 'nonce', false ) ) {
+			wp_send_json_error(
+				array( 'msg' => __( 'Invalid session. Reload the settings page and try again.', 'cardz3n-gateway' ) ),
+				400
+			);
+		}
+
+		/*
+		 * Load settings fresh from the options table — never trust POST for credentials.
+		 * The admin form masks the security key once it is saved (password input with
+		 * masked placeholder), so the JS could POST an empty or masked string. Passing
+		 * null here makes the API client re-read `woocommerce_{brand}_settings` itself.
+		 */
+		$client = new Api_Client( null );
+
+		if ( ! $client->has_credentials() ) {
+			// Business-logic failure — return HTTP 200 + success:false so the admin UI
+			// shows a meaningful message instead of a generic "Network error." banner.
+			wp_send_json_error(
+				array(
+					'ok'  => false,
+					'msg' => __( 'Save changes first — no Security Key on file for the active mode.', 'cardz3n-gateway' ),
+				)
+			);
+		}
+
 		$result = $client->validate_credentials();
-		wp_send_json_success( $result );
+
+		// The API client only returns arrays (never WP_Error), but guard anyway.
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( array( 'ok' => false, 'msg' => $result->get_error_message() ) );
+		}
+
+		if ( ! empty( $result['ok'] ) ) {
+			wp_send_json_success( $result );
+		}
+
+		// Gateway rejected the credentials (e.g. "Invalid security key") — still HTTP 200.
+		wp_send_json_error(
+			array(
+				'ok'  => false,
+				'msg' => isset( $result['msg'] ) ? $result['msg'] : __( 'Gateway rejected the credentials.', 'cardz3n-gateway' ),
+			)
+		);
 	}
 
 	public function ajax_delete_token() {
