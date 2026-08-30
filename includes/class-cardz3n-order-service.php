@@ -21,16 +21,16 @@ class Order_Service {
 	 */
 	public static function stamp( \WC_Order $order, array $response, array $extra = array() ) {
 		$meta = array(
-			'_cardz3n_transaction_id'   => $response['transaction_id'] ?? '',
-			'_cardz3n_result_code'      => $response['code'] ?? '',
-			'_cardz3n_result_text'      => $response['text'] ?? '',
-			'_cardz3n_auth_code'        => $response['auth_code'] ?? '',
-			'_cardz3n_avs_result'       => $response['avs'] ?? '',
-			'_cardz3n_customer_vault_id' => $response['customer_vault_id'] ?? '',
+			'_cardz3n_transaction_id'      => $response['transaction_id'] ?? '',
+			'_cardz3n_result_code'         => $response['code'] ?? '',
+			'_cardz3n_result_text'         => $response['text'] ?? '',
+			'_cardz3n_auth_code'           => $response['auth_code'] ?? '',
+			'_cardz3n_avs_result'          => $response['avs'] ?? '',
+			'_cardz3n_customer_vault_id'   => $response['customer_vault_id'] ?? '',
 			'_cardz3n_payment_source_type' => $extra['payment_source_type'] ?? 'card',
-			'_cardz3n_transaction_type' => $extra['transaction_type'] ?? 'sale',
-			'_cardz3n_descriptor_sent'  => $extra['descriptor'] ?? '',
-			'_cardz3n_level3_sent'      => ! empty( $extra['level3_sent'] ) ? 'yes' : 'no',
+			'_cardz3n_transaction_type'    => $extra['transaction_type'] ?? 'sale',
+			'_cardz3n_descriptor_sent'     => $extra['descriptor'] ?? '',
+			'_cardz3n_level3_sent'         => ! empty( $extra['level3_sent'] ) ? 'yes' : 'no',
 		);
 
 		if ( isset( $extra['authorized_amount'] ) ) {
@@ -116,20 +116,24 @@ class Order_Service {
 
 		if ( $res['success'] ) {
 			$order->update_meta_data( '_cardz3n_captured_amount', (string) $authorized );
-			$order->add_order_note( sprintf(
+			$order->add_order_note(
+				sprintf(
 				/* translators: 1: amount, 2: txn id */
-				__( 'Auto-captured %1$s on transaction %2$s.', 'cardz3n-gateway' ),
-				wc_price( $authorized ),
-				$txn
-			) );
+					__( 'Auto-captured %1$s on transaction %2$s.', 'cardz3n-gateway' ),
+					wc_price( $authorized ),
+					$txn
+				)
+			);
 			$order->save();
 		} else {
-			$order->add_order_note( sprintf(
+			$order->add_order_note(
+				sprintf(
 				/* translators: 1: code, 2: message */
-				__( 'Auto-capture failed. Code %1$s: %2$s', 'cardz3n-gateway' ),
-				$res['code'],
-				$res['text']
-			) );
+					__( 'Auto-capture failed. Code %1$s: %2$s', 'cardz3n-gateway' ),
+					$res['code'],
+					$res['text']
+				)
+			);
 		}
 	}
 }

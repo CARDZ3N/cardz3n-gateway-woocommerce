@@ -37,7 +37,7 @@ function parse_ccexp( $ccexp ) {
  * Map an NMI "cc_type" / "card_type" string into a Woo-friendly brand slug.
  */
 function brand_slug( $input ) {
-	$v = strtolower( trim( (string) $input ) );
+	$v   = strtolower( trim( (string) $input ) );
 	$map = array(
 		'visa'             => 'visa',
 		'mastercard'       => 'mastercard',
@@ -66,9 +66,9 @@ function descriptor_for_order( \WC_Order $order, array $settings ) {
 	$src  = (string) ( $settings['descriptor_suffix_source'] ?? '' );
 
 	if ( 'order_id' === $src ) {
-		$suffix = '*' . $order->get_id();
+		$suffix    = '*' . $order->get_id();
 		$max_total = 25;
-		$base = substr( $base, 0, max( 0, $max_total - strlen( $suffix ) ) );
+		$base      = substr( $base, 0, max( 0, $max_total - strlen( $suffix ) ) );
 		return $base . $suffix;
 	}
 	return substr( $base, 0, 25 );
