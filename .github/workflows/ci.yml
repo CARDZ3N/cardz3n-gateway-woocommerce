@@ -74,3 +74,4 @@ jobs:
       - name: No inline JS/CSS in PHP
         run: |
           ! grep -RnE "<script[^>]*>[^<]*[A-Za-z]" includes/ cardz3n-gateway-woocommerce.php | grep -vE "^[^:]+:[0-9]+:[[:space:]]*(\*|//|#)"
+          ! grep -RnE "<script[^>]*>[^<]*[A-Za-z]" includes/ cardz3n-gateway-woocommerce.php | grep -vE "^[^:]+:[0-9]+:[[:space:]]*(\*|//|#)"
