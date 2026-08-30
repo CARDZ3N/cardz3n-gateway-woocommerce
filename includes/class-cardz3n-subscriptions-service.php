@@ -73,9 +73,9 @@ class Subscriptions_Service {
 			return;
 		}
 
-		$client  = new Api_Client();
-		$mapper  = new Level3_Mapper();
-		$level3  = $mapper->build( $renewal_order );
+		$client = new Api_Client();
+		$mapper = new Level3_Mapper();
+		$level3 = $mapper->build( $renewal_order );
 
 		$response = $client->transaction(
 			array(

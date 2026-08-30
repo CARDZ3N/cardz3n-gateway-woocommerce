@@ -189,22 +189,22 @@ class Blocks_Support extends AbstractPaymentMethodType {
 		$client = new Api_Client( $settings );
 
 		return array(
-			'name'               => $this->name,
-			'gatewayId'          => $this->name,
-			'title'              => $opt( 'title', Brand::profile()['default_title'] ),
-			'description'        => $opt( 'description', '' ),
-			'icons'              => $this->get_icon_urls(),
-			'tokenizationKey'    => $client->tokenization_key(),
-			'enableCards'        => 'yes' === $opt( 'enable_cards', 'yes' ),
-			'enableAch'          => 'yes' === $opt( 'enable_ach', 'yes' ),
-			'enableApplePay'     => 'yes' === $opt( 'enable_apple_pay', 'yes' ),
-			'enableGooglePay'    => 'yes' === $opt( 'enable_google_pay', 'yes' ),
-			'enableSaved'        => 'yes' === $opt( 'enable_saved_methods', 'yes' ),
-			'allowedBrands'      => (array) $opt( 'allowed_card_brands', array() ),
-			'country'            => ( function_exists( 'WC' ) && WC()->customer && WC()->customer->get_billing_country() ) ? WC()->customer->get_billing_country() : 'US',
-			'currency'           => function_exists( 'get_woocommerce_currency' ) ? get_woocommerce_currency() : 'USD',
-			'supports'           => $this->get_supported_features(),
-			'i18n'               => array(
+			'name'            => $this->name,
+			'gatewayId'       => $this->name,
+			'title'           => $opt( 'title', Brand::profile()['default_title'] ),
+			'description'     => $opt( 'description', '' ),
+			'icons'           => $this->get_icon_urls(),
+			'tokenizationKey' => $client->tokenization_key(),
+			'enableCards'     => 'yes' === $opt( 'enable_cards', 'yes' ),
+			'enableAch'       => 'yes' === $opt( 'enable_ach', 'yes' ),
+			'enableApplePay'  => 'yes' === $opt( 'enable_apple_pay', 'yes' ),
+			'enableGooglePay' => 'yes' === $opt( 'enable_google_pay', 'yes' ),
+			'enableSaved'     => 'yes' === $opt( 'enable_saved_methods', 'yes' ),
+			'allowedBrands'   => (array) $opt( 'allowed_card_brands', array() ),
+			'country'         => ( function_exists( 'WC' ) && WC()->customer && WC()->customer->get_billing_country() ) ? WC()->customer->get_billing_country() : 'US',
+			'currency'        => function_exists( 'get_woocommerce_currency' ) ? get_woocommerce_currency() : 'USD',
+			'supports'        => $this->get_supported_features(),
+			'i18n'            => array(
 				'cardTab'       => __( 'Card', 'cardz3n-gateway' ),
 				'achTab'        => __( 'Bank (ACH)', 'cardz3n-gateway' ),
 				'savedTab'      => __( 'Saved', 'cardz3n-gateway' ),
@@ -242,16 +242,16 @@ class Blocks_Support extends AbstractPaymentMethodType {
 
 		// Optional features that depend on settings / companion plugins.
 		$supports_map = array(
-			'tokenization'                    => 'tokenization',
-			'subscriptions'                   => 'subscriptions',
-			'subscription_cancellation'       => 'subscriptions',
-			'subscription_suspension'         => 'subscriptions',
-			'subscription_reactivation'       => 'subscriptions',
-			'subscription_amount_changes'     => 'subscriptions',
-			'subscription_date_changes'       => 'subscriptions',
+			'tokenization'                       => 'tokenization',
+			'subscriptions'                      => 'subscriptions',
+			'subscription_cancellation'          => 'subscriptions',
+			'subscription_suspension'            => 'subscriptions',
+			'subscription_reactivation'          => 'subscriptions',
+			'subscription_amount_changes'        => 'subscriptions',
+			'subscription_date_changes'          => 'subscriptions',
 			'subscription_payment_method_change' => 'subscriptions',
-			'multiple_subscriptions'          => 'subscriptions',
-			'pre-orders'                      => 'pre-orders',
+			'multiple_subscriptions'             => 'subscriptions',
+			'pre-orders'                         => 'pre-orders',
 		);
 
 		foreach ( $supports_map as $wc_feature => $block_feature ) {

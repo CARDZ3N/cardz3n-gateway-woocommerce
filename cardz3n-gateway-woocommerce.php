@@ -22,7 +22,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/* -----------------------------------------------------------------------------
+/*
+-----------------------------------------------------------------------------
  * Plugin constants
  * -------------------------------------------------------------------------- */
 
@@ -47,7 +48,8 @@ if ( ! defined( 'CARDZ3N_GW_BRAND' ) ) {
 	define( 'CARDZ3N_GW_BRAND', 'cardz3n' );
 }
 
-/* -----------------------------------------------------------------------------
+/*
+-----------------------------------------------------------------------------
  * HPOS compatibility declaration (WooCommerce 8+)
  * -------------------------------------------------------------------------- */
 
@@ -70,7 +72,8 @@ add_action(
 	}
 );
 
-/* -----------------------------------------------------------------------------
+/*
+-----------------------------------------------------------------------------
  * Bootstrapping
  * -------------------------------------------------------------------------- */
 
@@ -166,14 +169,15 @@ function cardz3n_gw_register_gateway( $gateways ) {
  * @return array
  */
 function cardz3n_gw_action_links( $links ) {
-	$brand_id  = Cardz3n_Gateway\Brand::id();
-	$url       = admin_url( 'admin.php?page=wc-settings&tab=checkout&section=' . $brand_id );
-	$settings  = '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Settings', 'cardz3n-gateway' ) . '</a>';
+	$brand_id = Cardz3n_Gateway\Brand::id();
+	$url      = admin_url( 'admin.php?page=wc-settings&tab=checkout&section=' . $brand_id );
+	$settings = '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Settings', 'cardz3n-gateway' ) . '</a>';
 	array_unshift( $links, $settings );
 	return $links;
 }
 
-/* -----------------------------------------------------------------------------
+/*
+-----------------------------------------------------------------------------
  * Activation / deactivation
  * -------------------------------------------------------------------------- */
 
@@ -232,8 +236,8 @@ function cardz3n_gw_maybe_migrate_settings() {
 	}
 
 	// 2) 1.0.15-1.0.18 unified security_key/tokenization_key -> live_*
-	//    (only when live_* is empty). Those merchants treated the unified pair
-	//    as their real / live keys.
+	// (only when live_* is empty). Those merchants treated the unified pair
+	// as their real / live keys.
 	if ( empty( $s['live_security_key'] ) && ! empty( $s['security_key'] ) ) {
 		$s['live_security_key'] = (string) $s['security_key'];
 		$changed                = true;
@@ -244,9 +248,9 @@ function cardz3n_gw_maybe_migrate_settings() {
 	}
 
 	// 3) Legacy compatibility for the unified keys themselves — if a
-	//    1.0.14-era install is being migrated forward and only has sandbox_*
-	//    populated, still populate the unified fields so any downstream code
-	//    that reads them keeps working.
+	// 1.0.14-era install is being migrated forward and only has sandbox_*
+	// populated, still populate the unified fields so any downstream code
+	// that reads them keeps working.
 	if ( empty( $s['security_key'] ) ) {
 		foreach ( array( 'live_security_key', 'sandbox_security_key', 'test_security_key' ) as $src_key ) {
 			if ( ! empty( $s[ $src_key ] ) ) {
@@ -278,7 +282,8 @@ function cardz3n_gw_maybe_migrate_settings() {
 }
 add_action( 'plugins_loaded', 'cardz3n_gw_maybe_migrate_settings', 9 );
 
-/* -----------------------------------------------------------------------------
+/*
+-----------------------------------------------------------------------------
  * 1.0.20: Version-mismatch admin notice.
  *
  * Catches the stale-install situation where the .php / .js / .css on disk
