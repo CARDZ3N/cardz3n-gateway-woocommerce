@@ -329,7 +329,7 @@ function cardz3n_gw_version_mismatch_notice() {
 		esc_html__( 'CARDZ3N Gateway on disk is version %1$s but the last activated version was %2$s. Deactivate then reactivate the plugin from the %3$s screen to finish the upgrade.', 'cardz3n-gateway' ),
 		'<strong>' . esc_html( $disk ) . '</strong>',
 		'<strong>' . esc_html( $stored ) . '</strong>',
-		'<a href="' . $plugins_url . '">' . esc_html__( 'Plugins', 'cardz3n-gateway' ) . '</a>'
+		'<a href="' . esc_url( $plugins_url ) . '">' . esc_html__( 'Plugins', 'cardz3n-gateway' ) . '</a>'
 	);
 	echo '</p></div>';
 }
