@@ -86,9 +86,12 @@ class Brand {
 		return $p['name'];
 	}
 
-		/**
-		 * Fetch a single brand-profile value by key.
-		 */
+	/**
+	 * Fetch a single brand-profile value by key.
+	 *
+	 * @param string $key      Brand profile key.
+	 * @param string $fallback Value to return if the key is not set.
+	 */
 	public static function get( $key, $fallback = '' ) {
 		$p = self::profile();
 		return isset( $p[ $key ] ) ? $p[ $key ] : $fallback;
