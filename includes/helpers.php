@@ -40,7 +40,7 @@ function parse_ccexp( $ccexp ) {
  * @return string
  */
 function brand_slug( $input ) {
-			$v    = strtolower( trim( (string) $input ) );
+	$v   = strtolower( trim( (string) $input ) );
 	$map = array(
 		'visa'             => 'visa',
 		'mastercard'       => 'mastercard',
