@@ -826,6 +826,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			if ( $should_vault_card || $should_vault_ach ) {
 				$args['vault'] = 'add_customer';
 			}
+			
 			/*
 			 * 1.0.17 — log the first 8 chars of the Collect.js token plus the
 			 * first 4 chars of each key so support can verify at a glance
@@ -985,8 +986,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	/*
 	------------------------------------------------------------------
 	 * AJAX endpoints
-	 * --------------------------------------------------------------- */
-
+	 * ---------------------------------------------------------------
+	  */
 	public function ajax_validate_credentials() {
 		// Capability check first so unauthorized users always get a clean 403.
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
@@ -1045,6 +1046,9 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		);
 	}
 
+	/**
+	 * AJAX: Delete a saved payment token from the customer's vault.
+	 */
 	public function ajax_delete_token() {
 		check_ajax_referer( 'cardz3n_gw_nonce', 'nonce' );
 		$token_id = isset( $_POST['token_id'] ) ? absint( $_POST['token_id'] ) : 0;
