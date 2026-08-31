@@ -241,6 +241,9 @@ class Api_Client {
 	public static function three_step_url() {
 		return (string) apply_filters( 'cardz3n_gw_three_step_url', self::THREE_STEP_URL );
 	}
+	/**
+	 * Whether both a security key and tokenization key are configured.
+	 */
 
 	public function has_credentials() {
 		return '' !== $this->security_key() && '' !== $this->tokenization_key();
@@ -249,12 +252,12 @@ class Api_Client {
 	/*
 	---------------------------------------------------------------------
 	 * Request plumbing
-	 * ------------------------------------------------------------------ */
-
+	 * ------------------------------------------------------------------
+	  */
 	/**
 	 * Low-level POST. Merges security_key in and returns a parsed response array.
 	 *
-	 * @param array $payload
+	 * @param array $payload Transaction payload merged with the security key.
 	 * @return array{success:bool,code:string,text:string,transaction_id:string,auth_code:string,avs:string,cvv:string,customer_vault_id:string,raw:array,error:string}
 	 */
 	public function post( array $payload ) {
@@ -306,7 +309,7 @@ class Api_Client {
 	 *   avsresponse, cvvresponse = AVS / CVV result codes
 	 *   customer_vault_id = returned when customer_vault operations create/return a vault
 	 *
-	 * @param string $body
+	 * @param string $body Raw x-www-form-urlencoded response body.
 	 * @return array
 	 */
 	public function parse_response( $body ) {
@@ -329,6 +332,12 @@ class Api_Client {
 		);
 	}
 
+	/**
+	 * Build a normalized error response array.
+	 *
+	 * @param string $msg Human-readable error message.
+	 * @return array
+	 */
 	private function error_result( $msg ) {
 		return array(
 			'success'           => false,
@@ -368,9 +377,9 @@ class Api_Client {
 			'billing'           => array(), // first_name,last_name,address1,city,state,zip,country,email,phone,company
 			'shipping'          => array(),
 			'order_description' => '',
-			'level3'            => array(), // merged as-is
-			'vault'             => '',      // add_customer | update_customer
-			'transactionid'     => '',      // for void/refund/capture
+			'level3'            => array(), // merged as-is.
+			'vault'             => '',      // add_customer | update_customer.
+			'transactionid'     => '',      // for void/refund/capture.
 			'currency_code'     => null,
 			'extra'             => array(),
 		);
@@ -502,6 +511,9 @@ class Api_Client {
 
 	/**
 	 * Convenience wrappers.
+	  *
+	   * @param string $transaction_id Original transaction ID to capture.
+	    * @param float|null $amount Amount to capture, or null for the full authorized amount.
 	 */
 	public function capture( $transaction_id, $amount = null ) {
 		$args = array(
@@ -514,6 +526,11 @@ class Api_Client {
 		return $this->transaction( $args );
 	}
 
+	/**
+	 * Void an authorized-but-not-yet-settled transaction.
+	 *
+	 * @param string $transaction_id Transaction ID to void.
+	 */
 	public function void( $transaction_id ) {
 		return $this->transaction(
 			array(
@@ -523,6 +540,12 @@ class Api_Client {
 		);
 	}
 
+	/**
+	 * Refund a settled transaction, fully or partially.
+	 *
+	 * @param string $transaction_id Transaction ID to refund.
+	 * @param float|null $amount Amount to refund, or null for the full amount.
+	 */
 	public function refund( $transaction_id, $amount = null ) {
 		$args = array(
 			'type'          => 'refund',
@@ -536,6 +559,8 @@ class Api_Client {
 
 	/**
 	 * Delete a Customer Vault entry.
+	  *
+	   * @param string $vault_id Customer vault ID to delete.
 	 */
 	public function delete_vault( $vault_id ) {
 		return $this->post(
