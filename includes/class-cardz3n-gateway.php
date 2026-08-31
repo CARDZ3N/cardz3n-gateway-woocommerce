@@ -480,6 +480,9 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		<?php
 	}
 
+	/**
+	 * Render supported card-brand and wallet icons beneath the checkout fields.
+	 */
 	private function render_brand_icons() {
 		$style = $this->get_option( 'icon_style', 'brands' );
 		if ( 'brands' !== $style ) {
@@ -526,6 +529,11 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		echo '</div>';
 	}
 
+	/**
+	 * Render the optional Purchase Order number field on checkout.
+	 *
+	 * @param bool $checkout Whether this is being rendered on the checkout page.
+	 */
 	public function render_po_field( $checkout ) {
 		if ( 'yes' !== $this->get_option( 'enable_po_field', 'yes' ) ) {
 			return;
@@ -540,6 +548,11 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		<?php
 	}
 
+	/**
+	 * Persist the submitted Purchase Order number to order meta.
+	 *
+	 * @param int $order_id Order ID being saved.
+	 */
 	public function save_po_field( $order_id ) {
 		if ( empty( $_POST['cardz3n_po_number'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			return;
@@ -552,6 +565,11 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		}
 	}
 
+	/**
+	 * Show a merchant-configured message on the order-received page.
+	 *
+	 * @param int $order_id Order ID being viewed.
+	 */
 	public function render_thankyou( $order_id ) {
 		$msg = trim( (string) $this->get_option( 'thankyou_instructions' ) );
 		if ( '' === $msg ) {
@@ -563,8 +581,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	/*
 	------------------------------------------------------------------
 	 * Availability / admin gates
-	 * --------------------------------------------------------------- */
-
+	 * ---------------------------------------------------------------
+	  */
 	public function is_available() {
 		$reason = $this->availability_reason();
 		self::remember_availability_reason( $reason );
