@@ -1,5 +1,5 @@
 === CARDZ3N Gateway for WooCommerce ===
-Contributors: jbenedetti
+Contributors: jbenedetti, cardz3n
 Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 6.9
