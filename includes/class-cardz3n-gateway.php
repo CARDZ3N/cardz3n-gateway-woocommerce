@@ -124,8 +124,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	/*
 	------------------------------------------------------------------
 	 * Assets & rendering
-	 * --------------------------------------------------------------- */
-
+	 * ---------------------------------------------------------------
+	  */
 	public function gateway_icon_url() {
 		$style = $this->get_option( 'icon_style', 'brands' );
 		if ( 'none' === $style ) {
@@ -137,6 +137,9 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		return ''; // Brand icons rendered inline by payment_fields() for finer control.
 	}
 
+	/**
+	 * Enqueue checkout JS/CSS and localize gateway data for the frontend.
+	 */
 	public function enqueue_checkout_assets() {
 		if ( ! is_checkout() && ! is_add_payment_method_page() && ! is_account_page() ) {
 			return;
