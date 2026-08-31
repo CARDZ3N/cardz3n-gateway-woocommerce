@@ -32,11 +32,23 @@ namespace Cardz3n_Gateway;
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * Maps a WooCommerce order into NMI Level 2/3 field data.
+  */
 class Level3_Mapper {
 
-	/** @var array */
+	/**
+	 * Merchant plugin settings.
+	 *
+	 * @var array
+	 */
 	private $settings;
 
+	/**
+	 * Load merchant settings, defaulting to the saved gateway options.
+	 *
+	 * @param array $settings Optional settings override, mainly for tests.
+	 */
 	public function __construct( array $settings = null ) {
 		if ( null === $settings ) {
 			$settings = get_option( 'woocommerce_' . Brand::id() . '_settings', array() );
@@ -44,6 +56,9 @@ class Level3_Mapper {
 		$this->settings = $settings;
 	}
 
+	/**
+	 * Whether Level 2/3 data submission is enabled in settings.
+	 */
 	public function enabled() {
 		return isset( $this->settings['enable_level3'] ) && 'yes' === $this->settings['enable_level3'];
 	}
@@ -61,7 +76,7 @@ class Level3_Mapper {
 
 		$payload = array();
 
-		// ------- Merchant-level fields -------
+		// ------- Merchant-level fields -------.
 		$merchant_name_override   = trim( (string) ( $this->settings['merchant_name_override'] ?? '' ) );
 		$merchant_tin             = trim( (string) ( $this->settings['merchant_tin'] ?? '' ) );
 		$merchant_state_override  = trim( (string) ( $this->settings['merchant_state'] ?? '' ) );
@@ -86,7 +101,7 @@ class Level3_Mapper {
 			$payload['ship_from_postal'] = self::ascii( $ship_from_postal );
 		}
 
-		// ------- Order-level fields -------
+		// ------- Order-level fields -------.
 		$tax_total = (float) $order->get_total_tax();
 		if ( $tax_total > 0 ) {
 			$payload['tax'] = number_format( $tax_total, 2, '.', '' );
@@ -110,8 +125,8 @@ class Level3_Mapper {
 		}
 
 		// Destination
-		$ship_country = $order->get_shipping_country() ?: $order->get_billing_country();
-		$ship_zip     = $order->get_shipping_postcode() ?: $order->get_billing_postcode();
+			$ship_country = ( '' !== $order->get_shipping_country() ) ? $order->get_shipping_country() : $order->get_billing_country();
+			$ship_zip     = ( '' !== $order->get_shipping_postcode() ) ? $order->get_shipping_postcode() : $order->get_billing_postcode();
 		if ( ! empty( $ship_country ) ) {
 			$payload['shipping_country'] = self::ascii( $ship_country );
 		}
@@ -137,9 +152,9 @@ class Level3_Mapper {
 			$payload['discount_amount'] = number_format( $discount_total, 2, '.', '' );
 		}
 
-		// ------- Item-level fields -------
+		// ------- Item-level fields -------.
 		$default_uom        = trim( (string) ( $this->settings['default_uom'] ?? 'EA' ) );
-		$commodity_source   = (string) ( $this->settings['commodity_source'] ?? 'category' ); // category | meta | none
+		$commodity_source   = (string) ( $this->settings['commodity_source'] ?? 'category' ); // category | meta | none.
 		$upc_meta_key       = trim( (string) ( $this->settings['upc_meta_key'] ?? '_cardz3n_upc' ) );
 		$commodity_meta_key = trim( (string) ( $this->settings['commodity_meta_key'] ?? '_cardz3n_commodity_code' ) );
 
@@ -237,10 +252,15 @@ class Level3_Mapper {
 		return (array) apply_filters( 'cardz3n_gw_level3_payload', $payload, $order );
 	}
 
-	/**
-	 * Strip anything outside printable ASCII to avoid Visa/MC L3 rejection on special chars.
-	 */
-	public static function ascii( $v ) {
+	
+		/**
+		 * Strip anything outside printable ASCII to avoid Visa/MC L3 rejection on special chars.
+		 *
+		 * @param string $v Value to sanitize.
+		 *
+		 * @return string
+		 */
+		public static function ascii( $v ) {
 		$v = (string) $v;
 		$v = preg_replace( '/[^\x20-\x7E]/', '', $v );
 		return trim( $v );
