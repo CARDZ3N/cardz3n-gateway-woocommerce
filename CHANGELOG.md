@@ -3,6 +3,16 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.30] - 2026-08-31
+### Changed
+- Merged the 1.0.29 release line forward from `main` into `develop`, so the native Apple Pay / Google Pay wallet restoration and the `esc_url()` output-escaping fix ship from the mainline branch. No behavioral change relative to 1.0.29 -- this is the forward-merge that puts `develop` ahead of `main` again.
+- **Completed the WPCS / coding-standards cleanup that 1.0.29 flagged as open follow-up work.** `phpcs` now reports **0 errors** repo-wide against the project ruleset. The missing doc-comments and the remaining non-auto-fixable items called out in the 1.0.29 notes are resolved across the plugin bootstrap, every service class, and the traits. Only two warnings remain, both deliberately deferred as behavior changes rather than cleanup: `current_time( 'timestamp' )` in the activation hook, and the missing version argument on `wp_enqueue_script()`.
+### Fixed
+- **`Api_Client::$sandbox` was missing its property declaration**, lost to an earlier hand-edit that left the doc-comment orphaned above the constructor. The constructor assigns `$this->sandbox` and five call sites read it, so the class was relying on a dynamic property -- deprecated as of PHP 8.2, and surfacing as a deprecation notice on the 8.2 and 8.3 CI legs.
+- `Logger::error()` and the `Order_Service` class had both lost their doc-comments to the same class of hand-edit: `Logger::error()`'s had drifted below the function it documents and stacked onto `write()`'s, and `Order_Service`'s had been moved inside the class body.
+- Repaired 12 section-banner comments across three files whose opening rule line had lost its leading ` * `, plus a block of ship-to assignments in `Level3_Mapper` indented one level too deep with no enclosing block. Verified that every non-comment hunk in the cleanup was whitespace or alignment only -- no logic, values, or control flow changed.
+- CI: the `phpcs --report=checkstyle | cs2pr` step could never parse its own input, failing every matrix leg regardless of findings. The ruleset emitted a deprecation notice (comma-separated `text_domain` property) and an ANSI-coloured progress line ahead of the XML declaration. `text_domain` now uses `<element>` node syntax and the CI invocation passes `-q --no-colors`.
+
 ## [1.0.29] - 2026-08-30
 ### Fixed
 - **Native Apple Pay / Google Pay wallet buttons restored** (suspended since 1.0.20). Root cause found via NMI's Collect.js documentation (docs.nmi.com/docs/digital-wallet-setup and /docs/advanced-integrations): the old `fields.applePay` config mixed in Google-Pay-only keys (`emailRequired`, `buttonColor`) and an incorrectly-shaped `style` object. Collect.js validates each wallet's config against its own attribute set and throws on any unrecognized key -- which is also why card and ACH iframes went dead alongside the wallets, since a single `configure()` throw is fatal to the whole form.

@@ -3,7 +3,7 @@
  * Plugin Name: CARDZ3N Gateway for WooCommerce
  * Plugin URI: https://cardz3n.com/woocommerce
  * Description: Embedded on-site checkout for WooCommerce powered by the CARDZ3N/NMI payment gateway. Cards, ACH, Apple Pay, Google Pay, saved methods, subscriptions, refunds, captures, voids, and automatic Level 2/3 commercial-card data in a single gateway UI.
- * Version: 1.0.29
+ * Version: 1.0.30
  * Requires at least: 6.4
  * Requires PHP: 7.4
  * Requires Plugins: woocommerce
@@ -23,11 +23,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /*
------------------------------------------------------------------------------
+ * --------------------------------------------------------------------------
  * Plugin constants
- * -------------------------------------------------------------------------- */
-
-define( 'CARDZ3N_GW_VERSION', '1.0.29' );
+ * --------------------------------------------------------------------------
+ */
+define( 'CARDZ3N_GW_VERSION', '1.0.30' );
 define( 'CARDZ3N_GW_FILE', __FILE__ );
 define( 'CARDZ3N_GW_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CARDZ3N_GW_URL', plugin_dir_url( __FILE__ ) );
@@ -49,16 +49,17 @@ if ( ! defined( 'CARDZ3N_GW_BRAND' ) ) {
 }
 
 /*
------------------------------------------------------------------------------
+ * --------------------------------------------------------------------------
  * HPOS compatibility declaration (WooCommerce 8+)
- * -------------------------------------------------------------------------- */
-
+ * --------------------------------------------------------------------------
+ */
 add_action(
 	'before_woocommerce_init',
 	function () {
 		if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class ) ) {
 			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', CARDZ3N_GW_FILE, true );
-			/*
+
+						/*
 			 * We render inside the Cart/Checkout Blocks via the classic-shortcode
 			 * compatibility layer (payment_fields()/process_payment()). Declaring
 			 * false tells WooCommerce Blocks: 'do not expect a PaymentMethodType
@@ -73,15 +74,18 @@ add_action(
 );
 
 /*
------------------------------------------------------------------------------
+ * --------------------------------------------------------------------------
  * Bootstrapping
- * -------------------------------------------------------------------------- */
-
+ * --------------------------------------------------------------------------
+ */
 /**
  * Fail gracefully if WooCommerce is inactive.
  */
 add_action( 'plugins_loaded', 'cardz3n_gw_bootstrap', 11 );
 
+/**
+ * Bootstrap the plugin once WooCommerce is confirmed active.
+ */
 function cardz3n_gw_bootstrap() {
 	if ( ! class_exists( 'WooCommerce' ) ) {
 		add_action(
@@ -177,19 +181,25 @@ function cardz3n_gw_action_links( $links ) {
 }
 
 /*
------------------------------------------------------------------------------
+ * --------------------------------------------------------------------------
  * Activation / deactivation
- * -------------------------------------------------------------------------- */
-
+ * --------------------------------------------------------------------------
+ */
 register_activation_hook( __FILE__, 'cardz3n_gw_activate' );
 register_deactivation_hook( __FILE__, 'cardz3n_gw_deactivate' );
 
+/**
+ * Plugin activation: migrate settings and record version/activation time.
+ */
 function cardz3n_gw_activate() {
 	cardz3n_gw_maybe_migrate_settings();
 	update_option( 'cardz3n_gw_version', CARDZ3N_GW_VERSION );
 	update_option( 'cardz3n_gw_activated_at', current_time( 'timestamp' ) );
 }
 
+/**
+ * Plugin deactivation. No destructive cleanup is performed.
+ */
 function cardz3n_gw_deactivate() {
 	// Intentionally no destructive cleanup. Merchant data remains in case of reactivation.
 }
@@ -283,7 +293,7 @@ function cardz3n_gw_maybe_migrate_settings() {
 add_action( 'plugins_loaded', 'cardz3n_gw_maybe_migrate_settings', 9 );
 
 /*
------------------------------------------------------------------------------
+ * --------------------------------------------------------------------------
  * 1.0.20: Version-mismatch admin notice.
  *
  * Catches the stale-install situation where the .php / .js / .css on disk
@@ -293,9 +303,12 @@ add_action( 'plugins_loaded', 'cardz3n_gw_maybe_migrate_settings', 9 );
  * surface this on the Plugins list and on the WooCommerce → Payments screen
  * so a merchant can see at a glance which build is actually running and that
  * they need to deactivate + reactivate the plugin to finish the upgrade.
- * -------------------------------------------------------------------------- */
-
+ * --------------------------------------------------------------------------
+ */
 add_action( 'admin_notices', 'cardz3n_gw_version_mismatch_notice' );
+/**
+ * Show an admin notice when the version on disk doesn't match the stored version.
+ */
 function cardz3n_gw_version_mismatch_notice() {
 	if ( ! current_user_can( 'manage_woocommerce' ) && ! current_user_can( 'activate_plugins' ) ) {
 		return;
@@ -346,9 +359,13 @@ function cardz3n_gw_version_mismatch_notice() {
  * manual deactivate/reactivate cycle needed for WP.org updates.
  */
 add_action( 'admin_init', 'cardz3n_gw_sync_stored_version' );
+
+/**
+ * Keep the stored plugin version in sync with the running version.
+ */
 function cardz3n_gw_sync_stored_version() {
 	$stored = (string) get_option( 'cardz3n_gw_version', '' );
-	if ( $stored !== CARDZ3N_GW_VERSION ) {
+	if ( CARDZ3N_GW_VERSION !== $stored ) {
 		update_option( 'cardz3n_gw_version', CARDZ3N_GW_VERSION );
 	}
 }

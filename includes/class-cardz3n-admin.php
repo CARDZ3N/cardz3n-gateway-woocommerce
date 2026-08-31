@@ -10,9 +10,21 @@ namespace Cardz3n_Gateway;
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * Admin-only hooks and screens for the CARDZ3N gateway.
+ */
 class Admin {
 
+	/**
+	 * Singleton instance.
+	 *
+	 * @var Admin|null
+	 */
 	private static $instance = null;
+
+	/**
+	 * Get the singleton instance.
+	 */
 	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -20,6 +32,9 @@ class Admin {
 		return self::$instance;
 	}
 
+	/**
+	 * Register admin-side hooks.
+	 */
 	private function __construct() {
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
 		add_action( 'woocommerce_order_item_add_action_buttons', array( $this, 'render_capture_button' ) );
@@ -154,6 +169,11 @@ class Admin {
 		);
 	}
 
+	/**
+	 * Enqueue admin JS/CSS on the settings and order-edit screens.
+	 *
+	 * @param string $hook Current admin page hook suffix.
+	 */
 	public function enqueue_admin_assets( $hook ) {
 		$is_settings = ( 'woocommerce_page_wc-settings' === $hook );
 		$is_order    = ( 'post.php' === $hook || 'woocommerce_page_wc-orders' === $hook );
@@ -186,6 +206,11 @@ class Admin {
 		);
 	}
 
+	/**
+	 * Render a capture button on the order-edit screen when eligible.
+	 *
+	 * @param \WC_Order $order Order being viewed/edited.
+	 */
 	public function render_capture_button( $order ) {
 		if ( ! $order instanceof \WC_Order ) {
 			return;
@@ -206,6 +231,9 @@ class Admin {
 		);
 	}
 
+	/**
+	 * AJAX: Capture the authorized amount for an order.
+	 */
 	public function ajax_capture_order() {
 		check_ajax_referer( 'cardz3n_gw_nonce', 'nonce' );
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {

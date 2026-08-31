@@ -13,15 +13,18 @@ namespace Cardz3n_Gateway;
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * Persists and reads WooCommerce payment-token metadata.
+ */
 class Token_Service {
 
 	/**
 	 * Persist a credit-card token from a successful vault-creating transaction.
 	 *
-	 * @param int    $user_id
-	 * @param string $gateway_id     'cardz3n_gateway' or 'aerospacepay_gateway'
-	 * @param string $vault_id       NMI customer_vault_id
-	 * @param array  $card_info      ['last4','brand','exp_month','exp_year']
+	 * @param int    $user_id    WooCommerce user ID.
+	 * @param string $gateway_id 'cardz3n_gateway' or 'aerospacepay_gateway'.
+	 * @param string $vault_id   NMI customer_vault_id.
+	 * @param array  $card_info  ['last4','brand','exp_month','exp_year'].
 	 * @return int|false             Token ID
 	 */
 	public static function save_card_token( $user_id, $gateway_id, $vault_id, array $card_info ) {
@@ -46,6 +49,11 @@ class Token_Service {
 
 	/**
 	 * Persist an ACH token. Uses WC_Payment_Token_ECheck.
+	 *
+	 * @param int    $user_id    WooCommerce user ID.
+	 * @param string $gateway_id 'cardz3n_gateway' or 'aerospacepay_gateway'.
+	 * @param string $vault_id   NMI customer_vault_id.
+	 * @param array  $ach_info   Bank account metadata.
 	 */
 	public static function save_ach_token( $user_id, $gateway_id, $vault_id, array $ach_info ) {
 		if ( ! $user_id || empty( $vault_id ) ) {
@@ -69,6 +77,9 @@ class Token_Service {
 	 * Delete the remote vault entry when a user deletes a token locally.
 	 *
 	 * Hooked via woocommerce_payment_token_deleted.
+	 *
+	 * @param int               $token_id Deleted token's post ID.
+	 * @param \WC_Payment_Token $token    The token instance being deleted.
 	 */
 	public static function on_token_deleted( $token_id, $token ) {
 		if ( ! $token instanceof \WC_Payment_Token ) {

@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Normalize an NMI "ccexp" in MMYY or MM/YY form into 2-digit month + 4-digit year.
  *
- * @param string $ccexp
+ * @param string $ccexp Raw expiry string as returned by Collect.js.
  * @return array{month:string,year:string}
  */
 function parse_ccexp( $ccexp ) {
@@ -35,6 +35,9 @@ function parse_ccexp( $ccexp ) {
 
 /**
  * Map an NMI "cc_type" / "card_type" string into a Woo-friendly brand slug.
+ *
+ * @param string $input Raw brand/card-type string from NMI.
+ * @return string
  */
 function brand_slug( $input ) {
 	$v   = strtolower( trim( (string) $input ) );
@@ -60,6 +63,10 @@ function brand_slug( $input ) {
 
 /**
  * Compose the descriptor for a given order based on merchant rules.
+ *
+ * @param \WC_Order $order   The order being charged.
+ * @param array     $settings Gateway settings array.
+ * @return string
  */
 function descriptor_for_order( \WC_Order $order, array $settings ) {
 	$base = trim( (string) ( $settings['descriptor'] ?? '' ) );

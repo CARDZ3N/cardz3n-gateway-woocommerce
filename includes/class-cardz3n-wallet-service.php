@@ -13,12 +13,17 @@ namespace Cardz3n_Gateway;
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * Apple Pay / Google Pay wallet-token helpers.
+ */
 class Wallet_Service {
-
 	/**
 	 * Wallet source inferred from the browser-reported token type field.
 	 *
 	 * Collect.js returns response.tokenType like: 'applePay', 'googlePay', 'creditcard', 'check'.
+	 *
+	 * @param string $token_type Collect.js-reported token type.
+	 * @return string One of apple_pay, google_pay, ach, card.
 	 */
 	public static function normalize_source( $token_type ) {
 		$type = strtolower( (string) $token_type );
@@ -42,7 +47,11 @@ class Wallet_Service {
 		return isset( $s['enable_apple_pay'] ) && 'yes' === $s['enable_apple_pay'];
 	}
 
+	/**
+	 * Whether Google Pay is enabled in settings.
+	 */
 	public static function google_enabled() {
+
 		$s = get_option( 'woocommerce_' . Brand::id() . '_settings', array() );
 		return isset( $s['enable_google_pay'] ) && 'yes' === $s['enable_google_pay'];
 	}

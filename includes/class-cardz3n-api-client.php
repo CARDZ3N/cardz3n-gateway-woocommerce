@@ -20,8 +20,10 @@ namespace Cardz3n_Gateway;
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * Server-to-server client for the NMI / CARDZ3N transaction API.
+ */
 class Api_Client {
-
 	/*
 	 * CARDZ3N is a white-labeled NMI instance. All server-to-server traffic
 	 * and the browser-side Collect.js script must be served from the CARDZ3N
@@ -42,17 +44,31 @@ class Api_Client {
 	const QUERY_URL        = 'https://z3n.transactiongateway.com/api/query.php';
 	const THREE_STEP_URL   = 'https://z3n.transactiongateway.com/api/v2/three-step';
 
-	/** @var array */
+	/**
+	 * Merchant plugin settings.
+	 *
+	 * @var array
+	 */
 	private $settings;
 
-	/** @var bool */
+	/**
+	 * Whether the client is in sandbox mode.
+	 *
+	 * @var bool
+	 */
 	private $sandbox;
 
+	/**
+	 * Load merchant settings and determine sandbox mode.
+	 *
+	 * @param array $settings Optional settings override, mainly for tests.
+	 */
 	public function __construct( array $settings = null ) {
 		if ( null === $settings ) {
 			$settings = get_option( 'woocommerce_' . Brand::id() . '_settings', array() );
 		}
 		$this->settings = $settings;
+
 		/*
 		 * 1.0.15 renamed 'sandbox_mode' to 'test_mode'. Both are read so the
 		 * gateway keeps working if the migration hasn't run yet.
@@ -62,7 +78,7 @@ class Api_Client {
 	}
 
 	/*
-	---------------------------------------------------------------------
+	 * ---------------------------------------------------------------------
 	 * Credentials
 	 *
 	 * 1.0.19 restored the four-field key UI: Test Mode and Live Mode use
@@ -92,8 +108,15 @@ class Api_Client {
 	 *   2. sandbox_*                           (pre-1.0.15 legacy, test only)
 	 *   3. security_key / tokenization_key     (1.0.15-1.0.18 unified UI)
 	 *   4. Opposite-mode tier                  (last-resort mismatch surfacing)
-	 * ------------------------------------------------------------------ */
+	 * ------------------------------------------------------------------
+	 */
 
+	/**
+	 * Read a single merchant setting as a trimmed string.
+	 *
+	 * @param string $name Setting key.
+	 * @return string Trimmed value, or an empty string when the key is unset.
+	 */
 	private function setting( $name ) {
 		return isset( $this->settings[ $name ] ) ? trim( (string) $this->settings[ $name ] ) : '';
 	}
@@ -181,10 +204,16 @@ class Api_Client {
 		return $pair['tier'];
 	}
 
+	/**
+	 * Whether this client instance is in sandbox mode.
+	 */
 	public function is_sandbox() {
 		return $this->sandbox;
 	}
 
+	/**
+	 * Get the Transaction API endpoint URL for the active mode.
+	 */
 	public function endpoint() {
 		$url = $this->sandbox ? self::ENDPOINT_SANDBOX : self::ENDPOINT_LIVE;
 		/**
@@ -219,20 +248,22 @@ class Api_Client {
 	public static function three_step_url() {
 		return (string) apply_filters( 'cardz3n_gw_three_step_url', self::THREE_STEP_URL );
 	}
-
+	/**
+	 * Whether both a security key and tokenization key are configured.
+	 */
 	public function has_credentials() {
 		return '' !== $this->security_key() && '' !== $this->tokenization_key();
 	}
 
 	/*
-	---------------------------------------------------------------------
+	 * ------------------------------------------------------------------
 	 * Request plumbing
-	 * ------------------------------------------------------------------ */
-
+	 * ------------------------------------------------------------------
+	 */
 	/**
 	 * Low-level POST. Merges security_key in and returns a parsed response array.
 	 *
-	 * @param array $payload
+	 * @param array $payload Transaction payload merged with the security key.
 	 * @return array{success:bool,code:string,text:string,transaction_id:string,auth_code:string,avs:string,cvv:string,customer_vault_id:string,raw:array,error:string}
 	 */
 	public function post( array $payload ) {
@@ -284,7 +315,7 @@ class Api_Client {
 	 *   avsresponse, cvvresponse = AVS / CVV result codes
 	 *   customer_vault_id = returned when customer_vault operations create/return a vault
 	 *
-	 * @param string $body
+	 * @param string $body Raw x-www-form-urlencoded response body.
 	 * @return array
 	 */
 	public function parse_response( $body ) {
@@ -307,6 +338,12 @@ class Api_Client {
 		);
 	}
 
+	/**
+	 * Build a normalized error response array.
+	 *
+	 * @param string $msg Human-readable error message.
+	 * @return array
+	 */
 	private function error_result( $msg ) {
 		return array(
 			'success'           => false,
@@ -323,9 +360,10 @@ class Api_Client {
 	}
 
 	/*
-	---------------------------------------------------------------------
+	 * ------------------------------------------------------------------
 	 * Transaction verbs
-	 * ------------------------------------------------------------------ */
+	 * ------------------------------------------------------------------
+	 */
 
 	/**
 	 * Run a sale or auth using any of: payment_token, customer_vault_id, raw card/check.
@@ -335,20 +373,20 @@ class Api_Client {
 	 */
 	public function transaction( array $args ) {
 		$defaults = array(
-			'type'              => 'sale', // sale | auth | capture | void | refund | credit | validate
+			'type'              => 'sale', // sale | auth | capture | void | refund | credit | validate.
 			'amount'            => null,
 			'order_id'          => null,
-			'payment_token'     => null,   // Collect.js token
-			'customer_vault_id' => null,   // Reuse a stored vault
-			'payment'           => 'creditcard', // creditcard | check
+			'payment_token'     => null,   // Collect.js token.
+			'customer_vault_id' => null,   // Reuse a stored vault.
+			'payment'           => 'creditcard', // creditcard | check.
 			'currency'          => 'USD',
 			'descriptor'        => '',
-			'billing'           => array(), // first_name,last_name,address1,city,state,zip,country,email,phone,company
+			'billing'           => array(), // Accepts first name, last name, address1, city, state, zip, country, email, phone and company.
 			'shipping'          => array(),
 			'order_description' => '',
-			'level3'            => array(), // merged as-is
-			'vault'             => '',      // add_customer | update_customer
-			'transactionid'     => '',      // for void/refund/capture
+			'level3'            => array(), // merged as-is.
+			'vault'             => '',      // add_customer | update_customer.
+			'transactionid'     => '',      // for void/refund/capture.
 			'currency_code'     => null,
 			'extra'             => array(),
 		);
@@ -480,6 +518,9 @@ class Api_Client {
 
 	/**
 	 * Convenience wrappers.
+	 *
+	 * @param string     $transaction_id Original transaction ID to capture.
+	 * @param float|null $amount Amount to capture, or null for the full authorized amount.
 	 */
 	public function capture( $transaction_id, $amount = null ) {
 		$args = array(
@@ -492,6 +533,11 @@ class Api_Client {
 		return $this->transaction( $args );
 	}
 
+	/**
+	 * Void an authorized-but-not-yet-settled transaction.
+	 *
+	 * @param string $transaction_id Transaction ID to void.
+	 */
 	public function void( $transaction_id ) {
 		return $this->transaction(
 			array(
@@ -501,6 +547,12 @@ class Api_Client {
 		);
 	}
 
+	/**
+	 * Refund a settled transaction, fully or partially.
+	 *
+	 * @param string     $transaction_id Transaction ID to refund.
+	 * @param float|null $amount Amount to refund, or null for the full amount.
+	 */
 	public function refund( $transaction_id, $amount = null ) {
 		$args = array(
 			'type'          => 'refund',
@@ -514,6 +566,8 @@ class Api_Client {
 
 	/**
 	 * Delete a Customer Vault entry.
+	 *
+	 * @param string $vault_id Customer vault ID to delete.
 	 */
 	public function delete_vault( $vault_id ) {
 		return $this->post(
