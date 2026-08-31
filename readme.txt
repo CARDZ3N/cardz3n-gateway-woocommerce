@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.28
+Stable tag: 1.0.29
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,11 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.29 =
+* Fix (critical): Native Apple Pay / Google Pay wallet buttons restored. Root cause found via NMI's Collect.js documentation: the applePay config previously mixed in Google-Pay-only keys (emailRequired, buttonColor) and an incorrectly-shaped style object. Collect.js validates each wallet's config against its own attribute set and throws on any unrecognized key -- which is also why card and ACH fields went dead alongside the wallets on 1.0.20-1.0.28. Each wallet now gets only its own minimal, documented attributes and is feature-detected (ApplePaySession.canMakePayments / google.payments.api) before being added to the Collect.js config, so an ineligible device or browser never receives it.
+* Fix: Escaped $plugins_url at the point of output in the version-mismatch admin notice (was already escaped at assignment via esc_url(), but WPCS flags escaping at the output site, not assignment).
+* Docs / chore: Repo-wide WPCS/coding-standards cleanup (array alignment, comment formatting, doc-block additions) and CI pipeline fixes (Composer allow-plugins, corrected security-heuristics regex). No behavior changes for merchants.
 
 = 1.0.28 =
 * Fix (critical): Card sales rejected with `"Custom descriptors are not allowed for this processor"` (response_code=300) on NMI processors that don't permit merchant-supplied descriptors. Confirmed against live transact.php responses by NMI Integration Support. Because Collect.js `payment_token` values are single-use, that first rejection burns the token — every buyer retry then cascades into `"Payment Token does not exist"`, which is the error that's been surfacing on CARDZ3N installs in logs and transaction history.
@@ -300,6 +305,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * HPOS compatibility declared.
 
 == Upgrade Notice ==
+
+= 1.0.29 =
+Recommended upgrade. Restores native Apple Pay and Google Pay wallet buttons (removed since 1.0.20). Also fixes an admin-notice output-escaping finding and includes a repo-wide coding-standards cleanup -- no settings or database changes.
 
 = 1.0.19 =
 Recommended upgrade. Fixes the empty Saved tab, restores ACH input (for real this time), restores the separate Test and Live credential pairs that CARDZ3N actually issues, and blanks the Dynamic Descriptor default. Settings migrate automatically — no re-entry required.
