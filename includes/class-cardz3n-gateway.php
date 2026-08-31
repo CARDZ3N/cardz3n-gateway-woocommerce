@@ -21,12 +21,18 @@ use Cardz3n_Gateway\Order_Service;
 use Cardz3n_Gateway\Token_Service;
 use Cardz3n_Gateway\Wallet_Service;
 use Cardz3n_Gateway\ACH_Service;
+/**
+ * WooCommerce payment gateway for CARDZ3N.
+  */
 
 class Gateway extends \WC_Payment_Gateway_CC {
 
 	use Refunds_Trait;
 	use Settings_Trait;
 	use Compatibility_Trait;
+	/**
+	 * Configure the gateway's identity, settings fields, and hooks.
+	 */
 
 	public function __construct() {
 		$brand                    = Brand::profile();
