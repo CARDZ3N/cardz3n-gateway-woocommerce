@@ -15,7 +15,7 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Persists and reads WooCommerce payment-token metadata.
-  */
+ */
 class Token_Service {
 
 	/**
@@ -49,7 +49,7 @@ class Token_Service {
 
 	/**
 	 * Persist an ACH token. Uses WC_Payment_Token_ECheck.
-	  *
+	 *
 	 * @param int    $user_id    WooCommerce user ID.
 	 * @param string $gateway_id 'cardz3n_gateway' or 'aerospacepay_gateway'.
 	 * @param string $vault_id   NMI customer_vault_id.
@@ -77,10 +77,10 @@ class Token_Service {
 	 * Delete the remote vault entry when a user deletes a token locally.
 	 *
 	 * Hooked via woocommerce_payment_token_deleted.
-	  	 *
-	 * @param int              $token_id Deleted token's post ID.
+	 *
+	 * @param int               $token_id Deleted token's post ID.
 	 * @param \WC_Payment_Token $token    The token instance being deleted.
-	 	 */
+	 */
 	public static function on_token_deleted( $token_id, $token ) {
 		if ( ! $token instanceof \WC_Payment_Token ) {
 			return;

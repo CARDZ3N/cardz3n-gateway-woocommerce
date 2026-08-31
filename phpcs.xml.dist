@@ -22,6 +22,15 @@
 		</properties>
 	</rule>
 
+	<!-- manage_woocommerce is a real WooCommerce capability; the sniff only knows core WP caps. -->
+	<rule ref="WordPress.WP.Capabilities">
+		<properties>
+			<property name="custom_capabilities" type="array">
+				<element value="manage_woocommerce"/>
+			</property>
+		</properties>
+	</rule>
+
 	<config name="minimum_supported_wp_version" value="6.4"/>
 	<config name="testVersion" value="7.4-"/>
 

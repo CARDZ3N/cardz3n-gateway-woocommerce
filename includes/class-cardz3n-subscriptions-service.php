@@ -18,7 +18,7 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Handles the WooCommerce Subscriptions integration.
-  */
+ */
 class Subscriptions_Service {
 
 	/**
@@ -100,7 +100,7 @@ class Subscriptions_Service {
 				'amount'            => $amount,
 				'order_id'          => $renewal_order->get_id(),
 				'customer_vault_id' => $vault_id,
-				'payment'          => 'creditcard', // vault knows the real type.
+				'payment'           => 'creditcard', // vault knows the real type.
 				'order_description' => 'WC Subscription renewal #' . $renewal_order->get_id(),
 				'level3'            => $level3,
 				'billing'           => array(

@@ -14,14 +14,13 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Handles the WooCommerce Pre-Orders integration.
-  */
+ */
 class Preorders_Service {
 	/**
 	 * Singleton instance.
 	 *
 	 * @var Preorders_Service|null
 	 */
-
 	private static $instance = null;
 
 	/**
@@ -46,7 +45,7 @@ class Preorders_Service {
 
 	/**
 	 * Charge the pre-order when fulfillment is triggered.
-	  *
+	 *
 	 * @param \WC_Order $order The order being released for payment.
 	 */
 	public function process_release( $order ) {

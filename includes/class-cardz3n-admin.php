@@ -10,6 +10,9 @@ namespace Cardz3n_Gateway;
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * Admin-only hooks and screens for the CARDZ3N gateway.
+ */
 class Admin {
 
 	/**
@@ -18,6 +21,7 @@ class Admin {
 	 * @var Admin|null
 	 */
 	private static $instance = null;
+
 	/**
 	 * Get the singleton instance.
 	 */

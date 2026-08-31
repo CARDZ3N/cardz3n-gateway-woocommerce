@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Wraps the WooCommerce logger for gateway-specific logging.
-  */
+ */
 class Logger {
 
 	const SOURCE = 'cardz3n-gateway';
@@ -68,16 +68,16 @@ class Logger {
 		self::write( 'warning', $message, $context );
 	}
 
-	public static function error( $message, array $context = array() ) {
-		self::write( 'error', $message, $context );
-	}
-
 	/**
 	 * Write an error-level entry.
 	 *
 	 * @param string $message Log message.
 	 * @param array  $context Additional context data.
 	 */
+	public static function error( $message, array $context = array() ) {
+		self::write( 'error', $message, $context );
+	}
+
 	/**
 	 * Write the actual log entry via the WooCommerce logger.
 	 *
@@ -111,8 +111,8 @@ class Logger {
 	/**
 	 * Redact any keys that look like sensitive payment data.
 	 *
-	 * @param array $context
-	 * @return array
+	 * @param array $context Context data to filter.
+	 * @return array Context with sensitive values redacted.
 	 */
 	public static function redact( array $context ) {
 		$sensitive = array(

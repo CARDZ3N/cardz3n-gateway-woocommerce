@@ -34,7 +34,7 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Maps a WooCommerce order into NMI Level 2/3 field data.
-  */
+ */
 class Level3_Mapper {
 
 	/**
@@ -66,8 +66,8 @@ class Level3_Mapper {
 	/**
 	 * Build the Level 2/3 payload for a given order.
 	 *
-	 * @param \WC_Order $order
-	 * @return array
+	 * @param \WC_Order $order Order to build the payload from.
+	 * @return array Level 2/3 payload fields, or an empty array when disabled.
 	 */
 	public function build( \WC_Order $order ) {
 		if ( ! $this->enabled() ) {
@@ -92,7 +92,7 @@ class Level3_Mapper {
 			$payload['merchant_defined_field_3'] = self::ascii( $merchant_state_override );
 		}
 
-		// Ship-from postal
+		// Ship-from postal.
 		$ship_from_postal = $merchant_postal_override;
 		if ( '' === $ship_from_postal ) {
 			$ship_from_postal = (string) ( WC()->countries ? WC()->countries->get_base_postcode() : '' );
@@ -124,9 +124,9 @@ class Level3_Mapper {
 			$payload['ponumber'] = self::ascii( $po );
 		}
 
-		// Destination
-			$ship_country = ( '' !== $order->get_shipping_country() ) ? $order->get_shipping_country() : $order->get_billing_country();
-			$ship_zip     = ( '' !== $order->get_shipping_postcode() ) ? $order->get_shipping_postcode() : $order->get_billing_postcode();
+		// Destination.
+		$ship_country = ( '' !== $order->get_shipping_country() ) ? $order->get_shipping_country() : $order->get_billing_country();
+		$ship_zip     = ( '' !== $order->get_shipping_postcode() ) ? $order->get_shipping_postcode() : $order->get_billing_postcode();
 		if ( ! empty( $ship_country ) ) {
 			$payload['shipping_country'] = self::ascii( $ship_country );
 		}
@@ -252,7 +252,7 @@ class Level3_Mapper {
 		return (array) apply_filters( 'cardz3n_gw_level3_payload', $payload, $order );
 	}
 
-	
+
 		/**
 		 * Strip anything outside printable ASCII to avoid Visa/MC L3 rejection on special chars.
 		 *
@@ -260,7 +260,7 @@ class Level3_Mapper {
 		 *
 		 * @return string
 		 */
-		public static function ascii( $v ) {
+	public static function ascii( $v ) {
 		$v = (string) $v;
 		$v = preg_replace( '/[^\x20-\x7E]/', '', $v );
 		return trim( $v );

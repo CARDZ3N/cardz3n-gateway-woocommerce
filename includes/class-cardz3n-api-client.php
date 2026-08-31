@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Server-to-server client for the NMI / CARDZ3N transaction API.
-  */
+ */
 class Api_Client {
 	/*
 	 * CARDZ3N is a white-labeled NMI instance. All server-to-server traffic
@@ -56,18 +56,19 @@ class Api_Client {
 	 *
 	 * @var bool
 	 */
+	private $sandbox;
+
 	/**
 	 * Load merchant settings and determine sandbox mode.
 	 *
 	 * @param array $settings Optional settings override, mainly for tests.
 	 */
-
 	public function __construct( array $settings = null ) {
 		if ( null === $settings ) {
 			$settings = get_option( 'woocommerce_' . Brand::id() . '_settings', array() );
 		}
 		$this->settings = $settings;
-		
+
 		/*
 		 * 1.0.15 renamed 'sandbox_mode' to 'test_mode'. Both are read so the
 		 * gateway keeps working if the migration hasn't run yet.
@@ -77,7 +78,7 @@ class Api_Client {
 	}
 
 	/*
-	---------------------------------------------------------------------
+	 * ---------------------------------------------------------------------
 	 * Credentials
 	 *
 	 * 1.0.19 restored the four-field key UI: Test Mode and Live Mode use
@@ -108,7 +109,14 @@ class Api_Client {
 	 *   3. security_key / tokenization_key     (1.0.15-1.0.18 unified UI)
 	 *   4. Opposite-mode tier                  (last-resort mismatch surfacing)
 	 * ------------------------------------------------------------------
-	  */
+	 */
+
+	/**
+	 * Read a single merchant setting as a trimmed string.
+	 *
+	 * @param string $name Setting key.
+	 * @return string Trimmed value, or an empty string when the key is unset.
+	 */
 	private function setting( $name ) {
 		return isset( $this->settings[ $name ] ) ? trim( (string) $this->settings[ $name ] ) : '';
 	}
@@ -195,11 +203,10 @@ class Api_Client {
 		$pair = $this->resolve_key_pair();
 		return $pair['tier'];
 	}
-	
+
 	/**
 	 * Whether this client instance is in sandbox mode.
 	 */
-
 	public function is_sandbox() {
 		return $this->sandbox;
 	}
@@ -244,16 +251,15 @@ class Api_Client {
 	/**
 	 * Whether both a security key and tokenization key are configured.
 	 */
-
 	public function has_credentials() {
 		return '' !== $this->security_key() && '' !== $this->tokenization_key();
 	}
 
 	/*
-	---------------------------------------------------------------------
+	 * ------------------------------------------------------------------
 	 * Request plumbing
 	 * ------------------------------------------------------------------
-	  */
+	 */
 	/**
 	 * Low-level POST. Merges security_key in and returns a parsed response array.
 	 *
@@ -354,9 +360,10 @@ class Api_Client {
 	}
 
 	/*
-	---------------------------------------------------------------------
+	 * ------------------------------------------------------------------
 	 * Transaction verbs
-	 * ------------------------------------------------------------------ */
+	 * ------------------------------------------------------------------
+	 */
 
 	/**
 	 * Run a sale or auth using any of: payment_token, customer_vault_id, raw card/check.
@@ -366,15 +373,15 @@ class Api_Client {
 	 */
 	public function transaction( array $args ) {
 		$defaults = array(
-			'type'              => 'sale', // sale | auth | capture | void | refund | credit | validate
+			'type'              => 'sale', // sale | auth | capture | void | refund | credit | validate.
 			'amount'            => null,
 			'order_id'          => null,
-			'payment_token'     => null,   // Collect.js token
-			'customer_vault_id' => null,   // Reuse a stored vault
-			'payment'           => 'creditcard', // creditcard | check
+			'payment_token'     => null,   // Collect.js token.
+			'customer_vault_id' => null,   // Reuse a stored vault.
+			'payment'           => 'creditcard', // creditcard | check.
 			'currency'          => 'USD',
 			'descriptor'        => '',
-			'billing'           => array(), // first_name,last_name,address1,city,state,zip,country,email,phone,company
+			'billing'           => array(), // Accepts first name, last name, address1, city, state, zip, country, email, phone and company.
 			'shipping'          => array(),
 			'order_description' => '',
 			'level3'            => array(), // merged as-is.
@@ -511,9 +518,9 @@ class Api_Client {
 
 	/**
 	 * Convenience wrappers.
-	  *
-	   * @param string $transaction_id Original transaction ID to capture.
-	    * @param float|null $amount Amount to capture, or null for the full authorized amount.
+	 *
+	 * @param string     $transaction_id Original transaction ID to capture.
+	 * @param float|null $amount Amount to capture, or null for the full authorized amount.
 	 */
 	public function capture( $transaction_id, $amount = null ) {
 		$args = array(
@@ -543,7 +550,7 @@ class Api_Client {
 	/**
 	 * Refund a settled transaction, fully or partially.
 	 *
-	 * @param string $transaction_id Transaction ID to refund.
+	 * @param string     $transaction_id Transaction ID to refund.
 	 * @param float|null $amount Amount to refund, or null for the full amount.
 	 */
 	public function refund( $transaction_id, $amount = null ) {
@@ -559,8 +566,8 @@ class Api_Client {
 
 	/**
 	 * Delete a Customer Vault entry.
-	  *
-	   * @param string $vault_id Customer vault ID to delete.
+	 *
+	 * @param string $vault_id Customer vault ID to delete.
 	 */
 	public function delete_vault( $vault_id ) {
 		return $this->post(
