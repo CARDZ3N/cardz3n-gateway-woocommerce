@@ -20,8 +20,10 @@ namespace Cardz3n_Gateway;
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * Server-to-server client for the NMI / CARDZ3N transaction API.
+  */
 class Api_Client {
-
 	/*
 	 * CARDZ3N is a white-labeled NMI instance. All server-to-server traffic
 	 * and the browser-side Collect.js script must be served from the CARDZ3N
@@ -42,17 +44,30 @@ class Api_Client {
 	const QUERY_URL        = 'https://z3n.transactiongateway.com/api/query.php';
 	const THREE_STEP_URL   = 'https://z3n.transactiongateway.com/api/v2/three-step';
 
-	/** @var array */
+	/**
+	 * Merchant plugin settings.
+	 *
+	 * @var array
+	 */
 	private $settings;
 
-	/** @var bool */
-	private $sandbox;
+	/**
+	 * Whether the client is in sandbox mode.
+	 *
+	 * @var bool
+	 */
+	/**
+	 * Load merchant settings and determine sandbox mode.
+	 *
+	 * @param array $settings Optional settings override, mainly for tests.
+	 */
 
 	public function __construct( array $settings = null ) {
 		if ( null === $settings ) {
 			$settings = get_option( 'woocommerce_' . Brand::id() . '_settings', array() );
 		}
 		$this->settings = $settings;
+		
 		/*
 		 * 1.0.15 renamed 'sandbox_mode' to 'test_mode'. Both are read so the
 		 * gateway keeps working if the migration hasn't run yet.
@@ -92,8 +107,8 @@ class Api_Client {
 	 *   2. sandbox_*                           (pre-1.0.15 legacy, test only)
 	 *   3. security_key / tokenization_key     (1.0.15-1.0.18 unified UI)
 	 *   4. Opposite-mode tier                  (last-resort mismatch surfacing)
-	 * ------------------------------------------------------------------ */
-
+	 * ------------------------------------------------------------------
+	  */
 	private function setting( $name ) {
 		return isset( $this->settings[ $name ] ) ? trim( (string) $this->settings[ $name ] ) : '';
 	}
@@ -180,11 +195,18 @@ class Api_Client {
 		$pair = $this->resolve_key_pair();
 		return $pair['tier'];
 	}
+	
+	/**
+	 * Whether this client instance is in sandbox mode.
+	 */
 
 	public function is_sandbox() {
 		return $this->sandbox;
 	}
 
+	/**
+	 * Get the Transaction API endpoint URL for the active mode.
+	 */
 	public function endpoint() {
 		$url = $this->sandbox ? self::ENDPOINT_SANDBOX : self::ENDPOINT_LIVE;
 		/**
