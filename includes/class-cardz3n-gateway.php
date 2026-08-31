@@ -649,10 +649,12 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	/*
 	------------------------------------------------------------------
 	 * process_payment — the critical server-side flow.
-	 * --------------------------------------------------------------- */
-
+	 * ---------------------------------------------------------------
+	  */
 	/**
-	 * @param int $order_id
+	 * Process a checkout payment: validate input, run the transaction, and update the order.
+	  *
+	 * @param int $order_id Order ID being paid for.
 	 * @return array{result:string,redirect:string}|null
 	 */
 	public function process_payment( $order_id ) {
