@@ -694,15 +694,14 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		// Resolve payment mechanism.
 		$using_saved       = false;
 		$vault_id          = '';
-		$normalized_source = Wallet_Service::normalize_source( $token_type ?: $source );
+		$normalized_source = Wallet_Service::normalize_source( ( '' !== $token_type ) ? $token_type : $source );
 
 		if ( ! empty( $payment_token_id ) && 'new' !== $payment_token_id ) {
 			$token = \WC_Payment_Tokens::get( (int) $payment_token_id );
 			if ( ! $token || $token->get_user_id() !== get_current_user_id() || $token->get_gateway_id() !== $this->id ) {
 				wc_add_notice( __( 'Invalid saved payment method.', 'cardz3n-gateway' ), 'error' );
-				return null;
 			}
-			$vault_id          = (string) $token->get_meta( 'cardz3n_vault_id' ) ?: $token->get_token();
+						$vault_id          = ( '' !== (string) $token->get_meta( 'cardz3n_vault_id' ) ) ? (string) $token->get_meta( 'cardz3n_vault_id' ) : $token->get_token();
 			$using_saved       = true;
 			$normalized_source = $token instanceof \WC_Payment_Token_ECheck ? 'ach_vault' : 'card_vault';
 		} elseif ( empty( $collect_token ) ) {
