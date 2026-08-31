@@ -18,7 +18,18 @@
 
 	<rule ref="WordPress.WP.I18n">
 		<properties>
-			<property name="text_domain" type="array" value="cardz3n-gateway"/>
+			<property name="text_domain" type="array">
+				<element value="cardz3n-gateway"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!-- manage_woocommerce is a real WooCommerce capability; the sniff only knows core WP caps. -->
+	<rule ref="WordPress.WP.Capabilities">
+		<properties>
+			<property name="custom_capabilities" type="array">
+				<element value="manage_woocommerce"/>
+			</property>
 		</properties>
 	</rule>
 

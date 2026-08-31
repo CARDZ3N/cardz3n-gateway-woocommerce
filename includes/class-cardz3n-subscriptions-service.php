@@ -16,10 +16,21 @@ namespace Cardz3n_Gateway;
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * Handles the WooCommerce Subscriptions integration.
+ */
 class Subscriptions_Service {
 
+	/**
+	 * Singleton instance.
+	 *
+	 * @var Subscriptions_Service|null
+	 */
 	private static $instance = null;
 
+	/**
+	 * Get the singleton instance.
+	 */
 	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -27,6 +38,9 @@ class Subscriptions_Service {
 		return self::$instance;
 	}
 
+	/**
+	 * Wire the renewal hook when Subscriptions is active.
+	 */
 	private function __construct() {
 		if ( ! $this->is_active() ) {
 			return;
@@ -36,6 +50,9 @@ class Subscriptions_Service {
 		add_action( $hook, array( $this, 'process_renewal' ), 10, 2 );
 	}
 
+	/**
+	 * Whether the WooCommerce Subscriptions extension is active.
+	 */
 	public function is_active() {
 		return class_exists( 'WC_Subscriptions' ) || class_exists( '\WC_Subscriptions' );
 	}
@@ -43,8 +60,8 @@ class Subscriptions_Service {
 	/**
 	 * Charge the next subscription renewal.
 	 *
-	 * @param float     $amount
-	 * @param \WC_Order $renewal_order
+	 * @param float     $amount       Amount to capture for this renewal.
+	 * @param \WC_Order $renewal_order The renewal order being paid.
 	 */
 	public function process_renewal( $amount, $renewal_order ) {
 		if ( ! $renewal_order instanceof \WC_Order ) {
@@ -83,7 +100,7 @@ class Subscriptions_Service {
 				'amount'            => $amount,
 				'order_id'          => $renewal_order->get_id(),
 				'customer_vault_id' => $vault_id,
-				'payment'           => 'creditcard', // vault knows the real type
+				'payment'           => 'creditcard', // vault knows the real type.
 				'order_description' => 'WC Subscription renewal #' . $renewal_order->get_id(),
 				'level3'            => $level3,
 				'billing'           => array(

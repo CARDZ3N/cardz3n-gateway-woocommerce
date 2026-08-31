@@ -21,13 +21,18 @@ use Cardz3n_Gateway\Order_Service;
 use Cardz3n_Gateway\Token_Service;
 use Cardz3n_Gateway\Wallet_Service;
 use Cardz3n_Gateway\ACH_Service;
-
+/**
+ * WooCommerce payment gateway for CARDZ3N.
+ */
 class Gateway extends \WC_Payment_Gateway_CC {
 
 	use Refunds_Trait;
 	use Settings_Trait;
 	use Compatibility_Trait;
 
+	/**
+	 * Configure the gateway's identity, settings fields, and hooks.
+	 */
 	public function __construct() {
 		$brand                    = Brand::profile();
 		$this->id                 = $brand['gateway_id'];
@@ -116,10 +121,16 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	}
 
 	/*
-	------------------------------------------------------------------
+	 * ---------------------------------------------------------------
 	 * Assets & rendering
-	 * --------------------------------------------------------------- */
+	 * ---------------------------------------------------------------
+	 */
 
+	/**
+	 * Resolve the checkout icon URL for the configured icon style.
+	 *
+	 * @return string Icon URL, or an empty string when icons are disabled.
+	 */
 	public function gateway_icon_url() {
 		$style = $this->get_option( 'icon_style', 'brands' );
 		if ( 'none' === $style ) {
@@ -131,6 +142,9 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		return ''; // Brand icons rendered inline by payment_fields() for finer control.
 	}
 
+	/**
+	 * Enqueue checkout JS/CSS and localize gateway data for the frontend.
+	 */
 	public function enqueue_checkout_assets() {
 		if ( ! is_checkout() && ! is_add_payment_method_page() && ! is_account_page() ) {
 			return;
@@ -346,8 +360,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		}
 		$show_saved       = $has_tokenization && ! empty( $saved_tokens );
 		$default_to_saved = $show_saved; // Saved is the default active tab when tokens exist.
-		$enable_cards  = 'yes' === $this->get_option( 'enable_cards', 'yes' );
-		$enable_ach    = 'yes' === $this->get_option( 'enable_ach', 'yes' );
+		$enable_cards     = 'yes' === $this->get_option( 'enable_cards', 'yes' );
+		$enable_ach       = 'yes' === $this->get_option( 'enable_ach', 'yes' );
 				// 1.0.29: Native wallet buttons restored. Root cause of the 1.0.20
 				// "Unexpected fields for applePay" throw: the fields.applePay config
 				// mixed in Google-Pay-only keys (emailRequired, buttonColor) and an
@@ -360,8 +374,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				// configureCollect() for the corrected fields.applePay/googlePay
 				// shapes. REQUIRES live sandbox verification with an eligible
 				// device/browser before this ships to merchants.
-		$enable_apple  = ( 'yes' === $this->get_option( 'enable_apple_pay', 'yes' ) );
-		$enable_google = ( 'yes' === $this->get_option( 'enable_google_pay', 'yes' ) );
+		$enable_apple     = ( 'yes' === $this->get_option( 'enable_apple_pay', 'yes' ) );
+		$enable_google    = ( 'yes' === $this->get_option( 'enable_google_pay', 'yes' ) );
 		$test_mode_active = 'yes' === $this->get_option( 'test_mode' );
 		?>
 		<div class="cardz3n-gateway-ui" data-gateway="<?php echo esc_attr( $this->id ); ?>" data-cardz3n-version="<?php echo esc_attr( CARDZ3N_GW_VERSION ); ?>">
@@ -471,6 +485,9 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		<?php
 	}
 
+	/**
+	 * Render supported card-brand and wallet icons beneath the checkout fields.
+	 */
 	private function render_brand_icons() {
 		$style = $this->get_option( 'icon_style', 'brands' );
 		if ( 'brands' !== $style ) {
@@ -517,6 +534,11 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		echo '</div>';
 	}
 
+	/**
+	 * Render the optional Purchase Order number field on checkout.
+	 *
+	 * @param bool $checkout Whether this is being rendered on the checkout page.
+	 */
 	public function render_po_field( $checkout ) {
 		if ( 'yes' !== $this->get_option( 'enable_po_field', 'yes' ) ) {
 			return;
@@ -531,6 +553,11 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		<?php
 	}
 
+	/**
+	 * Persist the submitted Purchase Order number to order meta.
+	 *
+	 * @param int $order_id Order ID being saved.
+	 */
 	public function save_po_field( $order_id ) {
 		if ( empty( $_POST['cardz3n_po_number'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			return;
@@ -543,6 +570,11 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		}
 	}
 
+	/**
+	 * Show a merchant-configured message on the order-received page.
+	 *
+	 * @param int $order_id Order ID being viewed.
+	 */
 	public function render_thankyou( $order_id ) {
 		$msg = trim( (string) $this->get_option( 'thankyou_instructions' ) );
 		if ( '' === $msg ) {
@@ -552,10 +584,16 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	}
 
 	/*
-	------------------------------------------------------------------
+	 * ---------------------------------------------------------------
 	 * Availability / admin gates
-	 * --------------------------------------------------------------- */
+	 * ---------------------------------------------------------------
+	 */
 
+	/**
+	 * Whether the gateway should be offered at checkout.
+	 *
+	 * @return bool True when the gateway is available.
+	 */
 	public function is_available() {
 		$reason = $this->availability_reason();
 		self::remember_availability_reason( $reason );
@@ -620,12 +658,14 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	}
 
 	/*
-	------------------------------------------------------------------
+	 * ---------------------------------------------------------------
 	 * process_payment — the critical server-side flow.
-	 * --------------------------------------------------------------- */
-
+	 * ---------------------------------------------------------------
+	 */
 	/**
-	 * @param int $order_id
+	 * Process a checkout payment: validate input, run the transaction, and update the order.
+	 *
+	 * @param int $order_id Order ID being paid for.
 	 * @return array{result:string,redirect:string}|null
 	 */
 	public function process_payment( $order_id ) {
@@ -665,17 +705,16 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		// Resolve payment mechanism.
 		$using_saved       = false;
 		$vault_id          = '';
-		$normalized_source = Wallet_Service::normalize_source( $token_type ?: $source );
+		$normalized_source = Wallet_Service::normalize_source( ( '' !== $token_type ) ? $token_type : $source );
 
 		if ( ! empty( $payment_token_id ) && 'new' !== $payment_token_id ) {
 			$token = \WC_Payment_Tokens::get( (int) $payment_token_id );
 			if ( ! $token || $token->get_user_id() !== get_current_user_id() || $token->get_gateway_id() !== $this->id ) {
 				wc_add_notice( __( 'Invalid saved payment method.', 'cardz3n-gateway' ), 'error' );
-				return null;
 			}
-			$vault_id          = (string) $token->get_meta( 'cardz3n_vault_id' ) ?: $token->get_token();
-			$using_saved       = true;
-			$normalized_source = $token instanceof \WC_Payment_Token_ECheck ? 'ach_vault' : 'card_vault';
+						$vault_id = ( '' !== (string) $token->get_meta( 'cardz3n_vault_id' ) ) ? (string) $token->get_meta( 'cardz3n_vault_id' ) : $token->get_token();
+			$using_saved          = true;
+			$normalized_source    = $token instanceof \WC_Payment_Token_ECheck ? 'ach_vault' : 'card_vault';
 		} elseif ( empty( $collect_token ) ) {
 			/*
 			 * 1.0.25 — the browser-side Collect.js minted a token but the
@@ -787,7 +826,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			'shipping'          => $shipping,
 			'level3'            => $level3,
 			'extra'             => array(
-				'merchant_defined_field_10' => $normalized_source, // wallet source provenance
+				'merchant_defined_field_10' => $normalized_source, // Wallet source provenance.
 			),
 		);
 
@@ -798,6 +837,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			if ( $should_vault_card || $should_vault_ach ) {
 				$args['vault'] = 'add_customer';
 			}
+
 			/*
 			 * 1.0.17 — log the first 8 chars of the Collect.js token plus the
 			 * first 4 chars of each key so support can verify at a glance
@@ -858,6 +898,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 						'test_mode'        => $client->is_sandbox() ? 'yes' : 'no',
 					)
 				);
+
 				/*
 				 * 1.0.26 — the #1 cause of "Payment Token does not exist" in
 				 * Test Mode is pairing NMI's shared test-merchant Security Key
@@ -955,10 +996,14 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	}
 
 	/*
-	------------------------------------------------------------------
+	 * ---------------------------------------------------------------
 	 * AJAX endpoints
-	 * --------------------------------------------------------------- */
+	 * ---------------------------------------------------------------
+	 */
 
+	/**
+	 * AJAX handler: validate the saved API credentials against the gateway.
+	 */
 	public function ajax_validate_credentials() {
 		// Capability check first so unauthorized users always get a clean 403.
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
@@ -1017,6 +1062,9 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		);
 	}
 
+	/**
+	 * AJAX: Delete a saved payment token from the customer's vault.
+	 */
 	public function ajax_delete_token() {
 		check_ajax_referer( 'cardz3n_gw_nonce', 'nonce' );
 		$token_id = isset( $_POST['token_id'] ) ? absint( $_POST['token_id'] ) : 0;

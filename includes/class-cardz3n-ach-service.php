@@ -13,8 +13,15 @@ namespace Cardz3n_Gateway;
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * ACH capability toggle -- read from the merchant's saved gateway settings.
+ */
 class ACH_Service {
-
+	/**
+	 * Whether ACH is enabled for the current gateway brand.
+	 *
+	 * @return bool
+	 */
 	public static function enabled() {
 		$s = get_option( 'woocommerce_' . Brand::id() . '_settings', array() );
 		return isset( $s['enable_ach'] ) && 'yes' === $s['enable_ach'];

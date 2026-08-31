@@ -12,6 +12,13 @@ defined( 'ABSPATH' ) || exit;
 
 trait Compatibility_Trait {
 
+	/**
+	 * Compute the WooCommerce `supports` array dynamically based on the
+	 * merchant's saved settings and installed extensions (Subscriptions,
+	 * Pre-Orders).
+	 *
+	 * @return string[] Supported feature keys.
+	 */
 	public function build_supports_array() {
 		$s = $this->settings;
 

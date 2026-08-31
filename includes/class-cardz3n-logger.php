@@ -11,11 +11,16 @@ namespace Cardz3n_Gateway;
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * Wraps the WooCommerce logger for gateway-specific logging.
+ */
 class Logger {
 
 	const SOURCE = 'cardz3n-gateway';
 
 	/**
+	 * Cached WooCommerce logger instance.
+	 *
 	 * @var \WC_Logger|null
 	 */
 	private static $wc_logger = null;
@@ -33,8 +38,8 @@ class Logger {
 	/**
 	 * Write a debug-level entry. Only written when merchant's debug mode is on.
 	 *
-	 * @param string $message
-	 * @param array  $context
+	 * @param string $message Log message.
+	 * @param array  $context Additional context data.
 	 */
 	public static function debug( $message, array $context = array() ) {
 		if ( ! self::debug_enabled() ) {
@@ -43,18 +48,43 @@ class Logger {
 		self::write( 'debug', $message, $context );
 	}
 
+	/**
+	 * Write an info-level entry.
+	 *
+	 * @param string $message Log message.
+	 * @param array  $context Additional context data.
+	 */
 	public static function info( $message, array $context = array() ) {
 		self::write( 'info', $message, $context );
 	}
 
+	/**
+	 * Write a warning-level entry.
+	 *
+	 * @param string $message Log message.
+	 * @param array  $context Additional context data.
+	 */
 	public static function warning( $message, array $context = array() ) {
 		self::write( 'warning', $message, $context );
 	}
 
+	/**
+	 * Write an error-level entry.
+	 *
+	 * @param string $message Log message.
+	 * @param array  $context Additional context data.
+	 */
 	public static function error( $message, array $context = array() ) {
 		self::write( 'error', $message, $context );
 	}
 
+	/**
+	 * Write the actual log entry via the WooCommerce logger.
+	 *
+	 * @param string $level   PSR log level.
+	 * @param string $message Log message.
+	 * @param array  $context Additional context data.
+	 */
 	private static function write( $level, $message, array $context ) {
 		$logger = self::wc();
 		if ( ! $logger ) {
@@ -81,8 +111,8 @@ class Logger {
 	/**
 	 * Redact any keys that look like sensitive payment data.
 	 *
-	 * @param array $context
-	 * @return array
+	 * @param array $context Context data to filter.
+	 * @return array Context with sensitive values redacted.
 	 */
 	public static function redact( array $context ) {
 		$sensitive = array(

@@ -10,14 +10,17 @@ namespace Cardz3n_Gateway;
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * Applies CARDZ3N metadata and notes to WooCommerce orders.
+ */
 class Order_Service {
 
 	/**
 	 * Stamp the standard CARDZ3N order meta after a successful transaction.
 	 *
-	 * @param \WC_Order $order
+	 * @param \WC_Order $order    Order to update.
 	 * @param array     $response Parsed Api_Client response.
-	 * @param array     $extra
+	 * @param array     $extra    Extra metadata (e.g. payment_source_type).
 	 */
 	public static function stamp( \WC_Order $order, array $response, array $extra = array() ) {
 		$meta = array(
@@ -51,6 +54,9 @@ class Order_Service {
 
 	/**
 	 * Build a concise, human-readable order note for success.
+	 *
+	 * @param array $response Parsed Api_Client response.
+	 * @param array $extra    Extra metadata.
 	 */
 	public static function success_note( array $response, array $extra = array() ) {
 		$source = strtoupper( $extra['payment_source_type'] ?? 'card' );
@@ -69,6 +75,14 @@ class Order_Service {
 		return $note;
 	}
 
+	/**
+	 * Build a concise, human-readable order note for failure.
+	 *
+	 * @param array $response Parsed Api_Client response.
+	 * @param array $extra    Extra metadata.
+	 *
+	 * @return string
+	 */
 	public static function failure_note( array $response, array $extra = array() ) {
 		$source = strtoupper( $extra['payment_source_type'] ?? 'card' );
 		return sprintf(
@@ -80,9 +94,15 @@ class Order_Service {
 		);
 	}
 
+
 	/**
 	 * Auto-capture rule: when the merchant configured a trigger status and an
 	 * order transitions into it, capture any outstanding authorization.
+	 *
+	 * @param int            $order_id   Order ID (WooCommerce status-change hook).
+	 * @param string         $_old       Previous order status (unused).
+	 * @param string         $new_status New order status.
+	 * @param \WC_Order|null $order      Order instance, if already available.
 	 */
 	public static function maybe_auto_capture( $order_id, $_old, $new_status, $order ) {
 		if ( ! $order instanceof \WC_Order ) {
@@ -99,7 +119,7 @@ class Order_Service {
 			return;
 		}
 
-		if ( 'wc-' . $new_status !== $trigger && $new_status !== str_replace( 'wc-', '', $trigger ) ) {
+		if ( 'wc-' . $new_status !== $trigger && str_replace( 'wc-', '', $trigger ) !== $new_status ) {
 			return;
 		}
 

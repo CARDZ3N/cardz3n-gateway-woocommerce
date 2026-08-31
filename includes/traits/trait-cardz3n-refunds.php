@@ -16,9 +16,11 @@ defined( 'ABSPATH' ) || exit;
 trait Refunds_Trait {
 
 	/**
-	 * @param int        $order_id
-	 * @param float|null $amount
-	 * @param string     $reason
+	 * Refund or void an order via the CARDZ3N gateway.
+	 *
+	 * @param int        $order_id Order ID to refund.
+	 * @param float|null $amount   Amount to refund; null refunds the full order total.
+	 * @param string     $reason   Optional refund reason, stored on the order note.
 	 * @return bool|\WP_Error
 	 */
 	public function process_refund( $order_id, $amount = null, $reason = '' ) {

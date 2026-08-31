@@ -13,6 +13,9 @@ defined( 'ABSPATH' ) || exit;
 
 trait Settings_Trait {
 
+	/**
+	 * Build the WooCommerce settings form fields for this gateway.
+	 */
 	public function init_form_fields() {
 		$brand = Brand::profile();
 
@@ -342,6 +345,10 @@ trait Settings_Trait {
 
 	/**
 	 * Custom "Test" button field type for credential validation.
+	 *
+	 * @param string $key  Form-field key.
+	 * @param array  $data Field definition (title, description, etc.).
+	 * @return string
 	 */
 	public function generate_cardz3n_validate_button_html( $key, $data ) {
 		$field_key = $this->get_field_key( $key );
