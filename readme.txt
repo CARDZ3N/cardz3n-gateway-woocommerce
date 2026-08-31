@@ -123,6 +123,10 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Changelog ==
 
+= 1.0.30 =
+* Change: Merged the 1.0.29 release line forward into the development branch, so the native Apple Pay / Google Pay wallet restoration and the admin-notice output-escaping fix now ship from the mainline branch. No behavior change for merchants relative to 1.0.29.
+* Docs / chore: Completed the WPCS/coding-standards cleanup that 1.0.29 flagged as follow-up work -- phpcs now reports zero errors repo-wide. Added the missing doc-blocks and resolved the remaining non-auto-fixable items across the plugin bootstrap, every service class, and the traits. Also repaired damage left by earlier hand-edits: a lost property declaration on the API client's sandbox flag (which made PHP 8.2 and newer treat it as a deprecated dynamic property), two displaced doc-blocks, twelve malformed section-comment banners, and an over-indented block in the Level 2/3 mapper. Comment, whitespace, and declaration only -- no logic, values, or control flow changed.
+
 = 1.0.29 =
 * Fix (critical): Native Apple Pay / Google Pay wallet buttons restored. Root cause found via NMI's Collect.js documentation: the applePay config previously mixed in Google-Pay-only keys (emailRequired, buttonColor) and an incorrectly-shaped style object. Collect.js validates each wallet's config against its own attribute set and throws on any unrecognized key -- which is also why card and ACH fields went dead alongside the wallets on 1.0.20-1.0.28. Each wallet now gets only its own minimal, documented attributes and is feature-detected (ApplePaySession.canMakePayments / google.payments.api) before being added to the Collect.js config, so an ineligible device or browser never receives it.
 * Fix: Escaped $plugins_url at the point of output in the version-mismatch admin notice (was already escaped at assignment via esc_url(), but WPCS flags escaping at the output site, not assignment).
@@ -305,6 +309,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * HPOS compatibility declared.
 
 == Upgrade Notice ==
+
+= 1.0.30 =
+Maintenance release. Carries the 1.0.29 Apple Pay / Google Pay restoration forward and completes the coding-standards cleanup that 1.0.29 flagged as follow-up work. No settings, database, or checkout behavior changes -- safe to update.
 
 = 1.0.29 =
 Recommended upgrade. Restores native Apple Pay and Google Pay wallet buttons (removed since 1.0.20). Also fixes an admin-notice output-escaping finding and includes a repo-wide coding-standards cleanup -- no settings or database changes.
