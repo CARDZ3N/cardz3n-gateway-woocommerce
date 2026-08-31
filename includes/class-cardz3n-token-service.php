@@ -80,6 +80,7 @@ class Token_Service {
 	  	 *
 	 * @param int              $token_id Deleted token's post ID.
 	 * @param \WC_Payment_Token $token    The token instance being deleted.
+	 	 */
 	public static function on_token_deleted( $token_id, $token ) {
 		if ( ! $token instanceof \WC_Payment_Token ) {
 			return;
