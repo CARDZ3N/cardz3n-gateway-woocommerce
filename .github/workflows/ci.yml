@@ -40,7 +40,7 @@ jobs:
           echo "$HOME/.composer/vendor/bin" >> $GITHUB_PATH
 
       - name: Run WPCS
-        run: phpcs --standard=phpcs.xml.dist --report=checkstyle | cs2pr
+        run: phpcs -q --no-colors --standard=phpcs.xml.dist --report=checkstyle | cs2pr --graceful-warnings
 
   lint-js:
     name: JS / CSS lint

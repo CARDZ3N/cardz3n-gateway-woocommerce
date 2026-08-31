@@ -18,7 +18,9 @@
 
 	<rule ref="WordPress.WP.I18n">
 		<properties>
-			<property name="text_domain" type="array" value="cardz3n-gateway"/>
+			<property name="text_domain" type="array">
+				<element value="cardz3n-gateway"/>
+			</property>
 		</properties>
 	</rule>
 
