@@ -24,9 +24,7 @@
  *   item_product_code_{N}, item_description_{N}, item_commodity_code_{N},
  *   item_unit_cost_{N}, item_quantity_{N}, item_unit_of_measure_{N},
  *   item_total_amount_{N}, item_tax_amount_{N}, item_discount_amount_{N}
- 	* customerid -> WooCommerce customer ID (Customer Code)
-	 * summary_commodity_code, duty_amount -> order-level fields (via order meta)
-	 * vat_tax_amount, vat_tax_rate, vat_invoice_reference_number -> VAT fields (via order meta)
+ * customerid, summary_commodity_code, duty_amount, vat_tax_amount, vat_tax_rate, vat_invoice_reference_number -> new fields (via order meta, see below)
  *
  * @package Cardz3n_Gateway
  */
