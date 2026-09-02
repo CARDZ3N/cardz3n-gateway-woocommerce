@@ -390,7 +390,6 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				<?php if ( $enable_apple ) : ?>
 					<div class="cardz3n-applepay-button" data-cardz3n-wallet="apple"></div>
 				<?php endif; ?>
-				<?php if ( $enable_google ) : ?>
 					<div class="cardz3n-googlepay-button" data-cardz3n-wallet="google"></div>
 				<?php endif; ?>
 				<div class="cardz3n-wallets-divider"><span><?php esc_html_e( 'or pay with', 'cardz3n-gateway' ); ?></span></div>
@@ -412,6 +411,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			<input type="hidden" name="cardz3n_payment_source" value="<?php echo $default_to_saved ? 'saved' : 'card'; ?>" />
 			<input type="hidden" name="cardz3n_payment_token" value="" />
 			<input type="hidden" name="cardz3n_token_type" value="" />
+				<input type="hidden" name="cardz3n_card_brand" value="" />
 
 			<div class="cardz3n-panes">
 
@@ -698,6 +698,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		$payment_token_id = isset( $_POST[ 'wc-' . $this->id . '-payment-token' ] ) ? sanitize_text_field( wp_unslash( $_POST[ 'wc-' . $this->id . '-payment-token' ] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$collect_token    = isset( $_POST['cardz3n_payment_token'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_payment_token'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$token_type       = isset( $_POST['cardz3n_token_type'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_token_type'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$client_brand   = isset( $_POST['cardz3n_card_brand'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_card_brand'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$source           = isset( $_POST['cardz3n_payment_source'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_payment_source'] ) ) : 'card'; // phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$save_card        = ! empty( $_POST[ 'wc-' . $this->id . '-new-payment-method' ] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$save_ach         = ! empty( $_POST[ 'wc-' . $this->id . '-new-ach-method' ] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
@@ -948,7 +949,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 
 		// Persist standard meta and notes.
 		Order_Service::stamp( $order, $response, $extra );
-		Order_Service::apply_payment_method_title( $order, $normalized_source, $response, $vault_brand );
+		Order_Service::apply_payment_method_title( $order, $normalized_source, $response, $vault_brand, $client_brand );
 		$order->add_order_note( Order_Service::success_note( $response, $extra ) );
 
 		// Save token if the gateway returned a vault id and we requested vaulting.
