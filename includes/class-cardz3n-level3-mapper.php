@@ -24,6 +24,11 @@
  *   item_product_code_{N}, item_description_{N}, item_commodity_code_{N},
  *   item_unit_cost_{N}, item_quantity_{N}, item_unit_of_measure_{N},
  *   item_total_amount_{N}, item_tax_amount_{N}, item_discount_amount_{N}
+  	 * customerid            -> WooCommerce customer ID (Customer Code)
+   	 * summary_commodity_code -> order-level commodity code (via order meta)
+    	 * duty_amount            -> import duty on purchased goods (via order meta)
+	 	 * vat_tax_amount, vat_tax_rate, vat_invoice_reference_number -> VAT fields
+	  	 *   (all via order meta; UK/EU merchants only)
  *
  * @package Cardz3n_Gateway
  */
@@ -150,6 +155,34 @@ class Level3_Mapper {
 		$discount_total = (float) $order->get_discount_total();
 		if ( $discount_total > 0 ) {
 			$payload['discount_amount'] = number_format( $discount_total, 2, '.', '' );
+		}
+		// Customer code -- genuine WooCommerce customer identifier (logged-in orders only).
+		$customer_id = (int) $order->get_customer_id();
+		if ( $customer_id > 0 ) {
+			$payload['customerid'] = (string) $customer_id;
+		}
+		// International Level 3 fields (summary commodity code, duty, VAT). WooCommerce
+		// has no native concept of these; only sent when an order/plugin has recorded
+		// them via order meta. Per spec: omitted, never fabricated, when absent.
+		$summary_commodity = $order->get_meta( '_cardz3n_summary_commodity_code' );
+		if ( ! empty( $summary_commodity ) ) {
+			$payload['summary_commodity_code'] = self::ascii( $summary_commodity );
+		}
+		$duty_amount = $order->get_meta( '_cardz3n_duty_amount' );
+		if ( '' !== $duty_amount && is_numeric( $duty_amount ) && (float) $duty_amount > 0 ) {
+			$payload['duty_amount'] = number_format( (float) $duty_amount, 2, '.', '' );
+		}
+		$vat_tax_amount = $order->get_meta( '_cardz3n_vat_tax_amount' );
+		if ( '' !== $vat_tax_amount && is_numeric( $vat_tax_amount ) && (float) $vat_tax_amount > 0 ) {
+			$payload['vat_tax_amount'] = number_format( (float) $vat_tax_amount, 2, '.', '' );
+		}
+		$vat_tax_rate = $order->get_meta( '_cardz3n_vat_tax_rate' );
+		if ( '' !== $vat_tax_rate && is_numeric( $vat_tax_rate ) ) {
+			$payload['vat_tax_rate'] = number_format( (float) $vat_tax_rate, 2, '.', '' );
+		}
+		$vat_invoice_ref = $order->get_meta( '_cardz3n_vat_invoice_ref' );
+		if ( ! empty( $vat_invoice_ref ) ) {
+			$payload['vat_invoice_reference_number'] = self::ascii( $vat_invoice_ref );
 		}
 
 		// ------- Item-level fields -------.
