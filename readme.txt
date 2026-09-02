@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.30
+Stable tag: 1.0.31
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,14 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.31 =
+* Fix: Order confirmation page, order emails, and the admin order screen now show the actual payment method used ("ACH" or "Credit Card - {Brand}") instead of the generic "Powered by CARDZ3N" gateway title. Checkout Title (shown while choosing a payment method) is unaffected and remains locked.
+* Fix: Live/Test credential fields no longer get cross-filled by browser password-manager autofill -- autocomplete="off" added to all four key fields.
+* Change: Real CARDZ3N logo now renders for the "Show CARDZ3N logo only" gateway icon style (previously a placeholder).
+* Change: Level 2 / Level 3 Commercial Data section renamed to "Level 3 / CEDP" with an updated description noting Visa's 2026 retirement of Level 2 and that all applicable fields must be present together to qualify for the discount. Settings page now groups fields into "Auto-Pulled from Order & Profile" and "Merchant Overrides" subsections.
+* New: Additional Level 3/CEDP fields -- Customer Code, Summary Commodity Code, Duty Amount, VAT Tax Amount, VAT Tax Rate, VAT Invoice Reference Number -- confirmed against NMI's Integration Portal and auto-pulled from the order/customer or from order meta; omitted (never fabricated) when not available.
+* Docs / chore: CI dependency fix (stylelint-config-standard version pin) so the JS/CSS lint job installs cleanly.
 
 = 1.0.30 =
 * Change: Merged the 1.0.29 release line forward into the development branch, so the native Apple Pay / Google Pay wallet restoration and the admin-notice output-escaping fix now ship from the mainline branch. No behavior change for merchants relative to 1.0.29.
@@ -309,6 +317,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * HPOS compatibility declared.
 
 == Upgrade Notice ==
+
+= 1.0.31 =
+Recommended upgrade. Order confirmation, emails, and admin order screens now show the real payment method (ACH or Credit Card - Brand). Adds Customer Code, Duty Amount, and VAT fields to the Level 3/CEDP payload for merchants who enable it. No settings, database, or checkout behavior changes -- safe to update.
 
 = 1.0.30 =
 Maintenance release. Carries the 1.0.29 Apple Pay / Google Pay restoration forward and completes the coding-standards cleanup that 1.0.29 flagged as follow-up work. No settings, database, or checkout behavior changes -- safe to update.

@@ -3,8 +3,17 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
-## [1.0.30] - 2026-08-31
+## [1.0.31] - 2026-09-02
+### Fixed
+- Order confirmation page, order emails, and the admin order screen now show the actual payment method used (`ACH` or `Credit Card - {Brand}`) instead of the generic `Powered by CARDZ3N` gateway title. `Checkout Title` (shown while choosing a payment method) is unaffected and remains locked.
+- Live/Test credential fields no longer get cross-filled by browser password-manager autofill -- `autocomplete="off"` added to all four key fields.
 ### Changed
+- Real CARDZ3N logo now renders for the "Show CARDZ3N logo only" gateway icon style (previously a placeholder).
+- "Level 2 / Level 3 Commercial Data" settings section renamed to "Level 3 / CEDP", with an updated description noting Visa's 2026 retirement of Level 2 and that all applicable fields must be present together to qualify for the discount. Settings page now groups fields into "Auto-Pulled from Order & Profile" and "Merchant Overrides" subsections.
+### Added
+- New Level 3/CEDP payload fields: `customerid` (Customer Code), `summary_commodity_code`, `duty_amount`, `vat_tax_amount`, `vat_tax_rate`, `vat_invoice_reference_number`. Field names confirmed against NMI's own Integration Portal (Retail Data reference), not guessed. `customerid` is auto-pulled from the order's WooCommerce customer ID; the rest are read from dedicated order meta keys and omitted (never fabricated) when absent.
+### CI
+- Pinned `stylelint-config-standard` to a version compatible with the pinned `stylelint@^16`, fixing the JS/CSS lint job which was failing at `npm install` on every PR.
 - Merged the 1.0.29 release line forward from `main` into `develop`, so the native Apple Pay / Google Pay wallet restoration and the `esc_url()` output-escaping fix ship from the mainline branch. No behavioral change relative to 1.0.29 -- this is the forward-merge that puts `develop` ahead of `main` again.
 - **Completed the WPCS / coding-standards cleanup that 1.0.29 flagged as open follow-up work.** `phpcs` now reports **0 errors** repo-wide against the project ruleset. The missing doc-comments and the remaining non-auto-fixable items called out in the 1.0.29 notes are resolved across the plugin bootstrap, every service class, and the traits. Only two warnings remain, both deliberately deferred as behavior changes rather than cleanup: `current_time( 'timestamp' )` in the activation hook, and the missing version argument on `wp_enqueue_script()`.
 ### Fixed
