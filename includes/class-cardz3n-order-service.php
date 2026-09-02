@@ -70,14 +70,19 @@ class Order_Service {
 			$order->save();
 			return;
 		}
-		$slug = '' !== $vault_brand ? \Cardz3n_Gateway\brand_slug( $vault_brand ) : \Cardz3n_Gateway\brand_slug( $response['raw']['cc_type'] ?? $response['raw']['card_type'] ?? '' );
-		$order->set_payment_method_title(
-			sprintf(
-				/* translators: %s: card brand, e.g. Visa */
-				__( 'Credit Card - %s', 'cardz3n-gateway' ),
-				\Cardz3n_Gateway\brand_label( $slug )
-			)
-		);
+
+	$slug = '' !== $vault_brand ? \Cardz3n_Gateway\brand_slug( $vault_brand ) : \Cardz3n_Gateway\brand_slug( $response['raw']['cc_type'] ?? $response['raw']['card_type'] ?? '' );
+		if ( 'credit' === $slug ) {
+			$order->set_payment_method_title( __( 'Credit Card', 'cardz3n-gateway' ) );
+		} else {
+			$order->set_payment_method_title(
+				sprintf(
+					/* translators: %s: card brand, e.g. Visa */
+					__( 'Credit Card - %s', 'cardz3n-gateway' ),
+					\Cardz3n_Gateway\brand_label( $slug )
+					)
+				);
+		}
 		$order->save();
 	}
 
