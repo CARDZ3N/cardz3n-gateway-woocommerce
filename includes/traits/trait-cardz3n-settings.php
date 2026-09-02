@@ -275,12 +275,12 @@ trait Settings_Trait {
 
 			/* ---------------- Commercial Data ---------------- */
 			'section_commercial'        => array(
-				'title'       => __( 'Level 2 / Level 3 Commercial Data', 'cardz3n-gateway' ),
+				'title'       => __( 'Level 3 / CEDP', 'cardz3n-gateway' ),
 				'type'        => 'title',
-				'description' => __( 'Send enhanced data on commercial/purchasing cards to qualify for lower interchange. Fields are populated automatically from WooCommerce order data; any not available are omitted, not fabricated.', 'cardz3n-gateway' ),
+				'description' => __( 'Send Level 3 Commercial/Corporate Card Enhanced Data (CEDP) on qualifying transactions to earn lower interchange rates. Visa retired its separate Level 2 program in 2026 -- Level 3 / CEDP is now the only path to reduced interchange on Visa commercial cards. <strong>All applicable fields below must be present together for a transaction to qualify for the discounted rate; partial data will not qualify and may be rejected outright by the card brand.</strong> Fields marked auto-pulled below are populated automatically from the order and your store profile; anything not available is omitted, not fabricated.', 'cardz3n-gateway' ),
 			),
 			'enable_level3'             => array(
-				'title'   => __( 'Enable Level 2/3 Transmission', 'cardz3n-gateway' ),
+				'title'   => __( 'Enable Level 3 / CEDP Transmission', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
 				'label'   => __( 'Attach enhanced commercial data to every transaction when applicable.', 'cardz3n-gateway' ),
 				/* 1.0.21: opt-in. Level 2/3 is a commercial-card feature most merchants don’t need; enabling it requires meaningful catalog metadata (UPC, commodity code, tax amount) and misconfigured fields can DOWNGRADE interchange rather than improve it. Off by default; merchants who know they qualify enable it intentionally. */
