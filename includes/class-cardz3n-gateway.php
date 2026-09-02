@@ -705,6 +705,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		// Resolve payment mechanism.
 		$using_saved       = false;
 		$vault_id          = '';
+		$vault_brand      = '';
 		$normalized_source = Wallet_Service::normalize_source( ( '' !== $token_type ) ? $token_type : $source );
 
 		if ( ! empty( $payment_token_id ) && 'new' !== $payment_token_id ) {
@@ -715,6 +716,9 @@ class Gateway extends \WC_Payment_Gateway_CC {
 						$vault_id = ( '' !== (string) $token->get_meta( 'cardz3n_vault_id' ) ) ? (string) $token->get_meta( 'cardz3n_vault_id' ) : $token->get_token();
 			$using_saved          = true;
 			$normalized_source    = $token instanceof \WC_Payment_Token_ECheck ? 'ach_vault' : 'card_vault';
+			if ( 'card_vault' === $normalized_source ) {
+				$vault_brand = (string) $token->get_meta( 'brand' );
+			}
 		} elseif ( empty( $collect_token ) ) {
 			/*
 			 * 1.0.25 — the browser-side Collect.js minted a token but the
@@ -944,6 +948,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 
 		// Persist standard meta and notes.
 		Order_Service::stamp( $order, $response, $extra );
+		Order_Service::apply_payment_method_title( $order, $normalized_source, $response, $vault_brand );
 		$order->add_order_note( Order_Service::success_note( $response, $extra ) );
 
 		// Save token if the gateway returned a vault id and we requested vaulting.
