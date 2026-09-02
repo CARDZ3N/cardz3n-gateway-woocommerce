@@ -173,7 +173,7 @@ class Level3_Mapper {
 			$payload['vat_tax_amount'] = number_format( (float) $vat_tax_amount, 2, '.', '' );
 		}
 		$vat_tax_rate = $order->get_meta( '_cardz3n_vat_tax_rate' );
-		if ( '' !== $vat_tax_rate && is_numeric( $vat_tax_rate ) ) {
+		if ( '' !== $vat_tax_rate && is_numeric( $vat_tax_rate ) && (float) $vat_tax_rate >= 0 && (float) $vat_tax_rate <= 100 ) {
 			$payload['vat_tax_rate'] = number_format( (float) $vat_tax_rate, 2, '.', '' );
 		}
 		$vat_invoice_ref = $order->get_meta( '_cardz3n_vat_invoice_ref' );
