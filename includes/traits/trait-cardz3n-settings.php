@@ -297,9 +297,9 @@ trait Settings_Trait {
 				'description' => __( 'Leave these blank to use the auto-pulled value shown above. Only set an override if your store profile or product catalog needs a correction.', 'cardz3n-gateway' ),
 			),
 			'merchant_name_override' => array(
-				'title'       => __( 'Merchant Name Override', 'cardz3n-gateway' ),		
+				'title'       => __( 'Merchant Name Override', 'cardz3n-gateway' ),
 				'type'        => 'text',
-				'description' => __( '<span style="color:#767676;">Auto-pulled from your WooCommerce store name; manual override.</span> Leave blank to use the store name.', 'cardz3n-gateway' ),
+				'description' => __( 'Auto-pulled from your WooCommerce store name; manual override. Leave blank to use the store name.', 'cardz3n-gateway' ),
 				'default'     => '',
 				'desc_tip'    => true,
 			),
