@@ -60,7 +60,23 @@ function brand_slug( $input ) {
 	}
 	return 'credit';
 }
-
+/**
+ * Map a brand_slug() result into a human-readable display label.
+ *
+ * @param string $slug Value returned by brand_slug().
+ * @return string
+ */
+function brand_label( $slug ) {
+	$map = array(
+		'visa'       => __( 'Visa', 'cardz3n-gateway' ),
+		'mastercard' => __( 'Mastercard', 'cardz3n-gateway' ),
+		'amex'       => __( 'American Express', 'cardz3n-gateway' ),
+		'discover'   => __( 'Discover', 'cardz3n-gateway' ),
+		'jcb'        => __( 'JCB', 'cardz3n-gateway' ),
+		'diners'     => __( 'Diners Club', 'cardz3n-gateway' ),
+	);
+	return isset( $map[ $slug ] ) ? $map[ $slug ] : __( 'Card', 'cardz3n-gateway' );
+}
 /**
  * Compose the descriptor for a given order based on merchant rules.
  *

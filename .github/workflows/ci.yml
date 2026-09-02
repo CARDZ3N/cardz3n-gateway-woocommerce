@@ -53,7 +53,7 @@ jobs:
       - name: Install linters
         run: |
           npm init -y
-          npm install --no-save eslint@^8 stylelint@^16 stylelint-config-standard
+          npm install --no-save eslint@^8 stylelint@^16 stylelint-config-standard@^36
       - name: ESLint
         run: npx eslint "assets/js/**/*.js" --no-eslintrc --env browser,jquery --parser-options=ecmaVersion:2019 || true
       - name: Stylelint

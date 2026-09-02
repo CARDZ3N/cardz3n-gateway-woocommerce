@@ -53,6 +53,35 @@ class Order_Service {
 	}
 
 	/**
+	 * Set the order's displayed "Payment method" to the method actually used --
+	 * "ACH" or "Credit Card - {Brand}" -- instead of the generic gateway
+	 * title. Card brand is resolved from the saved token's stored brand when
+	 * reusing a saved card, or from the gateway response's cc_type/card_type
+	 * field for a fresh card transaction.
+	 *
+	 * @param \WC_Order $order             Order to update.
+	 * @param string    $normalized_source Wallet_Service::normalize_source() result.
+	 * @param array     $response          Parsed Api_Client response (fresh, non-vault card txns).
+	 * @param string    $vault_brand       Brand slug stored on a saved-card token, when reusing one.
+	 */
+	public static function apply_payment_method_title( \WC_Order $order, $normalized_source, array $response = array(), $vault_brand = '' ) {
+		if ( in_array( $normalized_source, array( 'ach', 'ach_vault' ), true ) ) {
+			$order->set_payment_method_title( __( 'ACH', 'cardz3n-gateway' ) );
+			$order->save();
+			return;
+		}
+		$slug = '' !== $vault_brand ? \Cardz3n_Gateway\brand_slug( $vault_brand ) : \Cardz3n_Gateway\brand_slug( $response['raw']['cc_type'] ?? $response['raw']['card_type'] ?? '' );
+		$order->set_payment_method_title(
+			sprintf(
+				/* translators: %s: card brand, e.g. Visa */
+				__( 'Credit Card - %s', 'cardz3n-gateway' ),
+				\Cardz3n_Gateway\brand_label( $slug )
+			)
+		);
+		$order->save();
+	}
+
+	/**
 	 * Build a concise, human-readable order note for success.
 	 *
 	 * @param array $response Parsed Api_Client response.

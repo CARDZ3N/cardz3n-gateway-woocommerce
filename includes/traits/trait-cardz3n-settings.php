@@ -98,24 +98,28 @@ trait Settings_Trait {
 				'title'       => __( 'Live Private Key (Cart)', 'cardz3n-gateway' ),
 				'type'        => 'password',
 				'default'     => '',
+				'custom_attributes' => array( 'autocomplete' => 'off' ),
 				'description' => __( 'From CARDZ3N Portal → Settings → Security Keys → <strong>Private Security Keys</strong>. Scope must be <em>&quot;Cart&quot;</em> or <em>&quot;API and Cart&quot;</em>. Used server-side only.', 'cardz3n-gateway' ),
 			),
 			'live_tokenization_key'     => array(
 				'title'       => __( 'Live Public Key (Tokenization)', 'cardz3n-gateway' ),
 				'type'        => 'text',
 				'default'     => '',
+				'custom_attributes' => array( 'autocomplete' => 'off' ),
 				'description' => __( 'From CARDZ3N Portal → Settings → Security Keys → <strong>Public Security Keys</strong>. Scope must be <em>&quot;Tokenization&quot;</em>. Used by inline Collect.js in the browser (format: <code>xxxxxx-xxxxxx-xxxxxx-xxxxxx</code>). A <em>&quot;Collect Checkout&quot;</em> key (starting <code>checkout_public_</code>) will NOT work.', 'cardz3n-gateway' ),
 			),
 			'test_security_key'         => array(
 				'title'       => __( 'Test Private Key (Cart)', 'cardz3n-gateway' ),
 				'type'        => 'password',
 				'default'     => '',
+				'custom_attributes' => array( 'autocomplete' => 'off' ),
 				'description' => __( 'Test-merchant Private Security Key with <em>Cart</em> scope. The shared NMI demo Security Key is published on the <a href="https://z3n.transactiongateway.com/merchants/resources/integration/integration_portal.php#testing_information" target="_blank">Testing Information page</a>.', 'cardz3n-gateway' ),
 			),
 			'test_tokenization_key'     => array(
 				'title'       => __( 'Test Public Key (Tokenization)', 'cardz3n-gateway' ),
 				'type'        => 'text',
 				'default'     => '',
+				'custom_attributes' => array( 'autocomplete' => 'off' ),
 				'description' => __( 'Test-merchant Public Security Key with <em>Tokenization</em> scope (format: <code>xxxxxx-xxxxxx-xxxxxx-xxxxxx</code>). If your test merchant does not have one, request it from CARDZ3N support. A <em>Collect Checkout</em>-scoped key (starting <code>checkout_public_</code>) will NOT work.', 'cardz3n-gateway' ),
 			),
 			'validate_credentials'      => array(
@@ -271,21 +275,31 @@ trait Settings_Trait {
 
 			/* ---------------- Commercial Data ---------------- */
 			'section_commercial'        => array(
-				'title'       => __( 'Level 2 / Level 3 Commercial Data', 'cardz3n-gateway' ),
+				'title'       => __( 'Level 3 / CEDP', 'cardz3n-gateway' ),
 				'type'        => 'title',
-				'description' => __( 'Send enhanced data on commercial/purchasing cards to qualify for lower interchange. Fields are populated automatically from WooCommerce order data; any not available are omitted, not fabricated.', 'cardz3n-gateway' ),
+				'description' => __( 'Send Level 3 Commercial/Corporate Card Enhanced Data (CEDP) on qualifying transactions to earn lower interchange rates. Visa retired its separate Level 2 program in 2026 -- Level 3 / CEDP is now the only path to reduced interchange on Visa commercial cards. <strong>All applicable fields below must be present together for a transaction to qualify for the discounted rate; partial data will not qualify and may be rejected outright by the card brand.</strong> Fields marked auto-pulled below are populated automatically from the order and your store profile; anything not available is omitted, not fabricated.', 'cardz3n-gateway' ),
 			),
 			'enable_level3'             => array(
-				'title'   => __( 'Enable Level 2/3 Transmission', 'cardz3n-gateway' ),
+				'title'   => __( 'Enable Level 3 / CEDP Transmission', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
 				'label'   => __( 'Attach enhanced commercial data to every transaction when applicable.', 'cardz3n-gateway' ),
 				/* 1.0.21: opt-in. Level 2/3 is a commercial-card feature most merchants don’t need; enabling it requires meaningful catalog metadata (UPC, commodity code, tax amount) and misconfigured fields can DOWNGRADE interchange rather than improve it. Off by default; merchants who know they qualify enable it intentionally. */
 				'default' => 'no',
 			),
-			'merchant_name_override'    => array(
+			'section_commercial_auto' => array(
+				'title'       => __( 'Auto-Pulled from Order & Profile', 'cardz3n-gateway' ),
+				'type'        => 'title',
+				'description' => __( 'Computed fresh for every order -- unique per transaction, as required by card-brand monitoring -- with no merchant setup needed: order date, sales tax amount, freight/shipping amount, discount amount, ship-to country and postal code, purchase order number (if provided at checkout), and full line-item detail (description, quantity, unit of measure, unit cost, line total, and commodity code) for every item in the cart.', 'cardz3n-gateway' ),
+			),
+			'section_commercial_overrides' => array(
+				'title'       => __( 'Merchant Overrides', 'cardz3n-gateway' ),
+				'type'        => 'title',
+				'description' => __( 'Leave these blank to use the auto-pulled value shown above. Only set an override if your store profile or product catalog needs a correction.', 'cardz3n-gateway' ),
+			),
+			'merchant_name_override' => array(
 				'title'       => __( 'Merchant Name Override', 'cardz3n-gateway' ),
 				'type'        => 'text',
-				'description' => __( 'Leave blank to use the WooCommerce store name.', 'cardz3n-gateway' ),
+				'description' => __( 'Auto-pulled from your WooCommerce store name; manual override. Leave blank to use the store name.', 'cardz3n-gateway' ),
 				'default'     => '',
 				'desc_tip'    => true,
 			),
@@ -299,12 +313,14 @@ trait Settings_Trait {
 			'merchant_state'            => array(
 				'title'   => __( 'Merchant State Code Override', 'cardz3n-gateway' ),
 				'type'    => 'text',
+				'description' => __( '<span style="color:#767676;">Auto-pulled from WooCommerce → Settings → General store address; manual override.</span>', 'cardz3n-gateway' ),
 				'default' => '',
 			),
 			'merchant_postal'           => array(
 				'title'   => __( 'Ship-from Postal Code Override', 'cardz3n-gateway' ),
 				'type'    => 'text',
-				'default' => '',
+				'description' => __( '<span style="color:#767676;">Auto-pulled from WooCommerce → Settings → General store address; manual override.</span>', 'cardz3n-gateway' ),
+				'default'     => '',
 			),
 			'default_uom'               => array(
 				'title'       => __( 'Default Unit of Measure (UOM)', 'cardz3n-gateway' ),
