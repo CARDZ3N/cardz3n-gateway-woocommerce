@@ -286,10 +286,20 @@ trait Settings_Trait {
 				/* 1.0.21: opt-in. Level 2/3 is a commercial-card feature most merchants don’t need; enabling it requires meaningful catalog metadata (UPC, commodity code, tax amount) and misconfigured fields can DOWNGRADE interchange rather than improve it. Off by default; merchants who know they qualify enable it intentionally. */
 				'default' => 'no',
 			),
-			'merchant_name_override'    => array(
+			'section_commercial_auto' => array(
+				'title'       => __( 'Auto-Pulled from Order & Profile', 'cardz3n-gateway' ),
+				'type'        => 'title',
+				'description' => __( 'Computed fresh for every order -- unique per transaction, as required by card-brand monitoring -- with no merchant setup needed: order date, sales tax amount, freight/shipping amount, discount amount, ship-to country and postal code, purchase order number (if provided at checkout), and full line-item detail (description, quantity, unit of measure, unit cost, line total, and commodity code) for every item in the cart.', 'cardz3n-gateway' ),
+			),
+			'section_commercial_overrides' => array(
+				'title'       => __( 'Merchant Overrides', 'cardz3n-gateway' ),
+				'type'        => 'title',
+				'description' => __( 'Leave these blank to use the auto-pulled value shown above. Only set an override if your store profile or product catalog needs a correction.', 'cardz3n-gateway' ),
+			),
+			'merchant_name_override' => array(
 				'title'       => __( 'Merchant Name Override', 'cardz3n-gateway' ),
 				'type'        => 'text',
-				'description' => __( 'Leave blank to use the WooCommerce store name.', 'cardz3n-gateway' ),
+				'description' => __( 'Auto-pulled from your WooCommerce store name; manual override. Leave blank to use the store name.', 'cardz3n-gateway' ),
 				'default'     => '',
 				'desc_tip'    => true,
 			),
@@ -303,12 +313,14 @@ trait Settings_Trait {
 			'merchant_state'            => array(
 				'title'   => __( 'Merchant State Code Override', 'cardz3n-gateway' ),
 				'type'    => 'text',
+				'description' => __( '<span style="color:#767676;">Auto-pulled from WooCommerce → Settings → General store address; manual override.</span>', 'cardz3n-gateway' ),
 				'default' => '',
 			),
 			'merchant_postal'           => array(
 				'title'   => __( 'Ship-from Postal Code Override', 'cardz3n-gateway' ),
 				'type'    => 'text',
-				'default' => '',
+				'description' => __( '<span style="color:#767676;">Auto-pulled from WooCommerce → Settings → General store address; manual override.</span>', 'cardz3n-gateway' ),
+				'default'     => '',
 			),
 			'default_uom'               => array(
 				'title'       => __( 'Default Unit of Measure (UOM)', 'cardz3n-gateway' ),
