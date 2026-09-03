@@ -319,13 +319,19 @@ trait Settings_Trait {
 			'merchant_state'            => array(
 				'title'   => __( 'Merchant State Code Override', 'cardz3n-gateway' ),
 				'type'    => 'text',
-				'description' => __( '<span style="color:#767676;">Auto-pulled from WooCommerce → Settings → General store address; manual override.</span>', 'cardz3n-gateway' ),
+				'description' => sprintf(
+					'<span style="color:#767676;">%s</span>',
+					esc_html__( 'Auto-pulled from WooCommerce → Settings → General store address; manual override.', 'cardz3n-gateway' )
+				),
 				'default' => '',
 			),
 			'merchant_postal'           => array(
 				'title'   => __( 'Ship-from Postal Code Override', 'cardz3n-gateway' ),
 				'type'    => 'text',
-				'description' => __( '<span style="color:#767676;">Auto-pulled from WooCommerce → Settings → General store address; manual override.</span>', 'cardz3n-gateway' ),
+				'description' => sprintf(
+					'<span style="color:#767676;">%s</span>',
+					esc_html__( 'Auto-pulled from WooCommerce → Settings → General store address; manual override.', 'cardz3n-gateway' )
+				),
 				'default'     => '',
 			),
 			'default_uom'               => array(

@@ -176,7 +176,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			'cardz3n-collectjs',
 			Api_Client::collectjs_url(),
 			array(),
-			null,
+			CARDZ3N_GW_VERSION, // Explicit version so WordPress core's version isn't used as the cache-busting string on this externally-hosted script.
 			true
 		);
 
