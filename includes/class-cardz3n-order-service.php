@@ -63,7 +63,7 @@ class Order_Service {
 	 * @param string    $normalized_source Wallet_Service::normalize_source() result.
 	 * @param array     $response          Parsed Api_Client response (fresh, non-vault card txns).
 	 * @param string    $vault_brand       Brand slug stored on a saved-card token, when reusing one.
-		 	 	 * @param string    $client_brand      Card brand detected client-side by Collect.js on a fresh transaction.
+	 * @param string    $client_brand      Card brand detected client-side by Collect.js on a fresh transaction.
 	 */
 	public static function apply_payment_method_title( \WC_Order $order, $normalized_source, array $response = array(), $vault_brand = '', $client_brand = '' ) {
 		if ( in_array( $normalized_source, array( 'ach', 'ach_vault' ), true ) ) {
@@ -81,21 +81,15 @@ class Order_Service {
 		if ( 'credit' === $slug ) {
 			$order->set_payment_method_title( __( 'Credit Card', 'cardz3n-gateway' ) );
 		} else {
-			$order->set_payment_method_title(
-				sprintf(
-					/* translators: %s: card brand, e.g. Visa */
-					__( 'Credit Card - %s', 'cardz3n-gateway' ),
-					\Cardz3n_Gateway\brand_label( $slug )
-					)
+			$label = sprintf(
+				/* translators: %s: card brand, e.g. Visa */
+				__( 'Credit Card - %s', 'cardz3n-gateway' ),
+				\Cardz3n_Gateway\brand_label( $slug )
 				);
+			$order->set_payment_method_title( $label );
 		}
 		$order->save();
 	}
-	 
-
-	/**
-	 * Build a concise, human-readable order note for success.
-	 *
 	 * @param array $response Parsed Api_Client response.
 	 * @param array $extra    Extra metadata.
 	 */
