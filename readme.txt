@@ -2,7 +2,7 @@
 Contributors: jbenedetti, cardz3n
 Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 7.4
 Stable tag: 1.0.34
 License: GPLv2 or later
