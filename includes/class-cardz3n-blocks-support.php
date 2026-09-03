@@ -201,7 +201,7 @@ class Blocks_Support extends AbstractPaymentMethodType {
 			'enableAch'       => 'yes' === $opt( 'enable_ach', 'no' ),
 			'enableApplePay'  => 'yes' === $opt( 'enable_apple_pay', 'no' ),
 			'enableGooglePay' => 'yes' === $opt( 'enable_google_pay', 'no' ),
-			'enableSaved'     => 'yes' === $opt( 'enable_saved_methods', 'yes' ),
+			'enableSaved'     => 'yes' === $opt( 'enable_saved_methods', 'no' ),
 			'allowedBrands'   => (array) $opt( 'allowed_card_brands', array() ),
 			'country'         => ( function_exists( 'WC' ) && WC()->customer && WC()->customer->get_billing_country() ) ? WC()->customer->get_billing_country() : 'US',
 			'currency'        => function_exists( 'get_woocommerce_currency' ) ? get_woocommerce_currency() : 'USD',

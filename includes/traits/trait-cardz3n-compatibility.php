@@ -24,13 +24,13 @@ trait Compatibility_Trait {
 
 		$supports = array( 'products', 'refunds' );
 
-		if ( 'yes' === ( $s['enable_saved_methods'] ?? 'yes' ) ) {
+		if ( 'yes' === ( $s['enable_saved_methods'] ?? 'no' ) ) {
 			$supports[] = 'tokenization';
 			$supports[] = 'add_payment_method';
 		}
 
 		// WC Subscriptions support flags, only meaningful when installed.
-		if ( 'yes' === ( $s['enable_subscriptions'] ?? 'yes' ) && ( class_exists( 'WC_Subscriptions' ) || class_exists( '\WC_Subscriptions' ) ) ) {
+		if ( 'yes' === ( $s['enable_subscriptions'] ?? 'no' ) && ( class_exists( 'WC_Subscriptions' ) || class_exists( '\WC_Subscriptions' ) ) ) {
 			$supports = array_merge(
 				$supports,
 				array(
@@ -48,7 +48,7 @@ trait Compatibility_Trait {
 			);
 		}
 
-		if ( 'yes' === ( $s['enable_preorders'] ?? 'yes' ) && class_exists( 'WC_Pre_Orders' ) ) {
+		if ( 'yes' === ( $s['enable_preorders'] ?? 'no' ) && class_exists( 'WC_Pre_Orders' ) ) {
 			$supports[] = 'pre-orders';
 		}
 

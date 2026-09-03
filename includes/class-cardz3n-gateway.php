@@ -228,7 +228,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				'enableAch'       => 'yes' === $this->get_option( 'enable_ach', 'no' ),
 				'enableApplePay'  => 'yes' === $this->get_option( 'enable_apple_pay', 'no' ),
 				'enableGooglePay' => 'yes' === $this->get_option( 'enable_google_pay', 'no' ),
-				'enableSaved'     => 'yes' === $this->get_option( 'enable_saved_methods', 'yes' ),
+				'enableSaved'     => 'yes' === $this->get_option( 'enable_saved_methods', 'no' ),
 				'allowedBrands'   => (array) $this->get_option( 'allowed_card_brands', array() ),
 				'country'         => ( WC()->customer && WC()->customer->get_billing_country() ) ? WC()->customer->get_billing_country() : 'US',
 				'currency'        => get_woocommerce_currency(),
