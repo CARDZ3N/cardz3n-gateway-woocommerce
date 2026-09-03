@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.32
+Stable tag: 1.0.33
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,12 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Changelog ==
 
+
+= 1.0.33 =
+* Fix: Apple Pay, Google Pay, and ACH could still behave as enabled at runtime even when unchecked, because several places read the setting with a hardcoded fallback that ignored the checkbox. Now consistently off unless explicitly enabled.
+* Change: Apple Pay, Google Pay, and ACH now ship unchecked by default. Only Credit / Debit Cards is enabled out of the box; each of the others requires additional setup in your NMI merchant account.
+* New: Settings descriptions added under Apple Pay, Google Pay, and ACH linking to the NMI merchant-portal pages needed to finish setup for each.
+* Docs / chore: Removed a leftover debug test image (assets/img/test-red.png) with no code references.
 = 1.0.32 =
 * Fix: Payment method now shows the real card brand (Visa, Mastercard, Amex, Discover, JCB, Diners, Maestro, UnionPay) instead of the generic "Credit Card" label, for both classic and Block-based checkout, on fresh transactions and on saved/reused cards.
 
