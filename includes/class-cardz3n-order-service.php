@@ -85,7 +85,7 @@ class Order_Service {
 				/* translators: %s: card brand, e.g. Visa */
 				__( 'Credit Card - %s', 'cardz3n-gateway' ),
 				\Cardz3n_Gateway\brand_label( $slug )
-				);
+			);
 			$order->set_payment_method_title( $label );
 		}
 		$order->save();
