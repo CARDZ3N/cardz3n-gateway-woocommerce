@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.31
+Stable tag: 1.0.32
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.32 =
+* Fix: Payment method now shows the real card brand (Visa, Mastercard, Amex, Discover, JCB, Diners, Maestro, UnionPay) instead of the generic "Credit Card" label, for both classic and Block-based checkout, on fresh transactions and on saved/reused cards.
 
 = 1.0.31 =
 * Fix: Order confirmation page, order emails, and the admin order screen now show the actual payment method used ("ACH" or "Credit Card - {Brand}") instead of the generic "Powered by CARDZ3N" gateway title. Checkout Title (shown while choosing a payment method) is unaffected and remains locked.
