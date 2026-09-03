@@ -3,6 +3,10 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.36] - 2026-09-03
+### Fixed
+- Shortened the 1.0.18 Upgrade Notice entry in readme.txt (295 characters alone, 307 combined with its header line), which WordPress.org's Plugin Check flagged as exceeding the 300-character limit.
+
 ## [1.0.35] - 2026-09-03
 ### Fixed
 - WordPress.org Plugin Check blocking error: added a `defined( 'ABSPATH' ) || exit;` guard to `assets/js/blocks/checkout.asset.php`.
