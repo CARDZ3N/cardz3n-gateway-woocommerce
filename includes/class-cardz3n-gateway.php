@@ -176,7 +176,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			'cardz3n-collectjs',
 			Api_Client::collectjs_url(),
 			array(),
-			null,
+			false, // Externally-hosted NMI script; `false` skips the version query string so we don't misrepresent it with our own or WP core's version.
 			true
 		);
 
