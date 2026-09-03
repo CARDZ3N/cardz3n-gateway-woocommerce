@@ -3,7 +3,17 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
-## [1.0.33] - 2026-09-03
+## [1.0.34] - 2026-09-03
+### Changed
+- Saved Payment Methods, Subscriptions Support, and Pre-Orders Support now ship unchecked by default. Only Credit / Debit Cards ships enabled out of the box.
+### Added
+- - Settings descriptions under Saved Payment Methods, Subscriptions Support, and Pre-Orders Support explaining that each also requires activation in the CARDZ3N account (and, for Subscriptions / Pre-Orders, the matching WooCommerce extension) before it will actually work.
+### Fixed
+  - - The hardcoded 'yes' fallback bug fixed in 1.0.33 for ACH/Apple Pay/Google Pay was still present for Saved Payment Methods, Subscriptions, and Pre-Orders. Fixed in trait-cardz3n-compatibility.php, class-cardz3n-gateway.php, and class-cardz3n-blocks-support.php so the new unchecked default actually takes effect at runtime.
+### Docs
+- Corrected the Apple Pay and Google Pay setup descriptions: setup happens in the CARDZ3N merchant account, not the NMI merchant account.
+     
+
 ### Fixed
 - Apple Pay, Google Pay, and ACH could still behave as enabled at runtime even when the setting was unchecked. Several places read the option with a hardcoded 'yes' fallback that bypassed the settings-screen default entirely, independent of what the merchant had configured. Every such fallback (in class-cardz3n-gateway.php and class-cardz3n-blocks-support.php) now correctly falls back to disabled.
 ### Changed

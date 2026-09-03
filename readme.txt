@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.33
+Stable tag: 1.0.34
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,11 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Changelog ==
 
+= 1.0.34 =
+* Change: Saved Payment Methods, Subscriptions Support, and Pre-Orders Support now ship unchecked by default. Only Credit / Debit Cards is enabled out of the box.
+* New: Settings descriptions added under Saved Payment Methods, Subscriptions Support, and Pre-Orders Support explaining that each also requires activation in your CARDZ3N account (and, for Subscriptions / Pre-Orders, the matching WooCommerce extension) before it will actually work.
+* Fix: Same class of hardcoded 'yes' fallback bug fixed in 1.0.33 for ACH/Apple Pay/Google Pay was still present for Saved Payment Methods, Subscriptions, and Pre-Orders -- fixed so the new unchecked default actually takes effect at runtime.
+* Docs: Corrected the Apple Pay and Google Pay setup descriptions -- setup happens in your CARDZ3N merchant account, not the NMI merchant account.
 
 = 1.0.33 =
 * Fix: Apple Pay, Google Pay, and ACH could still behave as enabled at runtime even when unchecked, because several places read the setting with a hardcoded fallback that ignored the checkbox. Now consistently off unless explicitly enabled.
