@@ -155,12 +155,14 @@ trait Settings_Trait {
 				'title'   => __( 'Apple Pay', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
 				'label'   => __( 'Offer Apple Pay when the buyer is on a supported device.', 'cardz3n-gateway' ),
+				'description' => __( 'Checking this box only enables the button in checkout. You must also finish Apple Pay setup in your NMI merchant account for it to actually work: <a href="https://z3n.transactiongateway.com/merchants/resources/integration/integration_portal.php?tid=24d698c53e47b00cec19bfba8b20e997#applepay_variables" target="_blank" rel="noopener noreferrer">Apple Pay setup</a> and <a href="https://z3n.transactiongateway.com/merchants/resources/integration/integration_portal.php?tid=24d698c53e47b00cec19bfba8b20e997&rand=18034#cjs_applePay" target="_blank" rel="noopener noreferrer">Apple Pay Collect.js setup</a>.', 'cardz3n-gateway' ),
 				'default' => 'yes',
 			),
 			'enable_google_pay'         => array(
 				'title'   => __( 'Google Pay', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
 				'label'   => __( 'Offer Google Pay when the buyer is on a supported device.', 'cardz3n-gateway' ),
+				'description' => __( 'Checking this box only enables the button in checkout. You must also finish Google Pay setup in your NMI merchant account for it to actually work: <a href="https://z3n.transactiongateway.com/merchants/resources/integration/integration_portal.php?tid=24d698c53e47b00cec19bfba8b20e997#googlepay_variables" target="_blank" rel="noopener noreferrer">Google Pay setup</a> and <a href="https://z3n.transactiongateway.com/merchants/resources/integration/integration_portal.php?tid=24d698c53e47b00cec19bfba8b20e997&rand=75522#cjs_googlePay" target="_blank" rel="noopener noreferrer">Google Pay Collect.js setup</a>.', 'cardz3n-gateway' ),
 				'default' => 'yes',
 			),
 			'enable_saved_methods'      => array(
