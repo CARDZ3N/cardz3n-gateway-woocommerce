@@ -412,7 +412,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			<input type="hidden" name="cardz3n_payment_source" value="<?php echo $default_to_saved ? 'saved' : 'card'; ?>" />
 			<input type="hidden" name="cardz3n_payment_token" value="" />
 			<input type="hidden" name="cardz3n_token_type" value="" />
-				<input type="hidden" name="cardz3n_card_brand" value="" />
+			<input type="hidden" name="cardz3n_card_brand" value="" />
 
 			<div class="cardz3n-panes">
 
