@@ -59,28 +59,37 @@ class Order_Service {
 	 * reusing a saved card, or from the gateway response's cc_type/card_type
 	 * field for a fresh card transaction.
 	 *
-	 * @param \WC_Order $order             Order to update.
+	 * @param \WC_Order $order            Order to update.
 	 * @param string    $normalized_source Wallet_Service::normalize_source() result.
 	 * @param array     $response          Parsed Api_Client response (fresh, non-vault card txns).
 	 * @param string    $vault_brand       Brand slug stored on a saved-card token, when reusing one.
+	 * @param string    $client_brand      Card brand detected client-side by Collect.js on a fresh transaction.
 	 */
-	public static function apply_payment_method_title( \WC_Order $order, $normalized_source, array $response = array(), $vault_brand = '' ) {
+	public static function apply_payment_method_title( \WC_Order $order, $normalized_source, array $response = array(), $vault_brand = '', $client_brand = '' ) {
 		if ( in_array( $normalized_source, array( 'ach', 'ach_vault' ), true ) ) {
 			$order->set_payment_method_title( __( 'ACH', 'cardz3n-gateway' ) );
 			$order->save();
 			return;
 		}
-		$slug = '' !== $vault_brand ? \Cardz3n_Gateway\brand_slug( $vault_brand ) : \Cardz3n_Gateway\brand_slug( $response['raw']['cc_type'] ?? $response['raw']['card_type'] ?? '' );
-		$order->set_payment_method_title(
-			sprintf(
+		if ( '' !== $vault_brand ) {
+			$slug = \Cardz3n_Gateway\brand_slug( $vault_brand );
+		} elseif ( '' !== $client_brand ) {
+			$slug = \Cardz3n_Gateway\brand_slug( $client_brand );
+		} else {
+			$slug = \Cardz3n_Gateway\brand_slug( $response['raw']['cc_type'] ?? $response['raw']['card_type'] ?? '' );
+		}
+		if ( 'credit' === $slug ) {
+			$order->set_payment_method_title( __( 'Credit Card', 'cardz3n-gateway' ) );
+		} else {
+			$label = sprintf(
 				/* translators: %s: card brand, e.g. Visa */
 				__( 'Credit Card - %s', 'cardz3n-gateway' ),
 				\Cardz3n_Gateway\brand_label( $slug )
-			)
-		);
+			);
+			$order->set_payment_method_title( $label );
+		}
 		$order->save();
 	}
-
 	/**
 	 * Build a concise, human-readable order note for success.
 	 *
