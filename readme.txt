@@ -333,7 +333,7 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 == Upgrade Notice ==
 
 = 1.0.31 =
-Recommended upgrade. Order confirmation, emails, and admin order screens now show the real payment method (ACH or Credit Card - Brand). Adds Customer Code, Duty Amount, and VAT fields to the Level 3/CEDP payload for merchants who enable it. No settings, database, or checkout behavior changes -- safe to update.
+Order screens, emails, and confirmations now show the real payment method (ACH or card brand). Adds optional Level 3/CEDP fields (Customer Code, Duty Amount, VAT). No settings or checkout changes -- safe to update.
 
 = 1.0.30 =
 Maintenance release. Carries the 1.0.29 Apple Pay / Google Pay restoration forward and completes the coding-standards cleanup that 1.0.29 flagged as follow-up work. No settings, database, or checkout behavior changes -- safe to update.
@@ -348,19 +348,19 @@ Recommended upgrade. Fixes the empty Saved tab, restores ACH input (for real thi
 UX polish release. Enable/Disable now defaults to enabled, Checkout Title is locked to “Powered by CARDZ3N”, 3D Secure 2.0 is renamed and now defaults to off, a Recurring Payments support badge is shown on the Payments listing, and the CARDZ3N brand logo has been refreshed. No database changes.
 
 = 1.0.17 =
-Recommended upgrade. Fixes ACH fields that refused input, card-tab field overflow, the confusing "Use a new payment method" radio inside saved tokens, and "Payment Token does not exist" retries. Also adds a helpful buyer-facing error and safer support logging when the gateway rejects a token.
+Fixes ACH fields rejecting input, card-tab overflow, a confusing radio in saved tokens, and false "Payment Token does not exist" retries. Adds clearer buyer-facing errors and safer support logging. Recommended upgrade.
 
 = 1.0.16 =
 Critical hotfix. 1.0.15 shipped with a PHP parse error that prevented the plugin from activating. Upgrade immediately. No other changes.
 
 = 1.0.15 =
-Required upgrade if card or ACH fields weren't accepting input in 1.0.14. Fixes the "Unable to initialize secure payment form" error, collapses the four-field key UI into a single Security Key + Tokenization Key with automatic migration from the old fields, renames Sandbox Mode to Test Mode, adds Maestro/Apple Pay/Google Pay logos in the brand icon row, and tightens spacing in the embedded checkout.
+Required if card/ACH fields stopped accepting input in 1.0.14. Fixes "Unable to initialize secure payment form," merges the four key fields into one Security Key + Tokenization Key (auto-migrated), and adds Maestro/Apple Pay/Google Pay icons.
 
 = 1.0.14 =
-Fixes "There are no payment methods available" on the WooCommerce Checkout Block for good. We now render CARDZ3N inside the Block via the classic-shortcode compatibility layer — same pattern used by Evergreen Payments Northwest 1.1.0 and other production NMI-family gateways. Recommended upgrade for every site using Cart/Checkout Blocks.
+Fixes "no payment methods available" on the Checkout Block for good, by rendering CARDZ3N via the classic-shortcode compatibility layer. Recommended for every site using Cart/Checkout Blocks.
 
 = 1.0.13 =
-Critical: fixes the Checkout Block's "There are no payment methods available" that 1.0.12 was supposed to fix but did not. `Blocks_Support::is_active()` was incorrectly delegating to the full classic-checkout availability cascade, which returns false during Woo Blocks' early REST prep phase. Upgrade immediately if you use the Block-based checkout.
+Critical: actually fixes the Checkout Block's "no payment methods available" error that 1.0.12 didn't. Blocks_Support::is_active() wrongly used the classic-checkout cascade during Woo Blocks' early REST phase. Upgrade immediately if using Blocks.
 
 = 1.0.12 =
 Supersedes 1.0.11 but does not fix the "No payment methods available" issue on the Block-based checkout. Upgrade directly to 1.0.13.
@@ -372,7 +372,7 @@ Adds a visible diagnostic on the gateway settings page so you can see at a glanc
 Quality-of-life: suppresses a noisy (non-fatal) Collect.js console error about PaymentRequestAbstraction on browsers without Apple Pay or Google Pay runtime support. No change to payment behavior.
 
 = 1.0.9 =
-Critical: fixes two defects that together caused the checkout to show "No payment methods are available." (1) Collect.js now receives its tokenization key as a proper `data-tokenization-key` attribute on its `<script>` tag. (2) The live-mode HTTPS check now works correctly behind reverse proxies (InstaWP, WP Engine, Cloudflare, etc.). Upgrade immediately.
+Critical: fixes checkout showing "No payment methods are available." Collect.js now gets its tokenization key as a proper attribute, and the live-mode HTTPS check now works behind reverse proxies. Upgrade immediately.
 
 = 1.0.8 =
 Critical: the 1.0.7 admin "Test Credentials" fix was architecturally incomplete — the AJAX action was never being registered on admin-ajax.php requests. This release moves the hook registration into the Admin bootstrap so the handler actually runs. Upgrade immediately.
