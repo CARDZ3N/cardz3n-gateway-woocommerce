@@ -3,6 +3,12 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.32] - 2026-09-03
+### Fixed
+- Payment method now shows the real detected card brand (Visa, Mastercard, Amex, Discover, JCB, Diners, Maestro, UnionPay) instead of the generic "Credit Card" label. Root cause: NMI's `transact.php` sale response does not include a card-brand field, so brand detection now uses Collect.js's own client-side card-type detection instead.
+- WooCommerce Blocks checkout was not carrying the detected card brand to the server; it now reads the same hidden field the classic checkout populates.
+  - Saved/reused cards were losing their detected brand on later orders because the saved token's brand was read from a meta key that was never written. Now reads from the correct token property.
+
 ## [1.0.31] - 2026-09-02
 ### Fixed
 - Order confirmation page, order emails, and the admin order screen now show the actual payment method used (`ACH` or `Credit Card - {Brand}`) instead of the generic `Powered by CARDZ3N` gateway title. `Checkout Title` (shown while choosing a payment method) is unaffected and remains locked.
