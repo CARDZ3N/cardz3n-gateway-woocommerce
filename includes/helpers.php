@@ -52,6 +52,9 @@ function brand_slug( $input ) {
 		'jcb'              => 'jcb',
 		'diners'           => 'diners',
 		'diners club'      => 'diners',
+		'maestro'         => 'maestro',
+		'unionpay'        => 'unionpay',
+		'union pay'       => 'unionpay',
 	);
 	foreach ( $map as $needle => $slug ) {
 		if ( false !== strpos( $v, $needle ) ) {
@@ -74,6 +77,8 @@ function brand_label( $slug ) {
 		'discover'   => __( 'Discover', 'cardz3n-gateway' ),
 		'jcb'        => __( 'JCB', 'cardz3n-gateway' ),
 		'diners'     => __( 'Diners Club', 'cardz3n-gateway' ),
+		'maestro'  => __( 'Maestro', 'cardz3n-gateway' ),
+		'unionpay' => __( 'UnionPay', 'cardz3n-gateway' ),
 	);
 	return isset( $map[ $slug ] ) ? $map[ $slug ] : __( 'Card', 'cardz3n-gateway' );
 }
