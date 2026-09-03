@@ -92,7 +92,7 @@ class Order_Service {
 	}
 		/**
 	 * Build a concise, human-readable order note for success.
-		 *
+	 *
 	 * @param array $response Parsed Api_Client response.
 	 * @param array $extra    Extra metadata.
 	 */
