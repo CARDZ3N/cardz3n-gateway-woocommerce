@@ -412,6 +412,8 @@
 		setHidden('cardz3n_payment_token', response.token);
 		setHidden('cardz3n_token_type', response.tokenType || activeSource());
 		setHidden('cardz3n_payment_source', response.tokenType || activeSource());
+		var cardBrand = (response.card && response.card.type) ? response.card.type : '';
+		setHidden('cardz3n_card_brand', cardBrand);
 
 		// Make sure no saved-token radio is checked (the Collect.js token beats
 		// the vault lookup in process_payment() only if the saved radio is not
@@ -441,6 +443,7 @@
 		mirror('cardz3n_payment_token', response.token);
 		mirror('cardz3n_token_type', response.tokenType || activeSource());
 		mirror('cardz3n_payment_source', response.tokenType || activeSource());
+		mirror('cardz3n_card_brand', cardBrand);
 
 		// Trigger the real submission; WC's own handler will send to the server.
 		$form.off('submit.cardz3n').addClass('cardz3n-tokenized').trigger('submit');
