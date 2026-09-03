@@ -14,6 +14,8 @@
  * Used by Cardz3n_Gateway\Blocks_Support::get_payment_method_script_handles().
  */
 
+defined( 'ABSPATH' ) || exit;
+
 return array(
 	'dependencies' => array(
 		'wp-element',
