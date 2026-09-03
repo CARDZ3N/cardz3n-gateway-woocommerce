@@ -3,6 +3,16 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.33] - 2026-09-03
+### Fixed
+- Apple Pay, Google Pay, and ACH could still behave as enabled at runtime even when the setting was unchecked. Several places read the option with a hardcoded 'yes' fallback that bypassed the settings-screen default entirely, independent of what the merchant had configured. Every such fallback (in class-cardz3n-gateway.php and class-cardz3n-blocks-support.php) now correctly falls back to disabled.
+### Changed
+- Apple Pay, Google Pay, and ACH now default to unchecked on a fresh install. Only Credit / Debit Cards ships enabled out of the box, since it's the only method that works without additional setup.
+  ### Added
+  - Settings descriptions under Apple Pay, Google Pay, and ACH linking directly to the NMI merchant-portal pages needed to finish setup for each, so checking the box doesn't give a merchant a false sense that nothing else is required.
+### Removed
+    - Leftover debug test image (assets/img/test-red.png) with no code references.
+      
 ## [1.0.32] - 2026-09-03
 ### Fixed
 - Payment method now shows the real detected card brand (Visa, Mastercard, Amex, Discover, JCB, Diners, Maestro, UnionPay) instead of the generic "Credit Card" label. Root cause: NMI's `transact.php` sale response does not include a card-brand field, so brand detection now uses Collect.js's own client-side card-type detection instead.
