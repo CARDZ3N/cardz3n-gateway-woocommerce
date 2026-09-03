@@ -3,6 +3,12 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.35] - 2026-09-03
+### Fixed
+- WordPress.org Plugin Check blocking error: added a `defined( 'ABSPATH' ) || exit;` guard to `assets/js/blocks/checkout.asset.php`.
+- WordPress.org Plugin Check warnings: moved HTML markup outside translatable strings in the merchant state/postal override settings (`trait-cardz3n-settings.php`); the Collect.js `wp_enqueue_script()` call now passes `CARDZ3N_GW_VERSION` explicitly instead of `null`, since an unset version falls back to WordPress core's version for an externally-hosted script.
+- Condensed the readme.txt Changelog (from ~42.7K to ~4.7K characters) and trimmed six over-limit Upgrade Notice entries, both flagged by Plugin Check as oversized.
+
 ## [1.0.34] - 2026-09-03
 ### Changed
 - Saved Payment Methods, Subscriptions Support, and Pre-Orders Support now ship unchecked by default. Only Credit / Debit Cards ships enabled out of the box.
