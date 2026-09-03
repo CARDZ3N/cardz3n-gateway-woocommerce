@@ -361,7 +361,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		$show_saved       = $has_tokenization && ! empty( $saved_tokens );
 		$default_to_saved = $show_saved; // Saved is the default active tab when tokens exist.
 		$enable_cards     = 'yes' === $this->get_option( 'enable_cards', 'yes' );
-		$enable_ach		= 'yes' === $this->get_option( 'enable_ach', 'no' );
+		$enable_ach       = 'yes' === $this->get_option( 'enable_ach', 'no' );
 				// 1.0.29: Native wallet buttons restored. Root cause of the 1.0.20
 				// "Unexpected fields for applePay" throw: the fields.applePay config
 				// mixed in Google-Pay-only keys (emailRequired, buttonColor) and an
@@ -374,8 +374,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				// configureCollect() for the corrected fields.applePay/googlePay
 				// shapes. REQUIRES live sandbox verification with an eligible
 				// device/browser before this ships to merchants.
-		$enable_apple		= ( 'yes' === $this->get_option( 'enable_apple_pay', 'no' ) );
-		$enable_google		= ( 'yes' === $this->get_option( 'enable_google_pay', 'no' ) );
+		$enable_apple  = ( 'yes' === $this->get_option( 'enable_apple_pay', 'no' ) );
+		$enable_google = ( 'yes' === $this->get_option( 'enable_google_pay', 'no' ) );
 		$test_mode_active = 'yes' === $this->get_option( 'test_mode' );
 		?>
 		<div class="cardz3n-gateway-ui" data-gateway="<?php echo esc_attr( $this->id ); ?>" data-cardz3n-version="<?php echo esc_attr( CARDZ3N_GW_VERSION ); ?>">
