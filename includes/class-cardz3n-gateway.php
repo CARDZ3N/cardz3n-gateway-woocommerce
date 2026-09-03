@@ -719,14 +719,14 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			$using_saved          = true;
 			$normalized_source    = $token instanceof \WC_Payment_Token_ECheck ? 'ach_vault' : 'card_vault';
 			if ( 'card_vault' === $normalized_source ) {
-				$vault_brand = (string) $token->get_meta( 'brand' );
+				$vault_brand = (string) $token->get_card_type();
 			}
 		} elseif ( empty( $collect_token ) ) {
 			/*
 			 * 1.0.25 — the browser-side Collect.js minted a token but the
 			 * server didn't receive it on $_POST. Log the full list of
 			 * submitted fields (minus secrets) so we can diagnose whether
-			 * it's a DOM-detach issue vs serialization issue vs scope issue.
+			
 			 */
 			$posted_keys = array_keys( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			Cardz3n_Logger::warning(
