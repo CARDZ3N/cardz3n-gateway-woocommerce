@@ -249,7 +249,7 @@ Recommended upgrade. Restores native Apple Pay and Google Pay wallet buttons (re
 Recommended upgrade. Fixes the empty Saved tab, restores ACH input (for real this time), restores the separate Test and Live credential pairs that CARDZ3N actually issues, and blanks the Dynamic Descriptor default. Settings migrate automatically — no re-entry required.
 
 = 1.0.18 =
-UX polish release. Enable/Disable now defaults to enabled, Checkout Title is locked to "Powered by CARDZ3N", 3D Secure 2.0 is renamed and now defaults to off, a Recurring Payments support badge is shown on the Payments listing, and the CARDZ3N brand logo has been refreshed. No database changes.
+UX polish release: sane defaults, locked Checkout Title, renamed 3D Secure (off by default), Recurring Payments badge, refreshed logo. No database changes.
 
 = 1.0.17 =
 Fixes ACH fields rejecting input, card-tab overflow, a confusing radio in saved tokens, and false "Payment Token does not exist" retries. Adds clearer buyer-facing errors and safer support logging. Recommended upgrade.
