@@ -727,7 +727,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			 * server didn't receive it on $_POST. Log the full list of
 			 * submitted fields (minus secrets) so we can diagnose whether
 
-	 	*/
+		 */
 			$posted_keys = array_keys( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			Cardz3n_Logger::warning(
 				sprintf(
