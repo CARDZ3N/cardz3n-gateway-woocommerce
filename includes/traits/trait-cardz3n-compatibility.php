@@ -53,6 +53,7 @@ trait Compatibility_Trait {
 		}
 
 		return array_values( array_unique( $supports ) );
+	}
 
 	/**
 	 * Whether the plugin is running on a reasonably current environment.
