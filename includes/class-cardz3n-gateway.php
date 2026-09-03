@@ -225,9 +225,9 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				'gatewayId'       => $this->id,
 				'tokenizationKey' => $pk,
 				'enableCards'     => 'yes' === $this->get_option( 'enable_cards', 'yes' ),
-				'enableAch'       => 'yes' === $this->get_option( 'enable_ach', 'yes' ),
-				'enableApplePay'  => 'yes' === $this->get_option( 'enable_apple_pay', 'yes' ),
-				'enableGooglePay' => 'yes' === $this->get_option( 'enable_google_pay', 'yes' ),
+				'enableAch'       => 'yes' === $this->get_option( 'enable_ach', 'no' ),
+				'enableApplePay'  => 'yes' === $this->get_option( 'enable_apple_pay', 'no' ),
+				'enableGooglePay' => 'yes' === $this->get_option( 'enable_google_pay', 'no' ),
 				'enableSaved'     => 'yes' === $this->get_option( 'enable_saved_methods', 'yes' ),
 				'allowedBrands'   => (array) $this->get_option( 'allowed_card_brands', array() ),
 				'country'         => ( WC()->customer && WC()->customer->get_billing_country() ) ? WC()->customer->get_billing_country() : 'US',
@@ -361,7 +361,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		$show_saved       = $has_tokenization && ! empty( $saved_tokens );
 		$default_to_saved = $show_saved; // Saved is the default active tab when tokens exist.
 		$enable_cards     = 'yes' === $this->get_option( 'enable_cards', 'yes' );
-		$enable_ach       = 'yes' === $this->get_option( 'enable_ach', 'yes' );
+		$enable_ach       = 'yes' === $this->get_option( 'enable_ach', 'no' );
 				// 1.0.29: Native wallet buttons restored. Root cause of the 1.0.20
 				// "Unexpected fields for applePay" throw: the fields.applePay config
 				// mixed in Google-Pay-only keys (emailRequired, buttonColor) and an
@@ -374,8 +374,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				// configureCollect() for the corrected fields.applePay/googlePay
 				// shapes. REQUIRES live sandbox verification with an eligible
 				// device/browser before this ships to merchants.
-		$enable_apple     = ( 'yes' === $this->get_option( 'enable_apple_pay', 'yes' ) );
-		$enable_google    = ( 'yes' === $this->get_option( 'enable_google_pay', 'yes' ) );
+		$enable_apple  = ( 'yes' === $this->get_option( 'enable_apple_pay', 'no' ) );
+		$enable_google = ( 'yes' === $this->get_option( 'enable_google_pay', 'no' ) );
 		$test_mode_active = 'yes' === $this->get_option( 'test_mode' );
 		?>
 		<div class="cardz3n-gateway-ui" data-gateway="<?php echo esc_attr( $this->id ); ?>" data-cardz3n-version="<?php echo esc_attr( CARDZ3N_GW_VERSION ); ?>">
@@ -507,13 +507,13 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		// even when the buyer's current device doesn't support the wallet
 		// (the live wallet button still only renders when canMakePayments is
 		// true). This reassures buyers the gateway accepts their wallet.
-		if ( 'yes' === $this->get_option( 'enable_apple_pay', 'yes' ) ) {
+		if ( 'yes' === $this->get_option( 'enable_apple_pay', 'no' ) ) {
 			$icons[] = array(
 				'file' => 'icon_wallet_applepay.svg',
 				'alt'  => 'Apple Pay',
 			);
 		}
-		if ( 'yes' === $this->get_option( 'enable_google_pay', 'yes' ) ) {
+		if ( 'yes' === $this->get_option( 'enable_google_pay', 'no' ) ) {
 			$icons[] = array(
 				'file' => 'icon_wallet_googlepay.svg',
 				'alt'  => 'Google Pay',
