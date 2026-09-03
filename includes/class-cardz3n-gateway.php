@@ -727,11 +727,11 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			 * server didn't receive it on $_POST. Log the full list of
 			 * submitted fields (minus secrets) so we can diagnose whether
 
-		 */
+			*/
 			$posted_keys = array_keys( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			Cardz3n_Logger::warning(
 				sprintf(
-					'[CARDZ3N] Tokenize-empty. source=%s type=%s tier=%s posted_fields=%s has_checkout_public_key=%s',
+				'[CARDZ3N] Tokenize-empty. source=%s type=%s tier=%s posted_fields=%s has_checkout_public_key=%s',
 					isset( $_POST['cardz3n_payment_source'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_payment_source'] ) ) : 'n/a', // phpcs:ignore WordPress.Security.NonceVerification.Missing
 					isset( $_POST['cardz3n_token_type'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_token_type'] ) ) : 'n/a', // phpcs:ignore WordPress.Security.NonceVerification.Missing
 					$this->api_client->credentials_tier(),
