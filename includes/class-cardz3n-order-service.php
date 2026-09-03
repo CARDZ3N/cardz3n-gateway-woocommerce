@@ -90,7 +90,7 @@ class Order_Service {
 		}
 		$order->save();
 	}
-		/**
+	/**
 	 * Build a concise, human-readable order note for success.
 	 *
 	 * @param array $response Parsed Api_Client response.
