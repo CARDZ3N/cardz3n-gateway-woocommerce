@@ -962,7 +962,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 					$response['customer_vault_id'],
 					array(
 						'last4'     => substr( (string) ( $response['raw']['cc_number'] ?? '' ), -4 ),
-						'brand'     => \Cardz3n_Gateway\brand_slug( $response['raw']['cc_type'] ?? $response['raw']['card_type'] ?? '' ),
+						'brand'     => \Cardz3n_Gateway\brand_slug( '' !== $client_brand ? $client_brand : ( $response['raw']['cc_type'] ?? $response['raw']['card_type'] ?? '' ) ),
 						'exp_month' => \Cardz3n_Gateway\parse_ccexp( $response['raw']['cc_exp'] ?? $response['raw']['ccexp'] ?? '' )['month'],
 						'exp_year'  => \Cardz3n_Gateway\parse_ccexp( $response['raw']['cc_exp'] ?? $response['raw']['ccexp'] ?? '' )['year'],
 					)
