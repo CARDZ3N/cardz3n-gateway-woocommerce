@@ -136,10 +136,12 @@
 				var tokenInput = root.querySelector( 'input[name="cardz3n_payment_token"]' );
 				var kindInput  = root.querySelector( 'input[name="cardz3n_payment_kind"]' );
 				var savedInput = root.querySelector( 'input[name="cardz3n_saved_token_id"]:checked' );
+				var brandInput = root.querySelector( 'input[name="cardz3n_card_brand"]' );
 
 				var token = tokenInput && tokenInput.value ? tokenInput.value : '';
 				var kind  = kindInput && kindInput.value ? kindInput.value : 'card';
 				var saved = savedInput && savedInput.value ? savedInput.value : '';
+				var brand = brandInput && brandInput.value ? brandInput.value : '';
 
 				if ( ! token && ! saved ) {
 					return {
@@ -155,6 +157,7 @@
 							cardz3n_payment_token    : token,
 							cardz3n_payment_kind     : kind,
 							cardz3n_saved_token_id   : saved,
+							cardz3n_card_brand      : brand,
 							wc_payment_source        : 'blocks'
 						}
 					}
@@ -184,7 +187,8 @@
 			el( 'div', { className: 'cardz3n-errors', style: { display: 'none' } } ),
 			// Hidden fields populated by the tokenization flow.
 			el( 'input', { type: 'hidden', name: 'cardz3n_payment_token', defaultValue: '' } ),
-			el( 'input', { type: 'hidden', name: 'cardz3n_payment_kind',  defaultValue: 'card' } )
+			el( 'input', { type: 'hidden', name: 'cardz3n_payment_kind',  defaultValue: 'card' } ),
+			el( 'input', { type: 'hidden', name: 'cardz3n_card_brand',   defaultValue: '' } )
 		);
 	}
 
