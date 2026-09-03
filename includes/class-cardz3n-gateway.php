@@ -390,7 +390,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				<?php if ( $enable_apple ) : ?>
 					<div class="cardz3n-applepay-button" data-cardz3n-wallet="apple"></div>
 				<?php endif; ?>
-				<?php if ( $enable_google ) : ?>
+					<?php if ( $enable_google ) : ?>
 					<div class="cardz3n-googlepay-button" data-cardz3n-wallet="google"></div>
 				<?php endif; ?>
 				<div class="cardz3n-wallets-divider"><span><?php esc_html_e( 'or pay with', 'cardz3n-gateway' ); ?></span></div>
