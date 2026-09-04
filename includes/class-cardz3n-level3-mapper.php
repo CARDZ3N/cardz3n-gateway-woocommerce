@@ -50,7 +50,7 @@ class Level3_Mapper {
 	 *
 	 * @param array $settings Optional settings override, mainly for tests.
 	 */
-	public function __construct( array $settings = null ) {
+	public function __construct( ?array $settings = null ) {
 		if ( null === $settings ) {
 			$settings = get_option( 'woocommerce_' . Brand::id() . '_settings', array() );
 		}

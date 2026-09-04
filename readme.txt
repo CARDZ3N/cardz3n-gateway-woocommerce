@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.39
+Stable tag: 1.0.40
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.40 =
+* Fixed two PHP 8.4 deprecation warnings flagged by WooCommerce Marketplace's QIT Code Compatibility Test: the `$settings` constructor parameter in the API client and Level 3 mapper classes was implicitly nullable (typed `array $settings = null`), which PHP 8.4 deprecates in favor of an explicit `?array $settings = null`. No behavior change.
 
 = 1.0.39 =
 * Fixed Level 3 merchant postal-origin field name: `ship_from_postal` → `ship_from_postal_code` (confirmed with NMI support).
@@ -244,6 +247,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * Initial release. Embedded Collect.js checkout -- Card, ACH, Apple Pay, Google Pay, saved methods, Subscriptions/Pre-Orders, refunds, Level 2/3 data, 3DS2/SCA, HPOS.
 
 == Upgrade Notice ==
+
+= 1.0.40 =
+Fixes two PHP 8.4 compatibility warnings (implicitly nullable constructor parameters). No behavior change. Safe to update.
 
 = 1.0.39 =
 Fixes a Level 3 field name (ship_from_postal_code) so merchant postal-origin data reaches NMI correctly. Safe to update.
