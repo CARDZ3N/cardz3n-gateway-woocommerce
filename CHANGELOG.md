@@ -3,6 +3,10 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.41] - 2026-09-04
+### Fixed
+- WooCommerce Marketplace QIT Validation Test flagged an error: the `WC tested up to` plugin header declared `9.5`, an unsupported major version (current major confirmed as `11.x` by the QIT test environment itself, running WooCommerce 11.1.0). Bumped to `11.1`. No functional change.
+
 ## [1.0.40] - 2026-09-04
 ### Fixed
 - Two PHP 8.4 deprecation warnings surfaced by WooCommerce Marketplace's QIT Code Compatibility Test (Plugin: CARDZ3N Payment Gateway v1.0.39, run against WordPress 7.1 / WooCommerce 11.1.0 / PHP 7.4-8.5): `Api_Client::__construct()` and `Level3_Mapper::__construct()` both declared their `$settings` parameter as `array $settings = null`, an implicitly-nullable type that PHP 8.4 deprecates. Both now declare `?array $settings = null` explicitly. No logic or behavior change.
