@@ -3,6 +3,10 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.40] - 2026-09-04
+### Fixed
+- Two PHP 8.4 deprecation warnings surfaced by WooCommerce Marketplace's QIT Code Compatibility Test (Plugin: CARDZ3N Payment Gateway v1.0.39, run against WordPress 7.1 / WooCommerce 11.1.0 / PHP 7.4-8.5): `Api_Client::__construct()` and `Level3_Mapper::__construct()` both declared their `$settings` parameter as `array $settings = null`, an implicitly-nullable type that PHP 8.4 deprecates. Both now declare `?array $settings = null` explicitly. No logic or behavior change.
+
 ## [1.0.39] - 2026-09-04
 ### Fixed
 - Level 3 payload sent the merchant postal-origin field as `ship_from_postal`, which is not a field NMI's Payment API recognizes. Renamed to the correct `ship_from_postal_code`, per confirmation from NMI support. (`orderid` was also raised in the same NMI exchange but confirmed already correctly sent elsewhere in the request — no change needed there.)
