@@ -3,6 +3,12 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.37] - 2026-09-04
+### Changed
+- Checkout title no longer defaults to (and can no longer be force-locked to) "Powered by CARDZ3N". It now defaults to a neutral "Credit Card" label, with a new, unchecked-by-default "Checkout Branding" setting merchants can enable to opt in to the "Powered by CARDZ3N" label at checkout.
+### Fixed
+- WordPress.org Plugin Check: POST field names logged during a tokenize-empty diagnostic warning are now passed through `sanitize_key()` before being included in the log message, preventing unsanitized attacker-controlled key names from reaching log output.
+
 ## [1.0.36] - 2026-09-03
 ### Fixed
 - Shortened the 1.0.18 Upgrade Notice entry in readme.txt (295 characters alone, 307 combined with its header line), which WordPress.org's Plugin Check flagged as exceeding the 300-character limit.

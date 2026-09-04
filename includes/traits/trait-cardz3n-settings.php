@@ -43,10 +43,18 @@ trait Settings_Trait {
 			'title'                     => array(
 				'title'             => __( 'Checkout Title', 'cardz3n-gateway' ),
 				'type'              => 'text',
-				'description'       => __( 'The label buyers see at checkout. Locked to "Powered by CARDZ3N" to preserve consistent brand trust at payment time.', 'cardz3n-gateway' ),
-				'default'           => __( 'Powered by CARDZ3N', 'cardz3n-gateway' ),
+				'description'       => __( 'The label buyers see at checkout when "Powered by CARDZ3N" branding (below) is not enabled.', 'cardz3n-gateway' ),
+				'default'           => __( 'Credit Card', 'cardz3n-gateway' ),
 				'desc_tip'          => true,
 				'custom_attributes' => array( 'readonly' => 'readonly' ),
+			),
+			'show_powered_by_branding'  => array(
+				'title'       => __( 'Checkout Branding', 'cardz3n-gateway' ),
+				'type'        => 'checkbox',
+				'label'       => __( 'Display "Powered by CARDZ3N" at checkout instead of the default title above', 'cardz3n-gateway' ),
+				'description' => __( 'Recommended: enabling this helps buyers recognize a trusted, secure payment brand at checkout. This is off by default — you decide whether to show it.', 'cardz3n-gateway' ),
+				'desc_tip'    => false,
+				'default'     => 'no',
 			),
 			'description'               => array(
 				'title'       => __( 'Checkout Description', 'cardz3n-gateway' ),
