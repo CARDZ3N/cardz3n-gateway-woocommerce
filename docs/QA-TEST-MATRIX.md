@@ -70,6 +70,8 @@ CARDZ3N / NMI account with Collect.js enabled.
 | 31 | Debug Mode OFF                                              | No `cardz3n-gateway` log entries for normal traffic     |      |
 | 32 | Debug Mode ON                                               | Redacted transaction logs present (no PAN/CVV/account#) |      |
 | 33 | AerospacePay brand variant                                  | All UI strings and logo switch                          |      |
+| 34 | Checkout Branding checkbox left unchecked (default)          | Checkout title reads "Credit Card"                       |      |
+| 35 | Checkout Branding checkbox checked                           | Checkout title reads "Powered by CARDZ3N"                |      |
 
 ## Sign-off
 

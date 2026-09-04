@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.36
+Stable tag: 1.0.37
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Changelog ==
 
+= 1.0.37 =
+* Checkout title now defaults to "Credit Card" instead of "Powered by CARDZ3N"; a new, unchecked-by-default setting lets merchants opt in to CARDZ3N branding at checkout. Also sanitizes POST field names before they reach diagnostic log output.
+
 = 1.0.36 =
 * Shortened the 1.0.18 Upgrade Notice entry, which Plugin Check flagged as exceeding the 300-character limit once combined with its header line.
 
@@ -235,6 +238,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * Initial release. Embedded Collect.js checkout -- Card, ACH, Apple Pay, Google Pay, saved methods, Subscriptions/Pre-Orders, refunds, Level 2/3 data, 3DS2/SCA, HPOS.
 
 == Upgrade Notice ==
+
+= 1.0.37 =
+Checkout title now defaults to "Credit Card"; "Powered by CARDZ3N" branding is opt-in via a new, unchecked setting. Also fixes a log-sanitization issue flagged by WordPress.org review. Safe to update.
 
 = 1.0.36 =
 Readme-only fix: shortened an Upgrade Notice entry that exceeded WordPress.org's length limit. No code changes -- safe to update.

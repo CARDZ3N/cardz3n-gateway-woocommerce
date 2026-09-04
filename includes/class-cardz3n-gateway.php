@@ -45,13 +45,15 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		$this->init_settings();
 
 		/*
-		 * 1.0.18 — Checkout title is LOCKED to "Powered by CARDZ3N" by product
-		 * decision. The admin input is rendered readonly in the settings UI,
-		 * but we also force the runtime value here so a merchant who hacks
-		 * around the readonly attribute (or a database edit) still presents
-		 * the branded label to buyers at checkout.
+		 * 1.0.37 — Checkout title defaults to a neutral label. "Powered by
+		 * CARDZ3N" branding is only shown at checkout if the merchant has
+		 * explicitly opted in via the "show_powered_by_branding" checkbox
+		 * (unchecked by default), per WordPress.org guidelines requiring
+		 * affirmative admin opt-in for any buyer-facing attribution.
 		 */
-		$this->title       = __( 'Powered by CARDZ3N', 'cardz3n-gateway' );
+		$this->title       = $this->get_option( 'show_powered_by_branding' ) === 'yes'
+			? __( 'Powered by CARDZ3N', 'cardz3n-gateway' )
+			: __( 'Credit Card', 'cardz3n-gateway' );
 		$this->description = $this->get_option( 'description' );
 
 		$this->supports = $this->build_supports_array();
@@ -728,7 +730,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			 * submitted fields (minus secrets) so we can diagnose whether
 
 			*/
-			$posted_keys = array_keys( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			$posted_keys = array_map( 'sanitize_key', array_keys( $_POST ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			Cardz3n_Logger::warning(
 				sprintf(
 					'[CARDZ3N] Tokenize-empty. source=%s type=%s tier=%s posted_fields=%s has_checkout_public_key=%s',
