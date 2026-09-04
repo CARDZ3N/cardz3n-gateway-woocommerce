@@ -17,8 +17,8 @@
  *   tax                → order tax
  *   shipping           → freight total
  *   ponumber           → customer PO
- *   ship_from_postal   → merchant postal origin
- *   shipping_postal    → destination postal
+ *   ship_from_postal_code → merchant postal origin
+ *   shipping_postal    → destination postal (accepted alias of shipping_postal_code)
  *   shipping_country   → destination country
  *   merchant_defined_field_* → optional merchant overrides
  *   item_product_code_{N}, item_description_{N}, item_commodity_code_{N},
@@ -99,7 +99,7 @@ class Level3_Mapper {
 			$ship_from_postal = (string) ( WC()->countries ? WC()->countries->get_base_postcode() : '' );
 		}
 		if ( '' !== $ship_from_postal ) {
-			$payload['ship_from_postal'] = self::ascii( $ship_from_postal );
+			$payload['ship_from_postal_code'] = self::ascii( $ship_from_postal );
 		}
 
 		// ------- Order-level fields -------.

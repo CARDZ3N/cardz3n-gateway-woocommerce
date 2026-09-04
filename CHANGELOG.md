@@ -3,6 +3,10 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.39] - 2026-09-04
+### Fixed
+- Level 3 payload sent the merchant postal-origin field as `ship_from_postal`, which is not a field NMI's Payment API recognizes. Renamed to the correct `ship_from_postal_code`, per confirmation from NMI support. (`orderid` was also raised in the same NMI exchange but confirmed already correctly sent elsewhere in the request — no change needed there.)
+
 ## [1.0.38] - 2026-09-04
 ### Changed
 - Neutral (non-branded) checkout title changed from "Credit Card" to "Check Out".

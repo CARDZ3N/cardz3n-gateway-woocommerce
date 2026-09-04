@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.38
+Stable tag: 1.0.39
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.39 =
+* Fixed Level 3 merchant postal-origin field name: `ship_from_postal` → `ship_from_postal_code` (confirmed with NMI support).
 
 = 1.0.38 =
 * Neutral (non-branded) checkout title changed from "Credit Card" to "Check Out".
@@ -241,6 +244,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * Initial release. Embedded Collect.js checkout -- Card, ACH, Apple Pay, Google Pay, saved methods, Subscriptions/Pre-Orders, refunds, Level 2/3 data, 3DS2/SCA, HPOS.
 
 == Upgrade Notice ==
+
+= 1.0.39 =
+Fixes a Level 3 field name (ship_from_postal_code) so merchant postal-origin data reaches NMI correctly. Safe to update.
 
 = 1.0.38 =
 Wording-only change: the default (non-branded) checkout title is now "Check Out" instead of "Credit Card". Safe to update.
