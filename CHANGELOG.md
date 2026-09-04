@@ -3,6 +3,14 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.42] - 2026-09-04
+### Added
+- **Native WooCommerce Cart & Checkout Blocks integration, revived as an experimental opt-in.** A new per-merchant setting, `enable_experimental_blocks_checkout` ("Native Block Checkout", default `no`), gates both the `cart_checkout_blocks` compatibility declaration and registration of `Blocks_Support` (`includes/class-cardz3n-blocks-support.php`, previously written in 1.0.5 but unloaded since 1.0.14). When off (default), behavior is unchanged from 1.0.14–1.0.41: the block checkout renders this gateway via the classic-shortcode compatibility layer. When on, the gateway registers a native Blocks `PaymentMethodType` using the standard `woocommerce_blocks_loaded` → `woocommerce_blocks_payment_method_type_registration` pattern (verified against WooCommerce core's own `Bootstrap.php` and matched against the official Stripe gateway plugin and WooCommerce's own dummy-gateway tutorial — this is the current, documented approach).
+- Added diagnostic logging (via the existing debug-mode-gated `Logger` class) around registration, since the original 1.0.11–1.0.13 investigation was abandoned without ever explaining why the payment method registry came back empty on a live site despite three different registration strategies.
+
+### Notes
+- This ships **disabled by default** and requires the merchant to explicitly opt in per-store, so it carries no risk to existing installs. It has **not** been verified against a live block checkout — recommend testing on the CARDZ3N demo store (or any staging site) before enabling on a production store, since the original attempt failed silently in production for reasons never conclusively diagnosed.
+
 ## [1.0.41] - 2026-09-04
 ### Fixed
 - WooCommerce Marketplace QIT Validation Test flagged an error: the `WC tested up to` plugin header declared `9.5`, an unsupported major version (current major confirmed as `11.x` by the QIT test environment itself, running WooCommerce 11.1.0). Bumped to `11.1`. No functional change.
