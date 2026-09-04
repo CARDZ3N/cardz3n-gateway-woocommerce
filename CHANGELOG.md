@@ -3,6 +3,10 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.38] - 2026-09-04
+### Changed
+- Neutral (non-branded) checkout title changed from "Credit Card" to "Check Out".
+
 ## [1.0.37] - 2026-09-04
 ### Changed
 - Checkout title no longer defaults to (and can no longer be force-locked to) "Powered by CARDZ3N". It now defaults to a neutral "Credit Card" label, with a new, unchecked-by-default "Checkout Branding" setting merchants can enable to opt in to the "Powered by CARDZ3N" label at checkout.

@@ -53,7 +53,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		 */
 		$this->title       = $this->get_option( 'show_powered_by_branding' ) === 'yes'
 			? __( 'Powered by CARDZ3N', 'cardz3n-gateway' )
-			: __( 'Credit Card', 'cardz3n-gateway' );
+			: __( 'Check Out', 'cardz3n-gateway' );
 		$this->description = $this->get_option( 'description' );
 
 		$this->supports = $this->build_supports_array();
