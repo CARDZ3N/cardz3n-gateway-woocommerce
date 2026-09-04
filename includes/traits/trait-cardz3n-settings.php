@@ -44,7 +44,7 @@ trait Settings_Trait {
 				'title'             => __( 'Checkout Title', 'cardz3n-gateway' ),
 				'type'              => 'text',
 				'description'       => __( 'The label buyers see at checkout when "Powered by CARDZ3N" branding (below) is not enabled.', 'cardz3n-gateway' ),
-				'default'           => __( 'Credit Card', 'cardz3n-gateway' ),
+				'default'           => __( 'Check Out', 'cardz3n-gateway' ),
 				'desc_tip'          => true,
 				'custom_attributes' => array( 'readonly' => 'readonly' ),
 			),
