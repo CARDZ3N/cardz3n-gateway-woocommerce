@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.41
+Stable tag: 1.0.42
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.42 =
+* New (experimental, opt-in): Native WooCommerce Cart & Checkout Blocks integration, disabled by default. Enable via the new "Native Block Checkout" setting to test on your store. Off by default, checkout continues to render through the classic-shortcode compatibility layer exactly as before. Live-tested successfully (Visa and Mastercard, both approved) on a demo store before release.
 
 = 1.0.41 =
 * Fixed a WooCommerce Marketplace QIT Validation Test error: 'WC tested up to' header declared 9.5, an unsupported major version. Bumped to 11.1, the current WooCommerce major.
@@ -250,6 +253,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * Initial release. Embedded Collect.js checkout -- Card, ACH, Apple Pay, Google Pay, saved methods, Subscriptions/Pre-Orders, refunds, Level 2/3 data, 3DS2/SCA, HPOS.
 
 == Upgrade Notice ==
+
+= 1.0.42 =
+Adds an optional, off-by-default "Native Block Checkout" experimental setting. No change to default behavior unless you enable it. Safe to update.
 
 = 1.0.41 =
 Updates the declared 'WC tested up to' version from 9.5 to 11.1 (current WooCommerce major). No functional change. Safe to update.

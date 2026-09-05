@@ -3,7 +3,7 @@
  * Plugin Name: CARDZ3N Gateway for WooCommerce
  * Plugin URI: https://cardz3n.com/woocommerce
  * Description: Embedded on-site checkout for WooCommerce powered by the CARDZ3N/NMI payment gateway. Cards, ACH, Apple Pay, Google Pay, saved methods, subscriptions, refunds, captures, voids, and automatic Level 2/3 commercial-card data in a single gateway UI.
- * Version: 1.0.41
+ * Version: 1.0.42
  * Requires at least: 6.4
  * Requires PHP: 7.4
  * Requires Plugins: woocommerce
@@ -27,7 +27,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Plugin constants
  * --------------------------------------------------------------------------
  */
-define( 'CARDZ3N_GW_VERSION', '1.0.41' );
+define( 'CARDZ3N_GW_VERSION', '1.0.42' );
 define( 'CARDZ3N_GW_FILE', __FILE__ );
 define( 'CARDZ3N_GW_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CARDZ3N_GW_URL', plugin_dir_url( __FILE__ ) );
@@ -59,17 +59,69 @@ add_action(
 		if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class ) ) {
 			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', CARDZ3N_GW_FILE, true );
 
-						/*
-			 * We render inside the Cart/Checkout Blocks via the classic-shortcode
-			 * compatibility layer (payment_fields()/process_payment()). Declaring
-			 * false tells WooCommerce Blocks: 'do not expect a PaymentMethodType
-			 * registration — fall back to the classic gateway render.' This is the
-			 * same pattern used by major NMI-family gateways (Evergreen Payments,
-			 * NMI Gateway Standard, etc.) and keeps a single code path for
-			 * classic shortcode AND Block checkouts.
+			/*
+			 * Native Blocks Checkout support is opt-in per merchant via the
+			 * "Native Block Checkout (Experimental)" setting
+			 * (enable_experimental_blocks_checkout), default OFF.
+			 *
+			 * Off (default): we render inside the Cart/Checkout Blocks via
+			 * the classic-shortcode compatibility layer (payment_fields()/
+			 * process_payment()). This is the proven, stable path used since
+			 * 1.0.14, matching the pattern used by other NMI-family gateways.
+			 *
+			 * On: declares native cart_checkout_blocks compatibility and
+			 * registers a dedicated Blocks_Support PaymentMethodType (see
+			 * includes/class-cardz3n-blocks-support.php). A prior attempt at
+			 * this (1.0.5–1.0.13) was abandoned after registration
+			 * consistently produced an empty payment method registry on a
+			 * live site for reasons never conclusively diagnosed. This gate
+			 * lets it be tested per-merchant, on a single store, with an
+			 * instant rollback (flip the setting back off) instead of a
+			 * global all-or-nothing change.
 			 */
-			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', CARDZ3N_GW_FILE, false );
+			$cardz3n_gw_settings = get_option( 'woocommerce_' . ( defined( 'CARDZ3N_GW_BRAND' ) ? CARDZ3N_GW_BRAND : 'cardz3n' ) . '_settings', array() );
+			$cardz3n_gw_blocks_experimental_enabled = isset( $cardz3n_gw_settings['enable_experimental_blocks_checkout'] )
+				&& 'yes' === $cardz3n_gw_settings['enable_experimental_blocks_checkout'];
+
+			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', CARDZ3N_GW_FILE, $cardz3n_gw_blocks_experimental_enabled );
 		}
+	}
+);
+
+/*
+ * --------------------------------------------------------------------------
+ * Native Blocks Checkout registration (experimental, opt-in — see setting
+ * above). Only wires up if the merchant has enabled it; otherwise this is a
+ * no-op and the classic-shortcode compatibility layer handles the block
+ * checkout exactly as it has since 1.0.14.
+ * --------------------------------------------------------------------------
+ */
+add_action(
+	'woocommerce_blocks_loaded',
+	function () {
+		$cardz3n_gw_settings = get_option( 'woocommerce_' . ( defined( 'CARDZ3N_GW_BRAND' ) ? CARDZ3N_GW_BRAND : 'cardz3n' ) . '_settings', array() );
+		if ( ! isset( $cardz3n_gw_settings['enable_experimental_blocks_checkout'] ) || 'yes' !== $cardz3n_gw_settings['enable_experimental_blocks_checkout'] ) {
+			return;
+		}
+
+		if ( ! class_exists( '\\Automattic\\WooCommerce\\Blocks\\Payments\\Integrations\\AbstractPaymentMethodType' ) ) {
+			if ( class_exists( 'Cardz3n_Gateway\\Logger' ) ) {
+				Cardz3n_Gateway\Logger::info( 'Blocks checkout enabled in settings, but AbstractPaymentMethodType is unavailable — WooCommerce Blocks may not be loaded on this install.' );
+			}
+			return;
+		}
+
+		require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-blocks-support.php';
+
+		add_action(
+			'woocommerce_blocks_payment_method_type_registration',
+			function ( $payment_method_registry ) {
+				if ( class_exists( 'Cardz3n_Gateway\\Logger' ) ) {
+					Cardz3n_Gateway\Logger::info( 'Registering native Blocks checkout payment method.' );
+				}
+				$payment_method_registry->register( new Cardz3n_Gateway\Blocks_Support() );
+			}
+		);
 	}
 );
 
@@ -146,13 +198,21 @@ function cardz3n_gw_bootstrap() {
 
 /*
  * NOTE: 1.0.11–1.0.13 attempted a native WooCommerce Blocks PaymentMethodType
- * integration via includes/class-cardz3n-blocks-support.php. That code path is
- * retained in the repo for future revival but is intentionally NOT loaded
- * here. 1.0.14 switched to the classic-shortcode compatibility layer because
- * Woo Blocks was failing to enqueue our PaymentMethodType bundle on some
- * stacks (empty `cardz3n_gateway_data` setting, empty blocksRegistry). This is
- * the same approach used by production NMI-family gateways such as Evergreen
- * Payments Northwest 1.1.0.
+ * integration via includes/class-cardz3n-blocks-support.php. 1.0.14 switched
+ * to the classic-shortcode compatibility layer because Woo Blocks was failing
+ * to enqueue our PaymentMethodType bundle on the test stack at the time
+ * (empty `cardz3n_gateway_data` setting, empty blocksRegistry) despite three
+ * different registration strategies (nested-hook, direct DI-container,
+ * early-boot is_active() fallback) — the underlying cause was never
+ * conclusively identified.
+ *
+ * As of 1.0.42, the integration is re-enabled behind a per-merchant opt-in
+ * setting (enable_experimental_blocks_checkout, default off — see the
+ * `before_woocommerce_init` and `woocommerce_blocks_loaded` hooks above).
+ * Merchants can test it on their own store and roll it back instantly by
+ * disabling the setting, without affecting other installs. Until it's
+ * confirmed stable across WooCommerce/Blocks versions, this stays opt-in
+ * rather than the default.
  */
 
 /**

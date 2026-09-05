@@ -3,6 +3,20 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.42] - 2026-09-04
+### Added
+- **Native WooCommerce Cart & Checkout Blocks integration, revived as an experimental opt-in.** A new per-merchant setting, `enable_experimental_blocks_checkout` ("Native Block Checkout", default `no`), gates both the `cart_checkout_blocks` compatibility declaration and registration of `Blocks_Support` (`includes/class-cardz3n-blocks-support.php`, previously written in 1.0.5 but unloaded since 1.0.14). When off (default), behavior is unchanged from 1.0.14–1.0.41: the block checkout renders this gateway via the classic-shortcode compatibility layer. When on, the gateway registers a native Blocks `PaymentMethodType` using the standard `woocommerce_blocks_loaded` → `woocommerce_blocks_payment_method_type_registration` pattern (verified against WooCommerce core's own `Bootstrap.php` and matched against the official Stripe gateway plugin and WooCommerce's own dummy-gateway tutorial — this is the current, documented approach).
+- Added diagnostic logging (via the existing debug-mode-gated `Logger` class) around registration, since the original 1.0.11–1.0.13 investigation was abandoned without ever explaining why the payment method registry came back empty on a live site despite three different registration strategies.
+- **Root cause of the original 1.0.11–1.0.13 failure identified and fixed:** the classic `assets/js/checkout.js` module's top-of-file guard (`if (typeof window.CARDZ3N_GW === 'undefined') return;`) was never satisfied in the Blocks context — nothing set that global before the script executed, so the entire module (including any registration/mount logic) silently no-opped every time. `includes/class-cardz3n-blocks-support.php` now registers and `wp_localize_script()`s the shared `checkout.js` bundle itself (mirroring exactly how the classic gateway already does this), with `isBlocksCheckout: true`, before the Blocks bundle runs.
+- Implemented real, functional card and ACH hosted-field UI in the Blocks checkout (`assets/js/blocks/checkout.js`) — tabs and hosted-field containers matching the classic checkout's markup/IDs, a `handleToken()` indirection in the shared module routing Blocks-mode tokenization to a Promise instead of the classic form-submit path, and an `onPaymentSetup` handler that actually triggers Collect.js tokenization and waits for the result before submitting `paymentMethodData`.
+- Saved payment methods and Apple/Google Pay wallets are explicitly NOT yet supported in the Blocks checkout path (hidden rather than shown non-functional) — scoped out of this release, tracked for a follow-up.
+
+### Verified
+- Live-tested on the CARDZ3N demo store with the experimental setting enabled: Visa and Mastercard test transactions both tokenized and approved successfully through the native Blocks checkout (one run with Debug Mode off, one with it on to confirm diagnostic logging doesn't interfere). This is the first time this integration has worked end-to-end since it was originally attempted in 1.0.5.
+
+### Notes
+- Still ships **disabled by default** — the merchant must explicitly opt in per-store. Recommend testing on a staging site before enabling on a live production store, and keep an eye on WooCommerce → Status → Logs (with Debug Mode on) if anything looks off on a different WooCommerce/Blocks version than what was tested here.
+
 ## [1.0.41] - 2026-09-04
 ### Fixed
 - WooCommerce Marketplace QIT Validation Test flagged an error: the `WC tested up to` plugin header declared `9.5`, an unsupported major version (current major confirmed as `11.x` by the QIT test environment itself, running WooCommerce 11.1.0). Bumped to `11.1`. No functional change.

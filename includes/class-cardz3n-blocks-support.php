@@ -94,12 +94,75 @@ class Blocks_Support extends AbstractPaymentMethodType {
 			'version'      => CARDZ3N_GW_VERSION,
 		);
 
+		$pk = ( new Api_Client( is_array( $this->settings ) ? $this->settings : array() ) )->tokenization_key();
+
+		/*
+		 * Register + enqueue the SAME shared bundle (assets/js/checkout.js)
+		 * the classic checkout uses for tab switching and Collect.js
+		 * hosted-field configuration (window.cardz3nGwMount / Unmount /
+		 * StartTokenization — see the "Blocks checkout bridge" section at
+		 * the bottom of that file).
+		 *
+		 * CRITICAL ORDERING NOTE: that file's very first lines are
+		 *     if (typeof window.CARDZ3N_GW === 'undefined') { return; }
+		 * which silently no-ops the entire module (bridge functions
+		 * included) if window.CARDZ3N_GW isn't already set when it
+		 * executes. The classic gateway satisfies this via
+		 * wp_localize_script() printing an inline <script> BEFORE
+		 * checkout.js's own <script> tag. We do exactly the same thing
+		 * here, with isBlocksCheckout: true added, so the guard passes
+		 * and cardz3nGwMount() etc. actually get defined. Setting this
+		 * from React's useEffect (after mount) would be too late — the
+		 * <script> tag has already executed and returned by then. This
+		 * ordering gap is why the Blocks bundle's window.cardz3nGwMount()
+		 * call was previously a no-op.
+		 */
+		$shared_handle = 'cardz3n-shared-checkout';
+		wp_register_script(
+			$shared_handle,
+			CARDZ3N_GW_URL . 'assets/js/checkout.js',
+			array( 'jquery' ),
+			CARDZ3N_GW_VERSION,
+			true
+		);
+		wp_localize_script(
+			$shared_handle,
+			'CARDZ3N_GW',
+			array(
+				'version'         => CARDZ3N_GW_VERSION,
+				'gatewayId'       => $this->name,
+				'tokenizationKey' => $pk,
+				'enableCards'     => 'yes' === $this->get_setting( 'enable_cards', 'yes' ),
+				'enableAch'       => 'yes' === $this->get_setting( 'enable_ach', 'no' ),
+				'enableApplePay'  => false, // Not yet supported in the Blocks path.
+				'enableGooglePay' => false, // Not yet supported in the Blocks path.
+				'enableSaved'     => false, // Not yet supported in the Blocks path.
+				'allowedBrands'   => (array) $this->get_setting( 'allowed_card_brands', array() ),
+				'country'         => ( function_exists( 'WC' ) && WC()->customer && WC()->customer->get_billing_country() ) ? WC()->customer->get_billing_country() : 'US',
+				'currency'        => function_exists( 'get_woocommerce_currency' ) ? get_woocommerce_currency() : 'USD',
+				'isBlocksCheckout' => true,
+				'i18n'            => array(
+					'cardTab'       => __( 'Card', 'cardz3n-gateway' ),
+					'achTab'        => __( 'Bank (ACH)', 'cardz3n-gateway' ),
+					'cardNumber'    => __( 'Card number', 'cardz3n-gateway' ),
+					'expiry'        => __( 'MM / YY', 'cardz3n-gateway' ),
+					'cvv'           => __( 'CVV', 'cardz3n-gateway' ),
+					'accountName'   => __( 'Name on account', 'cardz3n-gateway' ),
+					'routing'       => __( 'Routing number', 'cardz3n-gateway' ),
+					'account'       => __( 'Account number', 'cardz3n-gateway' ),
+					'invalidFields' => __( 'Please check your payment details and try again.', 'cardz3n-gateway' ),
+					'timeout'       => __( 'Tokenization timed out. Please try again.', 'cardz3n-gateway' ),
+					'initError'     => __( 'Unable to initialize secure payment form. Please refresh the page and try again.', 'cardz3n-gateway' ),
+				),
+			)
+		);
+
 		$handle = 'cardz3n-blocks-checkout';
 
 		wp_register_script(
 			$handle,
 			CARDZ3N_GW_URL . 'assets/js/blocks/checkout.js',
-			$asset['dependencies'],
+			array_merge( $asset['dependencies'], array( $shared_handle ) ),
 			$asset['version'],
 			true
 		);
@@ -119,9 +182,6 @@ class Blocks_Support extends AbstractPaymentMethodType {
 			null, // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion -- Vendor script, versioned by the gateway host.
 			true
 		);
-
-		$gateway = $this->get_gateway();
-		$pk      = $gateway ? ( new Api_Client( $gateway->settings ) )->tokenization_key() : '';
 
 		if ( ! empty( $pk ) ) {
 			add_filter(
@@ -157,7 +217,7 @@ class Blocks_Support extends AbstractPaymentMethodType {
 			wp_set_script_translations( $handle, 'cardz3n-gateway' );
 		}
 
-		return array( 'cardz3n-collectjs', $handle );
+		return array( 'cardz3n-collectjs', $shared_handle, $handle );
 	}
 
 	/**
