@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.46
+Stable tag: 1.0.47
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.47 =
+* Fixed a white-label gap in the 1.0.46 fix (flagged by Devin Review): the settings-option-key lookup for native Blocks checkout was rebuilt from the CARDZ3N_GW_BRAND constant plus a hardcoded '_gateway' suffix, which breaks for any white-label partner overriding gateway_id via the cardz3n_gw_brand_profile filter (their settings save under a different option than this code reads). Now resolves the option key through Brand::id() (which honors that filter), loading the Brand class on demand since it isn't guaranteed loaded yet at this early hook.
 
 = 1.0.46 =
 * Fixed the actual root cause of the native Blocks checkout never registering, on any store, since this feature's introduction in 1.0.42: the option-key lookups in the plugin bootstrap (deciding whether to declare cart_checkout_blocks compatibility, and whether to register Blocks_Support at all) read from 'woocommerce_cardz3n_settings' -- a key that never existed -- instead of the correct 'woocommerce_cardz3n_gateway_settings'. This silently made the "Native Block Checkout (Experimental)" setting a no-op regardless of whether a merchant checked it: WooCommerce always saw it as disabled, declared no Blocks compatibility, and never attempted to register a payment method for the block checkout, producing WooCommerce's own "may not be compatible with the Checkout block" notice and no available payment methods. Every fix in 1.0.43-1.0.45 was correct but could never actually be exercised until this was found.

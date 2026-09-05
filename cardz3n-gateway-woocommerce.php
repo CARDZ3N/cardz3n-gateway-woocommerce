@@ -3,7 +3,7 @@
  * Plugin Name: CARDZ3N Gateway for WooCommerce
  * Plugin URI: https://cardz3n.com/woocommerce
  * Description: Embedded on-site checkout for WooCommerce powered by the CARDZ3N/NMI payment gateway. Cards, ACH, Apple Pay, Google Pay, saved methods, subscriptions, refunds, captures, voids, and automatic Level 2/3 commercial-card data in a single gateway UI.
- * Version: 1.0.46
+ * Version: 1.0.47
  * Requires at least: 6.4
  * Requires PHP: 7.4
  * Requires Plugins: woocommerce
@@ -27,7 +27,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Plugin constants
  * --------------------------------------------------------------------------
  */
-define( 'CARDZ3N_GW_VERSION', '1.0.46' );
+define( 'CARDZ3N_GW_VERSION', '1.0.47' );
 define( 'CARDZ3N_GW_FILE', __FILE__ );
 define( 'CARDZ3N_GW_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CARDZ3N_GW_URL', plugin_dir_url( __FILE__ ) );
@@ -53,6 +53,32 @@ if ( ! defined( 'CARDZ3N_GW_BRAND' ) ) {
  * HPOS compatibility declaration (WooCommerce 8+)
  * --------------------------------------------------------------------------
  */
+/**
+ * Resolve the WC_Settings_API option key for the active gateway.
+ *
+ * Safe to call from very early hooks: before_woocommerce_init fires during
+ * WooCommerce's OWN 'plugins_loaded' callback, which runs before this
+ * plugin's own bootstrap (cardz3n_gw_bootstrap(), hooked at 'plugins_loaded'
+ * priority 11) has required the Brand class -- so this loads it on demand
+ * rather than assuming it's already available.
+ *
+ * Resolves through Brand::id(), which runs Brand::profile() through the
+ * cardz3n_gw_brand_profile filter -- so a white-label partner that
+ * overrides gateway_id via that filter gets the correct option key here
+ * too, instead of one hardcoded from the CARDZ3N_GW_BRAND constant plus a
+ * fixed '_gateway' suffix (which silently broke native Blocks checkout for
+ * any such override, since settings would be saved under a different
+ * option than this code was reading from).
+ *
+ * @return string
+ */
+function cardz3n_gw_settings_option_key() {
+	if ( ! class_exists( '\\Cardz3n_Gateway\\Brand' ) ) {
+		require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-brand.php';
+	}
+	return 'woocommerce_' . \Cardz3n_Gateway\Brand::id() . '_settings';
+}
+
 add_action(
 	'before_woocommerce_init',
 	function () {
@@ -79,21 +105,7 @@ add_action(
 			 * instant rollback (flip the setting back off) instead of a
 			 * global all-or-nothing change.
 			 */
-			/*
-			 * IMPORTANT: the option key is 'woocommerce_<gateway_id>_settings'
-			 * (WC_Settings_API's own convention), where <gateway_id> is
-			 * '<brand>_gateway' (e.g. 'cardz3n_gateway'), NOT just '<brand>'
-			 * ('cardz3n'). Using '_settings' instead of '_gateway_settings'
-			 * here silently read a nonexistent option and always returned
-			 * array() -- meaning this compatibility declaration (and the
-			 * registration check below) ALWAYS saw the setting as unset/off,
-			 * regardless of what the merchant actually configured in the
-			 * admin UI, since this feature's introduction. Confirmed via
-			 * WooCommerce Status > Logs never showing the "Registering
-			 * native Blocks checkout payment method." line even with the
-			 * setting checked and a genuine Blocks-checkout page in use.
-			 */
-			$cardz3n_gw_settings = get_option( 'woocommerce_' . ( defined( 'CARDZ3N_GW_BRAND' ) ? CARDZ3N_GW_BRAND : 'cardz3n' ) . '_gateway_settings', array() );
+			$cardz3n_gw_settings = get_option( cardz3n_gw_settings_option_key(), array() );
 			$cardz3n_gw_blocks_experimental_enabled = isset( $cardz3n_gw_settings['enable_experimental_blocks_checkout'] )
 				&& 'yes' === $cardz3n_gw_settings['enable_experimental_blocks_checkout'];
 
@@ -113,7 +125,7 @@ add_action(
 add_action(
 	'woocommerce_blocks_loaded',
 	function () {
-		$cardz3n_gw_settings = get_option( 'woocommerce_' . ( defined( 'CARDZ3N_GW_BRAND' ) ? CARDZ3N_GW_BRAND : 'cardz3n' ) . '_gateway_settings', array() );
+		$cardz3n_gw_settings = get_option( cardz3n_gw_settings_option_key(), array() );
 		if ( ! isset( $cardz3n_gw_settings['enable_experimental_blocks_checkout'] ) || 'yes' !== $cardz3n_gw_settings['enable_experimental_blocks_checkout'] ) {
 			return;
 		}
