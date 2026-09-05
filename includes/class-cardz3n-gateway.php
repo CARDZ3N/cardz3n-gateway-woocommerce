@@ -699,13 +699,19 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		$order = wc_get_order( $order_id );
 		if ( ! $order ) {
 			wc_add_notice( __( 'Order not found.', 'cardz3n-gateway' ), 'error' );
-			return null;
+			return array(
+				'result'   => 'fail',
+				'redirect' => '',
+			);
 		}
 
 		$client = new Api_Client( $this->settings );
 		if ( ! $client->has_credentials() ) {
 			wc_add_notice( __( 'Payment gateway is not configured. Please contact the store.', 'cardz3n-gateway' ), 'error' );
-			return null;
+			return array(
+				'result'   => 'fail',
+				'redirect' => '',
+			);
 		}
 
 		// Blocks Checkout compatibility: the block bundle posts a slightly
@@ -740,8 +746,12 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			$token = \WC_Payment_Tokens::get( (int) $payment_token_id );
 			if ( ! $token || $token->get_user_id() !== get_current_user_id() || $token->get_gateway_id() !== $this->id ) {
 				wc_add_notice( __( 'Invalid saved payment method.', 'cardz3n-gateway' ), 'error' );
+				return array(
+					'result'   => 'fail',
+					'redirect' => '',
+				);
 			}
-						$vault_id = ( '' !== (string) $token->get_meta( 'cardz3n_vault_id' ) ) ? (string) $token->get_meta( 'cardz3n_vault_id' ) : $token->get_token();
+			$vault_id = ( '' !== (string) $token->get_meta( 'cardz3n_vault_id' ) ) ? (string) $token->get_meta( 'cardz3n_vault_id' ) : $token->get_token();
 			$using_saved          = true;
 			$normalized_source    = $token instanceof \WC_Payment_Token_ECheck ? 'ach_vault' : 'card_vault';
 			if ( 'card_vault' === $normalized_source ) {
@@ -774,7 +784,10 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			);
 
 			wc_add_notice( __( 'Payment details could not be tokenized. The most common cause is that the Public Key in the CARDZ3N settings was issued with the wrong scope. This plugin uses inline Collect.js, which requires a Public API Key scoped "Tokenization" (format: xxxxxx-xxxxxx-xxxxxx-xxxxxx). A "Collect Checkout" key (starting with checkout_public_) will NOT work — it drives a different hosted-redirect checkout. Verify in the CARDZ3N Merchant Portal: Settings → Security Keys → Public Security Keys → scope must be "Tokenization".', 'cardz3n-gateway' ), 'error' );
-			return null;
+			return array(
+				'result'   => 'fail',
+				'redirect' => '',
+			);
 		}
 
 		// Determine NMI "payment" field.
@@ -971,7 +984,10 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			}
 
 			wc_add_notice( $user_msg, 'error' );
-			return null;
+			return array(
+				'result'   => 'fail',
+				'redirect' => '',
+			);
 		}
 
 		// Persist standard meta and notes.

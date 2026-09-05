@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.47
+Stable tag: 1.0.48
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,10 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.48 =
+* Fixed a fatal error on the native Blocks checkout when a payment is declined or fails validation: process_payment() returned `null` on four error/decline branches instead of the array WooCommerce's own contract requires. Classic checkout tolerates this loosely, but the Blocks/Store API compatibility shim (WooCommerce core's StoreApi/Legacy.php) does `array_merge()` on that return value directly, and array_merge() against `null` is a fatal TypeError in PHP 8 — this is what caused "There has been a critical error on this website" on a declined test transaction. All four now correctly return array('result' => 'fail', 'redirect' => '').
+* Fixed a separate, unrelated crash: submitting an invalid/tampered saved-payment-method ID added an error notice but didn't stop processing, then called a method on a null object one line later. Now returns immediately after the notice.
 
 = 1.0.47 =
 * Fixed a white-label gap in the 1.0.46 fix (flagged by Devin Review): the settings-option-key lookup for native Blocks checkout was rebuilt from the CARDZ3N_GW_BRAND constant plus a hardcoded '_gateway' suffix, which breaks for any white-label partner overriding gateway_id via the cardz3n_gw_brand_profile filter (their settings save under a different option than this code reads). Now resolves the option key through Brand::id() (which honors that filter), loading the Brand class on demand since it isn't guaranteed loaded yet at this early hook.
