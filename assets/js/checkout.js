@@ -25,6 +25,7 @@
 	var activePane = cfg.enableCards ? 'card' : (cfg.enableAch ? 'ach' : 'saved');
 	var $body = $(document.body);
 	var collectInitErrored = false;
+	var tabsBound = false;
 
 	/*
 	 * 1.0.24 — catch Collect.js init errors (e.g. "Invalid tokenization key format")
@@ -140,6 +141,8 @@
 	}
 
 	function bindTabs() {
+		if (tabsBound) { return; }
+		tabsBound = true;
 		$(document).on('click', '.cardz3n-tabs .cardz3n-tab', function (e) {
 			e.preventDefault();
 			var target = $(this).data('target');
@@ -286,7 +289,7 @@
 			country: cfg.country || 'US',
 			currency: cfg.currency || 'USD',
 			price: String(getCartTotal()),
-			callback: onTokenReceived,
+			callback: handleToken,
 			timeoutDuration: 12000,
 			timeoutCallback: function () {
 				submitting = false;
@@ -389,6 +392,31 @@
 	/* ------------------------------------------------------------------
 	 * Token callback
 	 * --------------------------------------------------------------- */
+
+	/**
+	 * Single indirection point for the Collect.js `callback` option.
+	 *
+	 * Classic checkout: proceeds exactly as before (mirror hidden fields,
+	 * trigger the native form submit).
+	 *
+	 * Blocks checkout (cfg.isBlocksCheckout): the tokenization was kicked off
+	 * by cardz3nGwStartTokenization()'s Promise, which stashed its resolver
+	 * on window.CARDZ3N_GW_BLOCKS_RESOLVE. Hand the raw Collect.js response
+	 * to that resolver instead — there is no form.checkout to submit; the
+	 * Blocks onPaymentSetup handler turns this into the paymentMethodData
+	 * WooCommerce needs.
+	 */
+	function handleToken(response) {
+		if (cfg.isBlocksCheckout) {
+			var resolve = window.CARDZ3N_GW_BLOCKS_RESOLVE;
+			window.CARDZ3N_GW_BLOCKS_RESOLVE = null;
+			if (typeof resolve === 'function') {
+				resolve(response);
+			}
+			return;
+		}
+		onTokenReceived(response);
+	}
 
 	function onTokenReceived(response) {
 		if (!response || !response.token) {
@@ -544,6 +572,13 @@
 	 * --------------------------------------------------------------- */
 
 	$(document).ready(function () {
+		if (cfg.isBlocksCheckout) {
+			// Blocks checkout has no form.checkout submit event and no
+			// updated_checkout event — its lifecycle is driven entirely by
+			// the React component calling cardz3nGwMount() (see below).
+			return;
+		}
+
 		bindTabs();
 		bindCheckoutForm();
 		bindCheckoutErrorReset();
@@ -567,5 +602,79 @@
 			setTimeout(configureCollect, 50);
 		}
 	});
+
+	/* ------------------------------------------------------------------
+	 * Blocks checkout bridge
+	 *
+	 * Called by assets/js/blocks/checkout.js's Content() component, which
+	 * renders the SAME markup structure/classes/ids the functions above
+	 * already operate on (.cardz3n-gateway-ui, .cardz3n-tabs, .cardz3n-pane,
+	 * #cardz3n-ccnumber, etc.) — so tab switching, Collect.js hosted-field
+	 * configuration, and the active-pane invariant are shared, tested code,
+	 * not a reimplementation. Only the completion path differs: Blocks has
+	 * no form.checkout to submit, so tokenization resolves a Promise instead
+	 * (see cardz3nGwStartTokenization below and handleToken() above).
+	 * --------------------------------------------------------------- */
+
+	/**
+	 * Mount (or re-mount) the shared UI behavior against a Blocks-rendered
+	 * root node. Safe to call more than once (e.g. on every Blocks
+	 * re-render) — bindTabs() is idempotent and resetCollect() clears any
+	 * previous iframes before configureCollect() re-creates them.
+	 */
+	window.cardz3nGwMount = function () {
+		if (!cfg.isBlocksCheckout) { return; }
+		bindTabs();
+		resetCollect();
+		applyActivePane(activePane);
+		setTimeout(configureCollect, 50);
+	};
+
+	/**
+	 * Tear down Collect.js state when the Blocks component unmounts (e.g.
+	 * the buyer switches to a different payment method). Without this the
+	 * next mount's configureCollect() short-circuits on the stale
+	 * `configured` flag and no new iframes are created.
+	 */
+	window.cardz3nGwUnmount = function () {
+		if (!cfg.isBlocksCheckout) { return; }
+		resetCollect();
+	};
+
+	/**
+	 * Blocks-only: kick off tokenization and return a Promise that resolves
+	 * with the raw Collect.js response (or { token: null, error } on
+	 * failure to start). Called from the Blocks onPaymentSetup handler.
+	 */
+	window.cardz3nGwStartTokenization = function () {
+		return new Promise(function (resolve) {
+			if (!cfg.isBlocksCheckout) {
+				resolve({ token: null, error: 'Not running in Blocks checkout.' });
+				return;
+			}
+			clearError();
+			window.CARDZ3N_GW_BLOCKS_RESOLVE = resolve;
+			if (typeof window.CollectJS === 'undefined' || typeof window.CollectJS.startPaymentRequest !== 'function') {
+				window.CARDZ3N_GW_BLOCKS_RESOLVE = null;
+				resolve({ token: null, error: cfg.i18n && cfg.i18n.invalidFields });
+				return;
+			}
+			try {
+				window.CollectJS.startPaymentRequest();
+			} catch (err) {
+				window.CARDZ3N_GW_BLOCKS_RESOLVE = null;
+				resolve({ token: null, error: cfg.i18n && cfg.i18n.invalidFields });
+			}
+		});
+	};
+
+	/**
+	 * Blocks-only: expose the current active pane (card|ach|saved) so the
+	 * Blocks onPaymentSetup handler can report the right payment kind
+	 * without duplicating the tab-state tracking already done above.
+	 */
+	window.cardz3nGwActivePane = function () {
+		return activePane;
+	};
 
 })(jQuery);

@@ -124,7 +124,7 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 == Changelog ==
 
 = 1.0.42 =
-* New (experimental, opt-in): Native WooCommerce Cart & Checkout Blocks integration, disabled by default. Enable via the new "Native Block Checkout" setting to test on your store. Off by default, checkout continues to render through the classic-shortcode compatibility layer exactly as before.
+* New (experimental, opt-in): Native WooCommerce Cart & Checkout Blocks integration, disabled by default. Enable via the new "Native Block Checkout" setting to test on your store. Off by default, checkout continues to render through the classic-shortcode compatibility layer exactly as before. Live-tested successfully (Visa and Mastercard, both approved) on a demo store before release.
 
 = 1.0.41 =
 * Fixed a WooCommerce Marketplace QIT Validation Test error: 'WC tested up to' header declared 9.5, an unsupported major version. Bumped to 11.1, the current WooCommerce major.

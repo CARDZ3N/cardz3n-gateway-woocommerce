@@ -11,12 +11,22 @@
  * Design goals:
  *   - Reuse the classic checkout's server-provided settings
  *     (tokenizationKey, enableCards, enableAch, i18n, …).
- *   - Keep the initial block content minimal. The heavy Collect.js-powered
- *     card/ACH/wallet panes are inserted into the same DOM node and rely on
- *     the existing assets/js/checkout.js module once it mounts.
- *   - Emit a `payment_token` (plus `payment_method_kind`: card|ach|saved|
- *     applepay|googlepay) with the checkout payload so server-side
- *     process_payment() can stay identical to the classic flow.
+ *   - Reuse the EXISTING assets/js/checkout.js module for tab switching and
+ *     Collect.js hosted-field configuration, by rendering the same markup
+ *     structure/classes/ids it already operates on (.cardz3n-gateway-ui,
+ *     .cardz3n-tabs, .cardz3n-pane, #cardz3n-ccnumber, etc.) and calling its
+ *     exposed bridge functions (window.cardz3nGwMount / Unmount /
+ *     StartTokenization). This is real hosted-field UI, not a placeholder —
+ *     see the long comment block on that file's "Blocks checkout bridge"
+ *     section for how completion (no form.checkout to submit) differs from
+ *     the classic flow.
+ *   - MVP scope: Card and ACH tabs. Saved payment methods and Apple/Google
+ *     Pay wallet buttons are NOT yet supported in the Blocks checkout path
+ *     (get_payment_method_data() doesn't currently pass a saved-tokens list
+ *     to the client, and wallet buttons need their own Blocks Express
+ *     Payment Method integration) — deliberately hidden here rather than
+ *     shown non-functional. Enabling "Saved" or wallets while
+ *     enable_experimental_blocks_checkout is on has no effect on this pane.
  */
 ( function ( wp, wc, settings ) {
 	'use strict';
@@ -29,6 +39,7 @@
 	var el                    = wp.element.createElement;
 	var useEffect             = wp.element.useEffect;
 	var useRef                = wp.element.useRef;
+	var useState              = wp.element.useState;
 	var registerPaymentMethod = wc.wcBlocksRegistry.registerPaymentMethod;
 	var getSetting            = ( wc.wcSettings && wc.wcSettings.getSetting ) || function () {};
 	var decodeEntities        = ( wp.htmlEntities && wp.htmlEntities.decodeEntities ) || function ( s ) { return s; };
@@ -72,14 +83,19 @@
 	/* ------------------------------------------------------------------
 	 * Content component — renders the embedded UI inside the block.
 	 *
-	 * We render an anchor div with the same data-attributes the classic
-	 * checkout.js uses (`.cardz3n-gateway-ui[data-gateway=…]`) so the
-	 * shared script can mount its tab UI, Collect.js hosted fields, and
-	 * wallet buttons into the block without a separate UI implementation.
+	 * On mount, renders the real tab + hosted-field markup and hands off to
+	 * the shared assets/js/checkout.js module (window.cardz3nGwMount) for
+	 * tab switching and Collect.js configuration — the exact same tested
+	 * code path the classic checkout uses, operating on the same DOM
+	 * structure/ids.
 	 *
-	 * On block checkout submit, we intercept via onPaymentSetup and push
-	 * the tokenized payment_token + payment_method_kind into the order
-	 * meta. Server-side process_payment() reads these and runs the sale.
+	 * On checkout submit, onPaymentSetup calls
+	 * window.cardz3nGwStartTokenization(), which triggers Collect.js and
+	 * returns a Promise resolving with the tokenized result. That result
+	 * becomes this payment method's paymentMethodData, which WooCommerce
+	 * copies onto $_POST for process_payment() (see the
+	 * wc_payment_source === 'blocks' normalization in
+	 * includes/class-cardz3n-gateway.php).
 	 * --------------------------------------------------------------- */
 
 	function Content( props ) {
@@ -87,84 +103,117 @@
 		var emitResponse      = props && props.emitResponse;
 
 		var mountRef = useRef( null );
+		var showAch  = !! cfg.enableAch;
+		var showCard = !! cfg.enableCards;
+		var initialPane = showCard ? 'card' : ( showAch ? 'ach' : 'card' );
+		var paneState = useState( initialPane );
+		var pane      = paneState[ 0 ];
+		var setPane   = paneState[ 1 ];
 
-		// Ensure the shared Collect.js-backed UI knows what to render.
-		// We mirror the classic CARDZ3N_GW global because the existing
-		// assets/js/checkout.js module consumes it at init time.
+		// window.CARDZ3N_GW is already populated server-side by
+		// Blocks_Support::get_payment_method_script_handles() via
+		// wp_localize_script(), printed before this script tag executes
+		// (same mechanism the classic checkout uses) -- so the shared
+		// module's window.cardz3nGwMount/Unmount/StartTokenization bridge
+		// functions are already defined by the time this effect runs.
 		useEffect( function () {
 			if ( typeof window === 'undefined' ) {
 				return;
 			}
-			window.CARDZ3N_GW = window.CARDZ3N_GW || {
-				gatewayId       : cfg.gatewayId,
-				tokenizationKey : cfg.tokenizationKey,
-				enableCards     : !! cfg.enableCards,
-				enableAch       : !! cfg.enableAch,
-				enableApplePay  : !! cfg.enableApplePay,
-				enableGooglePay : !! cfg.enableGooglePay,
-				enableSaved     : !! cfg.enableSaved,
-				allowedBrands   : cfg.allowedBrands || [],
-				country         : cfg.country || 'US',
-				currency        : cfg.currency || 'USD',
-				i18n            : cfg.i18n || {},
-				isBlocksCheckout: true
-			};
 
-			// If the classic bundle is already loaded on the page, nudge it to
-			// (re-)mount into the block's UI node. The bundle exposes a global
-			// `cardz3nGwMount` when running in block mode.
-			if ( typeof window.cardz3nGwMount === 'function' && mountRef.current ) {
-				window.cardz3nGwMount( mountRef.current );
+			if ( typeof window.cardz3nGwMount === 'function' ) {
+				window.cardz3nGwMount();
 			}
-		}, [] );
 
-		// Intercept the block checkout's payment setup step and return the
-		// tokenized payment_token picked up from the shared DOM.
+			return function () {
+				if ( typeof window.cardz3nGwUnmount === 'function' ) {
+					window.cardz3nGwUnmount();
+				}
+			};
+			// Re-run if the buyer's cart makes a pane newly available/unavailable.
+		}, [ showCard, showAch ] );
+
+		// Intercept the block checkout's payment setup step. Returns a
+		// Promise — Woo Blocks supports async onPaymentSetup observers.
 		useEffect( function () {
 			if ( ! eventRegistration || ! eventRegistration.onPaymentSetup ) {
 				return;
 			}
 			var unsubscribe = eventRegistration.onPaymentSetup( function () {
-				var root = mountRef.current;
-				if ( ! root ) {
+				if ( typeof window.cardz3nGwStartTokenization !== 'function' ) {
 					return {
 						type: emitResponse.responseTypes.ERROR,
-						message: ( cfg.i18n && cfg.i18n.invalidFields ) || 'Please complete payment details.'
+						message: ( cfg.i18n && cfg.i18n.initError ) || 'Unable to initialize secure payment form.'
 					};
 				}
 
-				var tokenInput = root.querySelector( 'input[name="cardz3n_payment_token"]' );
-				var kindInput  = root.querySelector( 'input[name="cardz3n_payment_kind"]' );
-				var savedInput = root.querySelector( 'input[name="cardz3n_saved_token_id"]:checked' );
-				var brandInput = root.querySelector( 'input[name="cardz3n_card_brand"]' );
-
-				var token = tokenInput && tokenInput.value ? tokenInput.value : '';
-				var kind  = kindInput && kindInput.value ? kindInput.value : 'card';
-				var saved = savedInput && savedInput.value ? savedInput.value : '';
-				var brand = brandInput && brandInput.value ? brandInput.value : '';
-
-				if ( ! token && ! saved ) {
-					return {
-						type: emitResponse.responseTypes.ERROR,
-						message: ( cfg.i18n && cfg.i18n.invalidFields ) || 'Please complete payment details.'
-					};
-				}
-
-				return {
-					type: emitResponse.responseTypes.SUCCESS,
-					meta: {
-						paymentMethodData: {
-							cardz3n_payment_token    : token,
-							cardz3n_payment_kind     : kind,
-							cardz3n_saved_token_id   : saved,
-							cardz3n_card_brand      : brand,
-							wc_payment_source        : 'blocks'
-						}
+				return window.cardz3nGwStartTokenization().then( function ( response ) {
+					if ( ! response || ! response.token ) {
+						return {
+							type: emitResponse.responseTypes.ERROR,
+							message: ( response && response.error ) || ( cfg.i18n && cfg.i18n.invalidFields ) || 'Please complete payment details.'
+						};
 					}
-				};
+
+					var activePane = ( typeof window.cardz3nGwActivePane === 'function' ) ? window.cardz3nGwActivePane() : pane;
+					var kind       = response.tokenType || ( 'ach' === activePane ? 'ach' : 'card' );
+					var cardBrand  = ( response.card && response.card.type ) ? response.card.type : '';
+
+					return {
+						type: emitResponse.responseTypes.SUCCESS,
+						meta: {
+							paymentMethodData: {
+								wc_payment_source      : 'blocks',
+								cardz3n_payment_kind    : kind,
+								cardz3n_token_type      : kind,
+								cardz3n_payment_token   : response.token,
+								cardz3n_card_brand      : cardBrand,
+								cardz3n_saved_token_id  : ''
+							}
+						}
+					};
+				} );
 			} );
 			return unsubscribe;
-		}, [ eventRegistration, emitResponse ] );
+		}, [ eventRegistration, emitResponse, pane ] );
+
+		function switchPane( target ) {
+			setPane( target );
+			if ( typeof window.cardz3nGwMount === 'function' ) {
+				// Re-run tab-state reconciliation + re-mount Collect.js against
+				// the newly visible pane, same as the classic tab click handler.
+				window.CARDZ3N_GW_ACTIVE_PANE_HINT = target;
+				window.cardz3nGwMount();
+			}
+		}
+
+		var tabs = [];
+		if ( showCard ) {
+			tabs.push( el(
+				'button',
+				{
+					key: 'tab-card',
+					type: 'button',
+					className: 'cardz3n-tab' + ( 'card' === pane ? ' is-active' : '' ),
+					'data-target': 'card',
+					onClick: function ( ev ) { ev.preventDefault(); switchPane( 'card' ); }
+				},
+				( cfg.i18n && cfg.i18n.cardTab ) || 'Card'
+			) );
+		}
+		if ( showAch ) {
+			tabs.push( el(
+				'button',
+				{
+					key: 'tab-ach',
+					type: 'button',
+					className: 'cardz3n-tab' + ( 'ach' === pane ? ' is-active' : '' ),
+					'data-target': 'ach',
+					onClick: function ( ev ) { ev.preventDefault(); switchPane( 'ach' ); }
+				},
+				( cfg.i18n && cfg.i18n.achTab ) || 'Bank (ACH)'
+			) );
+		}
 
 		return el(
 			'div',
@@ -179,16 +228,26 @@
 				{ className: 'cardz3n-block-description', style: { margin: '0 0 12px' } },
 				decodeEntities( cfg.description || '' )
 			),
-			// Lightweight placeholder shell — the shared checkout.js fills
-			// in tabs + Collect.js hosted fields when it mounts.
-			el( 'div', { className: 'cardz3n-pane cardz3n-pane-card', 'data-pane': 'card' } ),
-			el( 'div', { className: 'cardz3n-pane cardz3n-pane-ach',  'data-pane': 'ach', style: { display: 'none' } } ),
-			el( 'div', { className: 'cardz3n-pane cardz3n-pane-saved','data-pane': 'saved', style: { display: 'none' } } ),
-			el( 'div', { className: 'cardz3n-errors', style: { display: 'none' } } ),
-			// Hidden fields populated by the tokenization flow.
-			el( 'input', { type: 'hidden', name: 'cardz3n_payment_token', defaultValue: '' } ),
-			el( 'input', { type: 'hidden', name: 'cardz3n_payment_kind',  defaultValue: 'card' } ),
-			el( 'input', { type: 'hidden', name: 'cardz3n_card_brand',   defaultValue: '' } )
+			tabs.length > 1
+				? el( 'div', { className: 'cardz3n-tabs', role: 'tablist' }, tabs )
+				: null,
+			// Card pane — hosted-field containers Collect.js mounts iframes into.
+			el(
+				'div',
+				{ className: 'cardz3n-pane cardz3n-pane-card' + ( 'card' === pane ? ' is-active' : '' ), 'data-pane': 'card', style: showCard ? {} : { display: 'none' } },
+				el( 'div', { id: 'cardz3n-ccnumber', className: 'cardz3n-field' } ),
+				el( 'div', { id: 'cardz3n-ccexp',    className: 'cardz3n-field' } ),
+				el( 'div', { id: 'cardz3n-cvv',      className: 'cardz3n-field' } )
+			),
+			// ACH pane.
+			el(
+				'div',
+				{ className: 'cardz3n-pane cardz3n-pane-ach' + ( 'ach' === pane ? ' is-active' : '' ), 'data-pane': 'ach', style: showAch ? {} : { display: 'none' } },
+				el( 'div', { id: 'cardz3n-checkname',    className: 'cardz3n-field' } ),
+				el( 'div', { id: 'cardz3n-checkaba',     className: 'cardz3n-field' } ),
+				el( 'div', { id: 'cardz3n-checkaccount', className: 'cardz3n-field' } )
+			),
+			el( 'div', { className: 'cardz3n-errors', style: { display: 'none' } } )
 		);
 	}
 
@@ -210,8 +269,8 @@
 		paymentMethodId: cfg.gatewayId,
 		supports: {
 			features: cfg.supports || [ 'products' ],
-			showSavedCards      : !! cfg.enableSaved,
-			showSaveOption      : !! cfg.enableSaved
+			showSavedCards      : false, // Not yet supported in the Blocks path — see file header.
+			showSaveOption      : false  // Not yet supported in the Blocks path — see file header.
 		}
 	} );
 } )( window.wp, window.wc, window.wc_cardz3n_params || null );
