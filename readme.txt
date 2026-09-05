@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.42
+Stable tag: 1.0.43
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,11 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.43 =
+* Fixed native Blocks checkout (experimental setting): the classic checkout script was being enqueued a second time on Blocks-checkout pages, overwriting the Blocks-specific gateway configuration with the classic one — this made `isBlocksCheckout` (and Blocks-only behavior gated on it) unreliable even with the setting correctly enabled.
+* Fixed a hang in Blocks checkout when Collect.js's tokenization request timed out — the checkout previously waited indefinitely instead of surfacing the timeout error.
+* Fixed the Blocks checkout payment method staying selectable when no tokenization key was configured or both Cards and ACH were disabled — it's now hidden in that state, matching classic-checkout availability rules.
 
 = 1.0.42 =
 * New (experimental, opt-in): Native WooCommerce Cart & Checkout Blocks integration, disabled by default. Enable via the new "Native Block Checkout" setting to test on your store. Off by default, checkout continues to render through the classic-shortcode compatibility layer exactly as before. Live-tested successfully (Visa and Mastercard, both approved) on a demo store before release.

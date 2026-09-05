@@ -70,14 +70,36 @@ class Blocks_Support extends AbstractPaymentMethodType {
 	 * available.
 	 *
 	 * We instead check the bare minimum required to decide enqueue-worthiness:
-	 * the "Enabled" toggle in the admin settings. The full availability
-	 * cascade (HTTPS, credentials, currency/country) is still enforced
-	 * client-side via `canMakePayment` and server-side at `process_payment()`
-	 * / `is_available()`, so nothing dangerous slips through.
+	 * the "Enabled" toggle, a configured tokenization key, and at least one
+	 * enabled native rail (cards or ACH — the only two this Blocks path
+	 * currently supports; see checkout.js's file header). All three of
+	 * these come straight from the settings array loaded in initialize(),
+	 * with no dependency on WC()->payment_gateways() being populated yet,
+	 * so they're safe to check this early. The full availability cascade
+	 * (HTTPS, currency/country) is still enforced client-side via
+	 * `canMakePayment` and server-side at `process_payment()` /
+	 * `is_available()`, so nothing dangerous slips through.
+	 *
+	 * Without the credentials/rail checks, a merchant with the gateway
+	 * enabled but no tokenization key configured (or both Cards and ACH
+	 * turned off) would still see a selectable "Pay with CARDZ3N" option
+	 * in the block checkout that could never actually tokenize a payment.
 	 */
 	public function is_active() {
 		$enabled = isset( $this->settings['enabled'] ) ? $this->settings['enabled'] : 'no';
-		return 'yes' === $enabled;
+		if ( 'yes' !== $enabled ) {
+			return false;
+		}
+
+		$client = new Api_Client( is_array( $this->settings ) ? $this->settings : array() );
+		if ( empty( $client->tokenization_key() ) ) {
+			return false;
+		}
+
+		$cards_enabled = 'yes' === $this->get_setting( 'enable_cards', 'yes' );
+		$ach_enabled   = 'yes' === $this->get_setting( 'enable_ach', 'no' );
+
+		return $cards_enabled || $ach_enabled;
 	}
 
 	/**

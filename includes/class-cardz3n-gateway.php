@@ -145,6 +145,31 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	}
 
 	/**
+	 * Whether the CURRENT request is the WooCommerce Checkout page rendered
+	 * via the block-based checkout, with our native Blocks integration
+	 * (Blocks_Support) actually enabled and wired up for it.
+	 *
+	 * Both conditions matter: a merchant can have the "Native Block
+	 * Checkout (Experimental)" setting on while the store's Checkout page
+	 * still uses the classic [woocommerce_checkout] shortcode (e.g. a
+	 * Classic block or an unconverted page) -- in that case Blocks_Support
+	 * never enqueues anything and the classic assets below are still the
+	 * only thing that renders our payment UI, so this must return false.
+	 *
+	 * @return bool
+	 */
+	private function is_native_blocks_checkout_page() {
+		if ( 'yes' !== $this->get_option( 'enable_experimental_blocks_checkout', 'no' ) ) {
+			return false;
+		}
+		if ( ! is_checkout() || ! function_exists( 'has_block' ) ) {
+			return false;
+		}
+		$checkout_page_id = function_exists( 'wc_get_page_id' ) ? wc_get_page_id( 'checkout' ) : 0;
+		return $checkout_page_id > 0 && has_block( 'woocommerce/checkout', $checkout_page_id );
+	}
+
+	/**
 	 * Enqueue checkout JS/CSS and localize gateway data for the frontend.
 	 */
 	public function enqueue_checkout_assets() {
@@ -152,6 +177,24 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			return;
 		}
 		if ( 'no' === $this->get_option( 'enabled' ) ) {
+			return;
+		}
+		if ( $this->is_native_blocks_checkout_page() ) {
+			/*
+			 * Blocks_Support::get_payment_method_script_handles() already
+			 * enqueues assets/js/checkout.js on this page (under its own
+			 * handle, 'cardz3n-shared-checkout') and localizes CARDZ3N_GW
+			 * onto it with isBlocksCheckout: true. Enqueueing the SAME file
+			 * again here under the classic 'cardz3n-checkout' handle would
+			 * print a second `window.CARDZ3N_GW = {...}` block (without
+			 * isBlocksCheckout) that silently overwrites the Blocks one --
+			 * whichever handle's inline script happens to print last wins,
+			 * since both assign the same global. That collision was the
+			 * root cause of isBlocksCheckout reading undefined in the
+			 * browser console despite native Blocks mode being enabled and
+			 * correctly rendering. See class-cardz3n-blocks-support.php for
+			 * the Blocks-side enqueue this defers to.
+			 */
 			return;
 		}
 

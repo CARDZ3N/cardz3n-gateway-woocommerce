@@ -293,6 +293,17 @@
 			timeoutDuration: 12000,
 			timeoutCallback: function () {
 				submitting = false;
+				/*
+				 * Blocks checkout has no form.checkout to re-render and no
+				 * updated_checkout listener -- the buyer's checkout is
+				 * waiting on the Promise from cardz3nGwStartTokenization().
+				 * Without this branch that Promise never resolved on a
+				 * timeout, leaving the block checkout hung indefinitely.
+				 */
+				if (cfg.isBlocksCheckout) {
+					resolveBlocksTokenization({ token: null, error: cfg.i18n && cfg.i18n.timeout });
+					return;
+				}
 				showError(cfg.i18n.timeout);
 				$body.trigger('updated_checkout');
 			},
@@ -408,14 +419,27 @@
 	 */
 	function handleToken(response) {
 		if (cfg.isBlocksCheckout) {
-			var resolve = window.CARDZ3N_GW_BLOCKS_RESOLVE;
-			window.CARDZ3N_GW_BLOCKS_RESOLVE = null;
-			if (typeof resolve === 'function') {
-				resolve(response);
-			}
+			resolveBlocksTokenization(response);
 			return;
 		}
 		onTokenReceived(response);
+	}
+
+	/**
+	 * Blocks-only: resolve the pending cardz3nGwStartTokenization() Promise
+	 * exactly once, whether Collect.js finished normally (handleToken) or
+	 * hit its timeoutCallback. Nulling CARDZ3N_GW_BLOCKS_RESOLVE as soon as
+	 * it's consumed guards against a late/duplicate resolution -- e.g. a
+	 * slow callback arriving after the timeout has already resolved the
+	 * Promise -- which would otherwise silently resolve a stale request.
+	 * Classic (non-Blocks) checkout never calls this.
+	 */
+	function resolveBlocksTokenization(result) {
+		var resolve = window.CARDZ3N_GW_BLOCKS_RESOLVE;
+		window.CARDZ3N_GW_BLOCKS_RESOLVE = null;
+		if (typeof resolve === 'function') {
+			resolve(result);
+		}
 	}
 
 	function onTokenReceived(response) {
