@@ -27,6 +27,50 @@
 	var collectInitErrored = false;
 	var tabsBound = false;
 
+	/**
+	 * Whether we're running inside the Blocks checkout, checked directly
+	 * against WooCommerce Blocks' OWN native settings registry
+	 * (wc.wcSettings.getSetting) instead of a custom flag carried on
+	 * window.CARDZ3N_GW.
+	 *
+	 * Why: this shared file is registered under the SAME script handle by
+	 * both the classic gateway (Gateway::enqueue_checkout_assets()) and
+	 * Blocks_Support (get_payment_method_script_handles()) so both can
+	 * localize CARDZ3N_GW onto it. wp_localize_script() does NOT merge
+	 * two calls for the same handle -- it just concatenates two separate
+	 * `var CARDZ3N_GW = {...};` statements, and whichever one happens to
+	 * print SECOND wins outright via plain JS reassignment, discarding the
+	 * other entirely. Which one runs first/second depends on WooCommerce
+	 * Blocks' internal hook timing, which we don't control and isn't
+	 * guaranteed across WooCommerce versions or themes -- so a flag riding
+	 * on CARDZ3N_GW is fundamentally a coin flip.
+	 *
+	 * wc.wcSettings.getSetting('cardz3n_gateway_data'/'aerospacepay_
+	 * gateway_data') is populated by WooCommerce Blocks' OWN
+	 * AssetDataRegistry, a completely separate, namespaced channel that
+	 * ONLY Blocks_Support::get_payment_method_data() ever writes to and
+	 * that classic checkout has no way to touch or collide with -- so this
+	 * check is reliable regardless of load/hook order. Called fresh each
+	 * time (not cached at module-load) since this file has no explicit
+	 * dependency on wc-settings and may execute before it's loaded; every
+	 * actual call site below runs later, from event handlers or the React
+	 * bridge functions invoked well after page load, by which point
+	 * wc.wcSettings is always available if this is genuinely Blocks mode.
+	 *
+	 * @return {boolean}
+	 */
+	function isBlocksMode() {
+		try {
+			var getSetting = window.wc && window.wc.wcSettings && window.wc.wcSettings.getSetting;
+			if (typeof getSetting !== 'function') {
+				return false;
+			}
+			return !!(getSetting('cardz3n_gateway_data', null) || getSetting('aerospacepay_gateway_data', null));
+		} catch (e) {
+			return false;
+		}
+	}
+
 	/*
 	 * 1.0.24 — catch Collect.js init errors (e.g. "Invalid tokenization key format")
 	 * which otherwise throw asynchronously during Config.js evaluation and leave
@@ -300,7 +344,7 @@
 				 * Without this branch that Promise never resolved on a
 				 * timeout, leaving the block checkout hung indefinitely.
 				 */
-				if (cfg.isBlocksCheckout) {
+				if (isBlocksMode()) {
 					resolveBlocksTokenization({ token: null, error: cfg.i18n && cfg.i18n.timeout });
 					return;
 				}
@@ -410,7 +454,7 @@
 	 * Classic checkout: proceeds exactly as before (mirror hidden fields,
 	 * trigger the native form submit).
 	 *
-	 * Blocks checkout (cfg.isBlocksCheckout): the tokenization was kicked off
+	 * Blocks checkout (isBlocksMode()): the tokenization was kicked off
 	 * by cardz3nGwStartTokenization()'s Promise, which stashed its resolver
 	 * on window.CARDZ3N_GW_BLOCKS_RESOLVE. Hand the raw Collect.js response
 	 * to that resolver instead — there is no form.checkout to submit; the
@@ -418,7 +462,7 @@
 	 * WooCommerce needs.
 	 */
 	function handleToken(response) {
-		if (cfg.isBlocksCheckout) {
+		if (isBlocksMode()) {
 			resolveBlocksTokenization(response);
 			return;
 		}
@@ -596,7 +640,7 @@
 	 * --------------------------------------------------------------- */
 
 	$(document).ready(function () {
-		if (cfg.isBlocksCheckout) {
+		if (isBlocksMode()) {
 			// Blocks checkout has no form.checkout submit event and no
 			// updated_checkout event — its lifecycle is driven entirely by
 			// the React component calling cardz3nGwMount() (see below).
@@ -647,7 +691,7 @@
 	 * previous iframes before configureCollect() re-creates them.
 	 */
 	window.cardz3nGwMount = function () {
-		if (!cfg.isBlocksCheckout) { return; }
+		if (!isBlocksMode()) { return; }
 		bindTabs();
 		resetCollect();
 		applyActivePane(activePane);
@@ -661,7 +705,7 @@
 	 * `configured` flag and no new iframes are created.
 	 */
 	window.cardz3nGwUnmount = function () {
-		if (!cfg.isBlocksCheckout) { return; }
+		if (!isBlocksMode()) { return; }
 		resetCollect();
 	};
 
@@ -672,7 +716,7 @@
 	 */
 	window.cardz3nGwStartTokenization = function () {
 		return new Promise(function (resolve) {
-			if (!cfg.isBlocksCheckout) {
+			if (!isBlocksMode()) {
 				resolve({ token: null, error: 'Not running in Blocks checkout.' });
 				return;
 			}

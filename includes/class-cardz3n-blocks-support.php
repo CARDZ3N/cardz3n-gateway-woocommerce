@@ -119,31 +119,40 @@ class Blocks_Support extends AbstractPaymentMethodType {
 		$pk = ( new Api_Client( is_array( $this->settings ) ? $this->settings : array() ) )->tokenization_key();
 
 		/*
-		 * Register + enqueue the SAME shared bundle (assets/js/checkout.js)
-		 * the classic checkout uses for tab switching and Collect.js
+		 * Register the SAME shared bundle (assets/js/checkout.js) the
+		 * classic checkout uses for tab switching and Collect.js
 		 * hosted-field configuration (window.cardz3nGwMount / Unmount /
 		 * StartTokenization — see the "Blocks checkout bridge" section at
-		 * the bottom of that file).
+		 * the bottom of that file), under the SAME handle
+		 * ('cardz3n-checkout') Gateway::enqueue_checkout_assets() uses --
+		 * this avoids loading the identical file twice under two handles.
+		 * wp_register_script() on an already-registered handle is a
+		 * harmless no-op either way.
 		 *
-		 * CRITICAL ORDERING NOTE: that file's very first lines are
-		 *     if (typeof window.CARDZ3N_GW === 'undefined') { return; }
-		 * which silently no-ops the entire module (bridge functions
-		 * included) if window.CARDZ3N_GW isn't already set when it
-		 * executes. The classic gateway satisfies this via
-		 * wp_localize_script() printing an inline <script> BEFORE
-		 * checkout.js's own <script> tag. We do exactly the same thing
-		 * here, with isBlocksCheckout: true added, so the guard passes
-		 * and cardz3nGwMount() etc. actually get defined. Setting this
-		 * from React's useEffect (after mount) would be too late — the
-		 * <script> tag has already executed and returned by then. This
-		 * ordering gap is why the Blocks bundle's window.cardz3nGwMount()
-		 * call was previously a no-op.
+		 * This file's CARDZ3N_GW.isBlocksCheckout flag (1.0.43/1.0.44) has
+		 * been REMOVED. Both this method and Gateway::enqueue_checkout_
+		 * assets() call wp_localize_script() on this SAME handle, and
+		 * WordPress core does NOT merge two localize() calls for the same
+		 * handle -- it concatenates two separate `var CARDZ3N_GW = {...};`
+		 * statements, and whichever prints SECOND wins outright via plain
+		 * JS reassignment, silently discarding the other. Which one runs
+		 * second depends on WooCommerce Blocks' internal hook timing,
+		 * which isn't guaranteed across WooCommerce versions or themes --
+		 * so a flag riding on CARDZ3N_GW was fundamentally a coin flip,
+		 * and on this store's block/FSE theme it consistently lost.
+		 *
+		 * assets/js/checkout.js now instead checks
+		 * wc.wcSettings.getSetting('cardz3n_gateway_data') directly (see
+		 * isBlocksMode() there) -- WooCommerce Blocks' OWN namespaced
+		 * AssetDataRegistry channel, populated ONLY by this method's
+		 * get_payment_method_data() below, which classic checkout has no
+		 * way to touch or race against.
 		 */
-		$shared_handle = 'cardz3n-shared-checkout';
+		$shared_handle = 'cardz3n-checkout';
 		wp_register_script(
 			$shared_handle,
 			CARDZ3N_GW_URL . 'assets/js/checkout.js',
-			array( 'jquery' ),
+			array( 'jquery', 'cardz3n-collectjs' ),
 			CARDZ3N_GW_VERSION,
 			true
 		);
@@ -162,7 +171,6 @@ class Blocks_Support extends AbstractPaymentMethodType {
 				'allowedBrands'   => (array) $this->get_setting( 'allowed_card_brands', array() ),
 				'country'         => ( function_exists( 'WC' ) && WC()->customer && WC()->customer->get_billing_country() ) ? WC()->customer->get_billing_country() : 'US',
 				'currency'        => function_exists( 'get_woocommerce_currency' ) ? get_woocommerce_currency() : 'USD',
-				'isBlocksCheckout' => true,
 				'i18n'            => array(
 					'cardTab'       => __( 'Card', 'cardz3n-gateway' ),
 					'achTab'        => __( 'Bank (ACH)', 'cardz3n-gateway' ),

@@ -145,82 +145,37 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	}
 
 	/**
-	 * Whether the CURRENT request is the WooCommerce Checkout page rendered
-	 * via the block-based checkout, with our native Blocks integration
-	 * (Blocks_Support) actually enabled and wired up for it.
-	 *
-	 * Both conditions matter: a merchant can have the "Native Block
-	 * Checkout (Experimental)" setting on while the store's Checkout page
-	 * still uses the classic [woocommerce_checkout] shortcode (e.g. a
-	 * Classic block or an unconverted page) -- in that case Blocks_Support
-	 * never enqueues anything and the classic assets below are still the
-	 * only thing that renders our payment UI, so this must return false.
-	 *
-	 * @return bool
-	 */
-	private function is_native_blocks_checkout_page() {
-		if ( 'yes' !== $this->get_option( 'enable_experimental_blocks_checkout', 'no' ) ) {
-			return false;
-		}
-		if ( ! is_checkout() ) {
-			return false;
-		}
-
-		/*
-		 * Prefer WooCommerce's own canonical detection, CartCheckoutUtils::
-		 * is_checkout_block_default(), over reimplementing it with has_block()
-		 * ourselves -- our first attempt at this method only checked
-		 * has_block( 'woocommerce/checkout', $checkout_page_id ), which
-		 * inspects the CHECKOUT PAGE's own post_content. On a block/FSE
-		 * theme (confirmed: this plugin was tested against one -- Envo
-		 * One), the Checkout block typically lives in the theme's
-		 * page-checkout.html TEMPLATE instead, not in the page's own
-		 * content, so that check silently returned false there even with
-		 * native Blocks mode enabled and the block checkout actually
-		 * rendering -- which is exactly why isBlocksCheckout kept reading
-		 * undefined. CartCheckoutUtils checks the active block templates
-		 * first when wp_is_block_theme() is true, then falls back to the
-		 * page content otherwise, which is the distinction we were
-		 * getting wrong.
-		 */
-		if ( class_exists( '\\Automattic\\WooCommerce\\Blocks\\Utils\\CartCheckoutUtils' ) ) {
-			return \Automattic\WooCommerce\Blocks\Utils\CartCheckoutUtils::is_checkout_block_default();
-		}
-
-		// Fallback for older WooCommerce versions that predate CartCheckoutUtils.
-		if ( ! function_exists( 'has_block' ) ) {
-			return false;
-		}
-		$checkout_page_id = function_exists( 'wc_get_page_id' ) ? wc_get_page_id( 'checkout' ) : 0;
-		return $checkout_page_id > 0 && has_block( 'woocommerce/checkout', $checkout_page_id );
-	}
-
-	/**
 	 * Enqueue checkout JS/CSS and localize gateway data for the frontend.
+	 *
+	 * Runs UNCONDITIONALLY whenever the merchant has the gateway enabled --
+	 * including on genuine Blocks-checkout pages -- rather than trying to
+	 * predict ahead of time whether Blocks_Support will also run on this
+	 * page and skip if so. Two earlier attempts at that prediction (via
+	 * has_block() against the Checkout page's content, then via
+	 * WooCommerce's own CartCheckoutUtils::is_checkout_block_default())
+	 * both produced false negatives on a block/FSE theme (Envo One) where
+	 * the Checkout block lives in a page-checkout.html theme template that
+	 * was never customized/saved to the DB, so neither could detect it.
+	 *
+	 * This and Blocks_Support::get_payment_method_script_handles() both
+	 * register/localize the SAME 'cardz3n-checkout' script handle (purely
+	 * to avoid loading the identical file twice). Whichever call happens
+	 * to print second wins outright for window.CARDZ3N_GW's contents --
+	 * WordPress core does NOT merge repeated localize() calls for one
+	 * handle, it just concatenates separate `var CARDZ3N_GW = {...};`
+	 * statements -- so this file no longer relies on a flag inside that
+	 * object to distinguish Blocks mode. assets/js/checkout.js instead
+	 * checks WooCommerce Blocks' own AssetDataRegistry directly
+	 * (wc.wcSettings.getSetting('cardz3n_gateway_data')), a channel only
+	 * Blocks_Support::get_payment_method_data() ever writes to, which is
+	 * immune to this print-order race. See that JS file's isBlocksMode()
+	 * for the full explanation.
 	 */
 	public function enqueue_checkout_assets() {
 		if ( ! is_checkout() && ! is_add_payment_method_page() && ! is_account_page() ) {
 			return;
 		}
 		if ( 'no' === $this->get_option( 'enabled' ) ) {
-			return;
-		}
-		if ( $this->is_native_blocks_checkout_page() ) {
-			/*
-			 * Blocks_Support::get_payment_method_script_handles() already
-			 * enqueues assets/js/checkout.js on this page (under its own
-			 * handle, 'cardz3n-shared-checkout') and localizes CARDZ3N_GW
-			 * onto it with isBlocksCheckout: true. Enqueueing the SAME file
-			 * again here under the classic 'cardz3n-checkout' handle would
-			 * print a second `window.CARDZ3N_GW = {...}` block (without
-			 * isBlocksCheckout) that silently overwrites the Blocks one --
-			 * whichever handle's inline script happens to print last wins,
-			 * since both assign the same global. That collision was the
-			 * root cause of isBlocksCheckout reading undefined in the
-			 * browser console despite native Blocks mode being enabled and
-			 * correctly rendering. See class-cardz3n-blocks-support.php for
-			 * the Blocks-side enqueue this defers to.
-			 */
 			return;
 		}
 

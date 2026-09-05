@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.44
+Stable tag: 1.0.45
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.45 =
+* Fixed native Blocks checkout detection for good: the 1.0.44 fix (WooCommerce's own CartCheckoutUtils::is_checkout_block_default()) still returned a false negative on this store's block/FSE theme, because the Checkout block lived in a page-checkout.html theme template that was never customized/saved to the database. Removed the whole "predict whether this is a Blocks page" approach: the classic and native-Blocks integrations now share one script handle, and the shared checkout.js module detects Blocks mode by checking WooCommerce Blocks' own settings registry directly (wc.wcSettings.getSetting) instead of a custom flag, which cannot lose a print-order race the way the previous approach could.
 
 = 1.0.44 =
 * Fixed native Blocks checkout detection on block/FSE themes: the classic-checkout-skip logic added in 1.0.43 checked only the Checkout page's own content for the Checkout block, which misses block themes that place the Checkout block in a page-checkout.html theme template instead. Switched to WooCommerce's own CartCheckoutUtils::is_checkout_block_default(), which correctly checks block templates first. This was why `isBlocksCheckout` still read undefined after the 1.0.43 fix on a block-theme store.
