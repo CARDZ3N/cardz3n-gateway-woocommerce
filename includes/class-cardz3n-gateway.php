@@ -64,6 +64,12 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		// Enqueue checkout assets.
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_checkout_assets' ) );
 
+		// Preconnect to the Collect.js host early so the browser has already
+		// done DNS/TCP/TLS by the time the hosted card/ACH iframe fields
+		// need to mount, instead of paying that cost serially after
+		// checkout.js itself finishes loading and executing.
+		add_action( 'wp_head', array( $this, 'output_collectjs_preconnect' ), 1 );
+
 		// Optional PO checkout field.
 		add_action( 'woocommerce_after_order_notes', array( $this, 'render_po_field' ) );
 		add_action( 'woocommerce_checkout_update_order_meta', array( $this, 'save_po_field' ) );
@@ -142,6 +148,34 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			return CARDZ3N_GW_URL . 'assets/img/' . Brand::get( 'logo_file' );
 		}
 		return ''; // Brand icons rendered inline by payment_fields() for finer control.
+	}
+
+	/**
+	 * Output a <link rel="preconnect"> hint for the Collect.js host
+	 * (z3n.transactiongateway.com) on checkout/account pages, so the
+	 * browser can start DNS lookup + TCP + TLS negotiation for that origin
+	 * in parallel with the rest of the page loading, rather than only
+	 * starting that work once checkout.js's own <script src> tag (which
+	 * itself has to load and execute first) triggers the connection.
+	 *
+	 * This does not shorten Collect.js's own internal iframe-mounting
+	 * handshake -- only the network-connection portion of the delay before
+	 * the hosted card/ACH fields become interactive.
+	 *
+	 * Same page gate as enqueue_checkout_assets(): no point preconnecting
+	 * anywhere this gateway's assets don't load at all.
+	 */
+	public function output_collectjs_preconnect() {
+		if ( ! is_checkout() && ! is_add_payment_method_page() && ! is_account_page() ) {
+			return;
+		}
+		if ( 'no' === $this->get_option( 'enabled' ) ) {
+			return;
+		}
+		printf(
+			'<link rel="preconnect" href="%s" crossorigin>' . "\n",
+			esc_url( Api_Client::GATEWAY_HOST )
+		);
 	}
 
 	/**

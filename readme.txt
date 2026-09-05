@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.49
+Stable tag: 1.0.50
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.50 =
+* Performance: added a preconnect resource hint for the Collect.js host (z3n.transactiongateway.com) on checkout/account pages, so the browser opens the DNS/TCP/TLS connection in parallel with the rest of page load instead of waiting until checkout.js's own script tag triggers it. Addresses a noticeable delay observed before the hosted card/ACH fields render on the native Blocks checkout. Does not affect the fields' own internal load time, only the network-connection portion of the delay.
 
 = 1.0.49 =
 * Fixed the generic "Something went wrong. Please contact us to get assistance." message shown on the Blocks checkout instead of the actual decline/error reason (e.g. the NMI decline text). The 1.0.48 fix returned `'result' => 'fail'` from process_payment()'s error branches, but WooCommerce's Store API compatibility layer (StoreApi/Legacy.php) specifically checks for the string 'failure', not 'fail' — so that check never matched, and WooCommerce fell back to its own generic message instead of surfacing ours. All five branches now return 'failure' plus an explicit 'message' key with the specific error text, matching WooCommerce's own documented convention.
