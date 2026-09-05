@@ -162,7 +162,33 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		if ( 'yes' !== $this->get_option( 'enable_experimental_blocks_checkout', 'no' ) ) {
 			return false;
 		}
-		if ( ! is_checkout() || ! function_exists( 'has_block' ) ) {
+		if ( ! is_checkout() ) {
+			return false;
+		}
+
+		/*
+		 * Prefer WooCommerce's own canonical detection, CartCheckoutUtils::
+		 * is_checkout_block_default(), over reimplementing it with has_block()
+		 * ourselves -- our first attempt at this method only checked
+		 * has_block( 'woocommerce/checkout', $checkout_page_id ), which
+		 * inspects the CHECKOUT PAGE's own post_content. On a block/FSE
+		 * theme (confirmed: this plugin was tested against one -- Envo
+		 * One), the Checkout block typically lives in the theme's
+		 * page-checkout.html TEMPLATE instead, not in the page's own
+		 * content, so that check silently returned false there even with
+		 * native Blocks mode enabled and the block checkout actually
+		 * rendering -- which is exactly why isBlocksCheckout kept reading
+		 * undefined. CartCheckoutUtils checks the active block templates
+		 * first when wp_is_block_theme() is true, then falls back to the
+		 * page content otherwise, which is the distinction we were
+		 * getting wrong.
+		 */
+		if ( class_exists( '\\Automattic\\WooCommerce\\Blocks\\Utils\\CartCheckoutUtils' ) ) {
+			return \Automattic\WooCommerce\Blocks\Utils\CartCheckoutUtils::is_checkout_block_default();
+		}
+
+		// Fallback for older WooCommerce versions that predate CartCheckoutUtils.
+		if ( ! function_exists( 'has_block' ) ) {
 			return false;
 		}
 		$checkout_page_id = function_exists( 'wc_get_page_id' ) ? wc_get_page_id( 'checkout' ) : 0;
