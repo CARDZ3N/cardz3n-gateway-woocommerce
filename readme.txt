@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.42
+Stable tag: 1.0.49
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,30 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.49 =
+* Fixed the generic "Something went wrong. Please contact us to get assistance." message shown on the Blocks checkout instead of the actual decline/error reason (e.g. the NMI decline text). The 1.0.48 fix returned `'result' => 'fail'` from process_payment()'s error branches, but WooCommerce's Store API compatibility layer (StoreApi/Legacy.php) specifically checks for the string 'failure', not 'fail' — so that check never matched, and WooCommerce fell back to its own generic message instead of surfacing ours. All five branches now return 'failure' plus an explicit 'message' key with the specific error text, matching WooCommerce's own documented convention.
+
+= 1.0.48 =
+* Fixed a fatal error on the native Blocks checkout when a payment is declined or fails validation: process_payment() returned `null` on four error/decline branches instead of the array WooCommerce's own contract requires. Classic checkout tolerates this loosely, but the Blocks/Store API compatibility shim (WooCommerce core's StoreApi/Legacy.php) does `array_merge()` on that return value directly, and array_merge() against `null` is a fatal TypeError in PHP 8 — this is what caused "There has been a critical error on this website" on a declined test transaction. All four now correctly return array('result' => 'fail', 'redirect' => '').
+* Fixed a separate, unrelated crash: submitting an invalid/tampered saved-payment-method ID added an error notice but didn't stop processing, then called a method on a null object one line later. Now returns immediately after the notice.
+
+= 1.0.47 =
+* Fixed a white-label gap in the 1.0.46 fix (flagged by Devin Review): the settings-option-key lookup for native Blocks checkout was rebuilt from the CARDZ3N_GW_BRAND constant plus a hardcoded '_gateway' suffix, which breaks for any white-label partner overriding gateway_id via the cardz3n_gw_brand_profile filter (their settings save under a different option than this code reads). Now resolves the option key through Brand::id() (which honors that filter), loading the Brand class on demand since it isn't guaranteed loaded yet at this early hook.
+
+= 1.0.46 =
+* Fixed the actual root cause of the native Blocks checkout never registering, on any store, since this feature's introduction in 1.0.42: the option-key lookups in the plugin bootstrap (deciding whether to declare cart_checkout_blocks compatibility, and whether to register Blocks_Support at all) read from 'woocommerce_cardz3n_settings' -- a key that never existed -- instead of the correct 'woocommerce_cardz3n_gateway_settings'. This silently made the "Native Block Checkout (Experimental)" setting a no-op regardless of whether a merchant checked it: WooCommerce always saw it as disabled, declared no Blocks compatibility, and never attempted to register a payment method for the block checkout, producing WooCommerce's own "may not be compatible with the Checkout block" notice and no available payment methods. Every fix in 1.0.43-1.0.45 was correct but could never actually be exercised until this was found.
+
+= 1.0.45 =
+* Fixed native Blocks checkout detection for good: the 1.0.44 fix (WooCommerce's own CartCheckoutUtils::is_checkout_block_default()) still returned a false negative on this store's block/FSE theme, because the Checkout block lived in a page-checkout.html theme template that was never customized/saved to the database. Removed the whole "predict whether this is a Blocks page" approach: the classic and native-Blocks integrations now share one script handle, and the shared checkout.js module detects Blocks mode by checking WooCommerce Blocks' own settings registry directly (wc.wcSettings.getSetting) instead of a custom flag, which cannot lose a print-order race the way the previous approach could.
+
+= 1.0.44 =
+* Fixed native Blocks checkout detection on block/FSE themes: the classic-checkout-skip logic added in 1.0.43 checked only the Checkout page's own content for the Checkout block, which misses block themes that place the Checkout block in a page-checkout.html theme template instead. Switched to WooCommerce's own CartCheckoutUtils::is_checkout_block_default(), which correctly checks block templates first. This was why `isBlocksCheckout` still read undefined after the 1.0.43 fix on a block-theme store.
+
+= 1.0.43 =
+* Fixed native Blocks checkout (experimental setting): the classic checkout script was being enqueued a second time on Blocks-checkout pages, overwriting the Blocks-specific gateway configuration with the classic one — this made `isBlocksCheckout` (and Blocks-only behavior gated on it) unreliable even with the setting correctly enabled.
+* Fixed a hang in Blocks checkout when Collect.js's tokenization request timed out — the checkout previously waited indefinitely instead of surfacing the timeout error.
+* Fixed the Blocks checkout payment method staying selectable when no tokenization key was configured or both Cards and ACH were disabled — it's now hidden in that state, matching classic-checkout availability rules.
 
 = 1.0.42 =
 * New (experimental, opt-in): Native WooCommerce Cart & Checkout Blocks integration, disabled by default. Enable via the new "Native Block Checkout" setting to test on your store. Off by default, checkout continues to render through the classic-shortcode compatibility layer exactly as before. Live-tested successfully (Visa and Mastercard, both approved) on a demo store before release.

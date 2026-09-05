@@ -259,13 +259,26 @@
 		);
 	}
 
+	/**
+	 * Mirror the server-side Blocks_Support::is_active() gate: hide the
+	 * payment method rather than show a selectable-but-unusable option
+	 * when there's no configured tokenization key or neither native rail
+	 * (Cards / ACH — the only two this Blocks path currently supports) is
+	 * enabled. Server-side process_payment()/is_available() still enforce
+	 * this independently; this is purely a UX guard against an offer the
+	 * gateway could never actually fulfill.
+	 */
+	function canMakePayment() {
+		return !! ( cfg.tokenizationKey && ( cfg.enableCards || cfg.enableAch ) );
+	}
+
 	registerPaymentMethod( {
 		name: cfg.gatewayId,
 		label: el( Label, {} ),
 		ariaLabel: decodeEntities( cfg.title || 'CARDZ3N Gateway' ),
 		content: el( Content, {} ),
 		edit:    el( Description, {} ),
-		canMakePayment: function () { return true; },
+		canMakePayment: canMakePayment,
 		paymentMethodId: cfg.gatewayId,
 		supports: {
 			features: cfg.supports || [ 'products' ],

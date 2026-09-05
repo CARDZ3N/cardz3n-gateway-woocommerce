@@ -146,6 +146,30 @@ class Gateway extends \WC_Payment_Gateway_CC {
 
 	/**
 	 * Enqueue checkout JS/CSS and localize gateway data for the frontend.
+	 *
+	 * Runs UNCONDITIONALLY whenever the merchant has the gateway enabled --
+	 * including on genuine Blocks-checkout pages -- rather than trying to
+	 * predict ahead of time whether Blocks_Support will also run on this
+	 * page and skip if so. Two earlier attempts at that prediction (via
+	 * has_block() against the Checkout page's content, then via
+	 * WooCommerce's own CartCheckoutUtils::is_checkout_block_default())
+	 * both produced false negatives on a block/FSE theme (Envo One) where
+	 * the Checkout block lives in a page-checkout.html theme template that
+	 * was never customized/saved to the DB, so neither could detect it.
+	 *
+	 * This and Blocks_Support::get_payment_method_script_handles() both
+	 * register/localize the SAME 'cardz3n-checkout' script handle (purely
+	 * to avoid loading the identical file twice). Whichever call happens
+	 * to print second wins outright for window.CARDZ3N_GW's contents --
+	 * WordPress core does NOT merge repeated localize() calls for one
+	 * handle, it just concatenates separate `var CARDZ3N_GW = {...};`
+	 * statements -- so this file no longer relies on a flag inside that
+	 * object to distinguish Blocks mode. assets/js/checkout.js instead
+	 * checks WooCommerce Blocks' own AssetDataRegistry directly
+	 * (wc.wcSettings.getSetting('cardz3n_gateway_data')), a channel only
+	 * Blocks_Support::get_payment_method_data() ever writes to, which is
+	 * immune to this print-order race. See that JS file's isBlocksMode()
+	 * for the full explanation.
 	 */
 	public function enqueue_checkout_assets() {
 		if ( ! is_checkout() && ! is_add_payment_method_page() && ! is_account_page() ) {
@@ -674,14 +698,24 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	public function process_payment( $order_id ) {
 		$order = wc_get_order( $order_id );
 		if ( ! $order ) {
-			wc_add_notice( __( 'Order not found.', 'cardz3n-gateway' ), 'error' );
-			return null;
+			$cardz3n_gw_error_msg = __( 'Order not found.', 'cardz3n-gateway' );
+			wc_add_notice( $cardz3n_gw_error_msg, 'error' );
+			return array(
+				'result'   => 'failure',
+				'message'  => $cardz3n_gw_error_msg,
+				'redirect' => '',
+			);
 		}
 
 		$client = new Api_Client( $this->settings );
 		if ( ! $client->has_credentials() ) {
-			wc_add_notice( __( 'Payment gateway is not configured. Please contact the store.', 'cardz3n-gateway' ), 'error' );
-			return null;
+			$cardz3n_gw_error_msg = __( 'Payment gateway is not configured. Please contact the store.', 'cardz3n-gateway' );
+			wc_add_notice( $cardz3n_gw_error_msg, 'error' );
+			return array(
+				'result'   => 'failure',
+				'message'  => $cardz3n_gw_error_msg,
+				'redirect' => '',
+			);
 		}
 
 		// Blocks Checkout compatibility: the block bundle posts a slightly
@@ -715,9 +749,15 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		if ( ! empty( $payment_token_id ) && 'new' !== $payment_token_id ) {
 			$token = \WC_Payment_Tokens::get( (int) $payment_token_id );
 			if ( ! $token || $token->get_user_id() !== get_current_user_id() || $token->get_gateway_id() !== $this->id ) {
-				wc_add_notice( __( 'Invalid saved payment method.', 'cardz3n-gateway' ), 'error' );
+				$cardz3n_gw_error_msg = __( 'Invalid saved payment method.', 'cardz3n-gateway' );
+				wc_add_notice( $cardz3n_gw_error_msg, 'error' );
+				return array(
+					'result'   => 'failure',
+					'message'  => $cardz3n_gw_error_msg,
+					'redirect' => '',
+				);
 			}
-						$vault_id = ( '' !== (string) $token->get_meta( 'cardz3n_vault_id' ) ) ? (string) $token->get_meta( 'cardz3n_vault_id' ) : $token->get_token();
+			$vault_id = ( '' !== (string) $token->get_meta( 'cardz3n_vault_id' ) ) ? (string) $token->get_meta( 'cardz3n_vault_id' ) : $token->get_token();
 			$using_saved          = true;
 			$normalized_source    = $token instanceof \WC_Payment_Token_ECheck ? 'ach_vault' : 'card_vault';
 			if ( 'card_vault' === $normalized_source ) {
@@ -749,8 +789,13 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				)
 			);
 
-			wc_add_notice( __( 'Payment details could not be tokenized. The most common cause is that the Public Key in the CARDZ3N settings was issued with the wrong scope. This plugin uses inline Collect.js, which requires a Public API Key scoped "Tokenization" (format: xxxxxx-xxxxxx-xxxxxx-xxxxxx). A "Collect Checkout" key (starting with checkout_public_) will NOT work — it drives a different hosted-redirect checkout. Verify in the CARDZ3N Merchant Portal: Settings → Security Keys → Public Security Keys → scope must be "Tokenization".', 'cardz3n-gateway' ), 'error' );
-			return null;
+			$cardz3n_gw_error_msg = __( 'Payment details could not be tokenized. The most common cause is that the Public Key in the CARDZ3N settings was issued with the wrong scope. This plugin uses inline Collect.js, which requires a Public API Key scoped "Tokenization" (format: xxxxxx-xxxxxx-xxxxxx-xxxxxx). A "Collect Checkout" key (starting with checkout_public_) will NOT work — it drives a different hosted-redirect checkout. Verify in the CARDZ3N Merchant Portal: Settings → Security Keys → Public Security Keys → scope must be "Tokenization".', 'cardz3n-gateway' );
+			wc_add_notice( $cardz3n_gw_error_msg, 'error' );
+			return array(
+				'result'   => 'failure',
+				'message'  => $cardz3n_gw_error_msg,
+				'redirect' => '',
+			);
 		}
 
 		// Determine NMI "payment" field.
@@ -947,7 +992,11 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			}
 
 			wc_add_notice( $user_msg, 'error' );
-			return null;
+			return array(
+				'result'   => 'failure',
+				'message'  => $user_msg,
+				'redirect' => '',
+			);
 		}
 
 		// Persist standard meta and notes.
