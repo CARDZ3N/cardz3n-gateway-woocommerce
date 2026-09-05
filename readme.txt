@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.48
+Stable tag: 1.0.49
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.49 =
+* Fixed the generic "Something went wrong. Please contact us to get assistance." message shown on the Blocks checkout instead of the actual decline/error reason (e.g. the NMI decline text). The 1.0.48 fix returned `'result' => 'fail'` from process_payment()'s error branches, but WooCommerce's Store API compatibility layer (StoreApi/Legacy.php) specifically checks for the string 'failure', not 'fail' — so that check never matched, and WooCommerce fell back to its own generic message instead of surfacing ours. All five branches now return 'failure' plus an explicit 'message' key with the specific error text, matching WooCommerce's own documented convention.
 
 = 1.0.48 =
 * Fixed a fatal error on the native Blocks checkout when a payment is declined or fails validation: process_payment() returned `null` on four error/decline branches instead of the array WooCommerce's own contract requires. Classic checkout tolerates this loosely, but the Blocks/Store API compatibility shim (WooCommerce core's StoreApi/Legacy.php) does `array_merge()` on that return value directly, and array_merge() against `null` is a fatal TypeError in PHP 8 — this is what caused "There has been a critical error on this website" on a declined test transaction. All four now correctly return array('result' => 'fail', 'redirect' => '').

@@ -698,18 +698,22 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	public function process_payment( $order_id ) {
 		$order = wc_get_order( $order_id );
 		if ( ! $order ) {
-			wc_add_notice( __( 'Order not found.', 'cardz3n-gateway' ), 'error' );
+			$cardz3n_gw_error_msg = __( 'Order not found.', 'cardz3n-gateway' );
+			wc_add_notice( $cardz3n_gw_error_msg, 'error' );
 			return array(
-				'result'   => 'fail',
+				'result'   => 'failure',
+				'message'  => $cardz3n_gw_error_msg,
 				'redirect' => '',
 			);
 		}
 
 		$client = new Api_Client( $this->settings );
 		if ( ! $client->has_credentials() ) {
-			wc_add_notice( __( 'Payment gateway is not configured. Please contact the store.', 'cardz3n-gateway' ), 'error' );
+			$cardz3n_gw_error_msg = __( 'Payment gateway is not configured. Please contact the store.', 'cardz3n-gateway' );
+			wc_add_notice( $cardz3n_gw_error_msg, 'error' );
 			return array(
-				'result'   => 'fail',
+				'result'   => 'failure',
+				'message'  => $cardz3n_gw_error_msg,
 				'redirect' => '',
 			);
 		}
@@ -745,9 +749,11 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		if ( ! empty( $payment_token_id ) && 'new' !== $payment_token_id ) {
 			$token = \WC_Payment_Tokens::get( (int) $payment_token_id );
 			if ( ! $token || $token->get_user_id() !== get_current_user_id() || $token->get_gateway_id() !== $this->id ) {
-				wc_add_notice( __( 'Invalid saved payment method.', 'cardz3n-gateway' ), 'error' );
+				$cardz3n_gw_error_msg = __( 'Invalid saved payment method.', 'cardz3n-gateway' );
+				wc_add_notice( $cardz3n_gw_error_msg, 'error' );
 				return array(
-					'result'   => 'fail',
+					'result'   => 'failure',
+					'message'  => $cardz3n_gw_error_msg,
 					'redirect' => '',
 				);
 			}
@@ -783,9 +789,11 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				)
 			);
 
-			wc_add_notice( __( 'Payment details could not be tokenized. The most common cause is that the Public Key in the CARDZ3N settings was issued with the wrong scope. This plugin uses inline Collect.js, which requires a Public API Key scoped "Tokenization" (format: xxxxxx-xxxxxx-xxxxxx-xxxxxx). A "Collect Checkout" key (starting with checkout_public_) will NOT work — it drives a different hosted-redirect checkout. Verify in the CARDZ3N Merchant Portal: Settings → Security Keys → Public Security Keys → scope must be "Tokenization".', 'cardz3n-gateway' ), 'error' );
+			$cardz3n_gw_error_msg = __( 'Payment details could not be tokenized. The most common cause is that the Public Key in the CARDZ3N settings was issued with the wrong scope. This plugin uses inline Collect.js, which requires a Public API Key scoped "Tokenization" (format: xxxxxx-xxxxxx-xxxxxx-xxxxxx). A "Collect Checkout" key (starting with checkout_public_) will NOT work — it drives a different hosted-redirect checkout. Verify in the CARDZ3N Merchant Portal: Settings → Security Keys → Public Security Keys → scope must be "Tokenization".', 'cardz3n-gateway' );
+			wc_add_notice( $cardz3n_gw_error_msg, 'error' );
 			return array(
-				'result'   => 'fail',
+				'result'   => 'failure',
+				'message'  => $cardz3n_gw_error_msg,
 				'redirect' => '',
 			);
 		}
@@ -985,7 +993,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 
 			wc_add_notice( $user_msg, 'error' );
 			return array(
-				'result'   => 'fail',
+				'result'   => 'failure',
+				'message'  => $user_msg,
 				'redirect' => '',
 			);
 		}
