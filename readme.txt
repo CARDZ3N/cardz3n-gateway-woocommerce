@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.45
+Stable tag: 1.0.46
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.46 =
+* Fixed the actual root cause of the native Blocks checkout never registering, on any store, since this feature's introduction in 1.0.42: the option-key lookups in the plugin bootstrap (deciding whether to declare cart_checkout_blocks compatibility, and whether to register Blocks_Support at all) read from 'woocommerce_cardz3n_settings' -- a key that never existed -- instead of the correct 'woocommerce_cardz3n_gateway_settings'. This silently made the "Native Block Checkout (Experimental)" setting a no-op regardless of whether a merchant checked it: WooCommerce always saw it as disabled, declared no Blocks compatibility, and never attempted to register a payment method for the block checkout, producing WooCommerce's own "may not be compatible with the Checkout block" notice and no available payment methods. Every fix in 1.0.43-1.0.45 was correct but could never actually be exercised until this was found.
 
 = 1.0.45 =
 * Fixed native Blocks checkout detection for good: the 1.0.44 fix (WooCommerce's own CartCheckoutUtils::is_checkout_block_default()) still returned a false negative on this store's block/FSE theme, because the Checkout block lived in a page-checkout.html theme template that was never customized/saved to the database. Removed the whole "predict whether this is a Blocks page" approach: the classic and native-Blocks integrations now share one script handle, and the shared checkout.js module detects Blocks mode by checking WooCommerce Blocks' own settings registry directly (wc.wcSettings.getSetting) instead of a custom flag, which cannot lose a print-order race the way the previous approach could.
