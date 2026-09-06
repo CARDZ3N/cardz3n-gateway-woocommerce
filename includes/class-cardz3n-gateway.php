@@ -151,12 +151,21 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	}
 
 	/**
-	 * Output a <link rel="preconnect"> hint for the Collect.js host
-	 * (z3n.transactiongateway.com) on checkout/account pages, so the
-	 * browser can start DNS lookup + TCP + TLS negotiation for that origin
-	 * in parallel with the rest of the page loading, rather than only
-	 * starting that work once checkout.js's own <script src> tag (which
-	 * itself has to load and execute first) triggers the connection.
+	 * Output a <link rel="preconnect"> hint for whichever host actually
+	 * serves Collect.js, so the browser can start DNS lookup + TCP + TLS
+	 * negotiation for that origin in parallel with the rest of the page
+	 * loading, rather than only starting that work once checkout.js's own
+	 * <script src> tag (which itself has to load and execute first)
+	 * triggers the connection.
+	 *
+	 * Derives the origin from Api_Client::collectjs_url() rather than
+	 * hardcoding Api_Client::GATEWAY_HOST -- that URL runs through the
+	 * cardz3n_gw_collectjs_url filter, which white-label partners on a
+	 * different NMI host use to point Collect.js elsewhere (see
+	 * Api_Client's own class docblock). Hardcoding GATEWAY_HOST would
+	 * preconnect to a host the script never actually loads from for such a
+	 * partner -- an unused connection with zero benefit -- while giving no
+	 * head start at all to the origin actually used.
 	 *
 	 * This does not shorten Collect.js's own internal iframe-mounting
 	 * handshake -- only the network-connection portion of the delay before
@@ -172,9 +181,16 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		if ( 'no' === $this->get_option( 'enabled' ) ) {
 			return;
 		}
+
+		$parsed = wp_parse_url( Api_Client::collectjs_url() );
+		if ( empty( $parsed['scheme'] ) || empty( $parsed['host'] ) || ! in_array( $parsed['scheme'], array( 'http', 'https' ), true ) ) {
+			return; // Filter returned something we can't safely form an origin from -- skip rather than guess.
+		}
+		$origin = $parsed['scheme'] . '://' . $parsed['host'] . ( isset( $parsed['port'] ) ? ':' . $parsed['port'] : '' );
+
 		printf(
 			'<link rel="preconnect" href="%s" crossorigin>' . "\n",
-			esc_url( Api_Client::GATEWAY_HOST )
+			esc_url( $origin )
 		);
 	}
 

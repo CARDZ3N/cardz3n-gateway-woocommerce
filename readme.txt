@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.50
+Stable tag: 1.0.51
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.51 =
+* Fixed a white-label gap in the 1.0.50 preconnect hint (flagged by Devin Review): it hardcoded the default GATEWAY_HOST, but Api_Client::collectjs_url() runs through the cardz3n_gw_collectjs_url filter that white-label partners use to serve Collect.js from a different host. Now derives the preconnect origin from the actual filtered URL, so it always targets whichever host the script really loads from.
 
 = 1.0.50 =
 * Performance: added a preconnect resource hint for the Collect.js host (z3n.transactiongateway.com) on checkout/account pages, so the browser opens the DNS/TCP/TLS connection in parallel with the rest of page load instead of waiting until checkout.js's own script tag triggers it. Addresses a noticeable delay observed before the hosted card/ACH fields render on the native Blocks checkout. Does not affect the fields' own internal load time, only the network-connection portion of the delay.
