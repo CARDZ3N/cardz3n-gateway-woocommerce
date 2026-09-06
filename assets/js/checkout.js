@@ -274,8 +274,46 @@
 		return null;
 	}
 
+	var collectRetryCount = 0;
+	var COLLECT_RETRY_MAX_ATTEMPTS = 100; // 100 * 100ms = 10s ceiling before giving up.
+	var COLLECT_RETRY_INTERVAL_MS = 100;
+
+	/*
+	 * 1.0.53 — deterministic retry instead of relying on incidental re-renders.
+	 *
+	 * Previously, every caller of configureCollect() (the classic
+	 * updated_checkout handler, the first-render call, and Blocks'
+	 * cardz3nGwMount()) scheduled it via a single one-shot
+	 * setTimeout(configureCollect, 50). If window.CollectJS wasn't defined
+	 * yet at that single 50ms check -- entirely possible, since Collect.js
+	 * is a third-party script loaded over the network from NMI's servers,
+	 * and 50ms is not a reliable bound for that -- configureCollect()
+	 * silently no-opped and NOTHING scheduled another attempt.
+	 *
+	 * On the Blocks checkout specifically, the only path that ever calls
+	 * configureCollect() again after that is cardz3nGwMount() firing on a
+	 * LATER React re-render (e.g. a cart-total or shipping-method update)
+	 * that happens to occur, coincidentally, after Collect.js has finally
+	 * finished loading. That's not a bound on load time -- it's a bound on
+	 * whenever some UNRELATED re-render next happens to occur, which is why
+	 * the observed field-mount delay (3-5s) was inconsistent and much
+	 * longer than Collect.js's own network+init time alone should require.
+	 *
+	 * Now configureCollect() retries itself on a short, bounded interval
+	 * until window.CollectJS actually exists, so field mounting is bound by
+	 * Collect.js's real load time instead of by incidental re-render timing.
+	 */
 	function configureCollect() {
-		if (configured || typeof window.CollectJS === 'undefined') {
+		if (configured) {
+			return;
+		}
+		if (typeof window.CollectJS === 'undefined') {
+			if (collectRetryCount < COLLECT_RETRY_MAX_ATTEMPTS) {
+				collectRetryCount++;
+				setTimeout(configureCollect, COLLECT_RETRY_INTERVAL_MS);
+			} else if (window.console && console.warn) {
+				console.warn('[CARDZ3N] Collect.js did not become available within 10s; payment fields were not mounted.');
+			}
 			return;
 		}
 
@@ -431,6 +469,7 @@
 			});
 		}
 		configured = false;
+		collectRetryCount = 0;
 	}
 
 	function getCartTotal() {
