@@ -1,20 +1,20 @@
 === CARDZ3N Gateway for WooCommerce ===
 Contributors: jbenedetti, cardz3n
-Tags: payment gateway, credit card, ach, nmi, apple pay
+Tags: payment gateway, credit card, ach, apple pay, google pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.58
+Stable tag: 1.0.59
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Embedded WooCommerce checkout via CARDZ3N / NMI. Card, ACH, Apple Pay, Google Pay, saved methods, subscriptions, refunds, and Level 2/3 data.
+Embedded WooCommerce checkout via CARDZ3N. Card, ACH, Apple Pay, Google Pay, saved methods, subscriptions, refunds, and Level 2/3 data.
 
 == Description ==
 
-CARDZ3N Gateway for WooCommerce turns your WooCommerce store into a full-featured embedded checkout powered by the CARDZ3N / NMI payment platform.
+CARDZ3N Gateway for WooCommerce turns your WooCommerce store into a full-featured embedded checkout powered by the CARDZ3N payment platform.
 
-Buyers stay on your site — no visible redirect — and can choose between **credit/debit cards, ACH bank payments, Apple Pay, Google Pay, or a saved payment method** inside a single gateway UI. All sensitive payment data is tokenized in the browser by NMI's Collect.js library, so card numbers and bank account numbers never touch your WordPress server.
+Buyers stay on your site — no visible redirect — and can choose between **credit/debit cards, ACH bank payments, Apple Pay, Google Pay, or a saved payment method** inside a single gateway UI. All sensitive payment data is tokenized in the browser by CARDZ3N's Collect.js library, so card numbers and bank account numbers never touch your WordPress server.
 
 B2B merchants benefit from **automatic Level 2 and Level 3 commercial-card data** — freight, tax, line-item, UPC, commodity code, PO number, and destination fields are populated from WooCommerce order data on every transaction.
 
@@ -22,7 +22,7 @@ B2B merchants benefit from **automatic Level 2 and Level 3 commercial-card data*
 
 * Embedded, on-site checkout — no redirect
 * Credit / debit card, ACH / eCheck, Apple Pay, Google Pay — all in one gateway UI
-* Saved payment methods (card + ACH) with NMI Customer Vault
+* Saved payment methods (card + ACH) with the CARDZ3N Customer Vault
 * WooCommerce Subscriptions compatibility (if installed)
 * WooCommerce Pre-Orders compatibility (if installed)
 * Authorize-only + manual capture, void, full and partial refunds
@@ -78,7 +78,7 @@ Your private Security Key is stored in WooCommerce gateway settings and is only 
 1. Upload the plugin ZIP via **Plugins → Add New → Upload Plugin**, or extract into `wp-content/plugins/cardz3n-gateway`.
 2. Activate the plugin.
 3. Go to **WooCommerce → Settings → Payments** and click **CARDZ3N Gateway**.
-4. Enter your sandbox or live **Security Key** and **Tokenization Key** from your CARDZ3N / NMI Merchant Portal (Settings → Security Keys).
+4. Enter your sandbox or live **Security Key** and **Tokenization Key** from your CARDZ3N Merchant Portal (Settings → Security Keys).
 5. Enable the payment methods you want — Cards, ACH, Apple Pay, Google Pay — and save.
 6. Click **Test Credentials** to confirm the gateway accepts your keys.
 7. Run a sandbox transaction end-to-end before going live.
@@ -87,7 +87,7 @@ Your private Security Key is stored in WooCommerce gateway settings and is only 
 
 = Does this plugin store credit card numbers on my site? =
 
-No. Card, ACH, and wallet data are tokenized by NMI Collect.js in the buyer's browser. Your WordPress server only receives a short-lived `payment_token` which is exchanged server-side for a charge. Your database stores only non-sensitive metadata (last 4 digits, expiry, brand) and the NMI Customer Vault ID for tokenized reuse.
+No. Card, ACH, and wallet data are tokenized by CARDZ3N's Collect.js in the buyer's browser. Your WordPress server only receives a short-lived `payment_token` which is exchanged server-side for a charge. Your database stores only non-sensitive metadata (last 4 digits, expiry, brand) and the CARDZ3N Customer Vault ID for tokenized reuse.
 
 = Do I need a separate plugin for Apple Pay or Google Pay? =
 
@@ -99,7 +99,7 @@ Yes, when the WooCommerce Subscriptions extension is installed. Renewals are cha
 
 = What is Level 3 data and why does it matter? =
 
-Level 3 is the enhanced transaction data (line items, freight, tax, destination, commodity codes, UPC, PO number) that Visa and Mastercard commercial-card programs require for the lowest interchange rates. This plugin maps WooCommerce order data to the NMI Level 3 payload automatically on every transaction.
+Level 3 is the enhanced transaction data (line items, freight, tax, destination, commodity codes, UPC, PO number) that Visa and Mastercard commercial-card programs require for the lowest interchange rates. This plugin maps WooCommerce order data to the Level 3 payload automatically on every transaction.
 
 = Does it work with HPOS (High-Performance Order Storage)? =
 
@@ -109,7 +109,7 @@ Yes. HPOS compatibility is declared on plugin boot.
 
 CARDZ3N Gateway for WooCommerce is licensed under the GNU General Public License v2.0 or later (GPL-2.0-or-later). The full license text ships with the plugin as `LICENSE` and is also available at https://www.gnu.org/licenses/gpl-2.0.html.
 
-All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-party works authored by CARDZ3N and are released under the same GPLv2-or-later license. No third-party code or media libraries are redistributed inside the plugin package. The NMI Collect.js tokenization script is loaded at runtime from the payment processor's own servers and is not included in this distribution.
+All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-party works authored by CARDZ3N and are released under the same GPLv2-or-later license. No third-party code or media libraries are redistributed inside the plugin package. The CARDZ3N Collect.js tokenization script is loaded at runtime from the payment processor's own servers and is not included in this distribution.
 
 == Screenshots ==
 
@@ -123,8 +123,11 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Changelog ==
 
+= 1.0.59 =
+* Removed NMI references from all merchant/buyer-facing text: the WordPress.org listing (Description, Key features, Installation, FAQ, License, and the "nmi" search tag), and the admin settings screen (Security Key field description, ACH description, dynamic descriptor description, and a code comment). The Privacy and External services sections of the listing still name NMI deliberately, since those are data-processing disclosures required for buyers to understand who actually processes their payment data -- not marketing copy. Internal code comments, CHANGELOG.md, and developer docs still reference NMI in this release; a further pass is possible if wanted.
+
 = 1.0.58 =
-* Added Apple Pay and Google Pay to the native Blocks checkout. Both wallets reuse the SAME CollectJS.configure() call already used for Card/ACH -- Collect.js itself populates the wallet button containers and routes the resulting token through the same shared callback -- so no separate WooCommerce Blocks "express payment method" registration was needed. Fixed the actual gate that was blocking this: get_payment_method_script_handles()'s window.CARDZ3N_GW payload hardcoded enableApplePay/enableGooglePay to false regardless of the merchant's settings, which is what configureCollect() actually checks before adding these fields to Collect.js. Apple Pay additionally requires domain verification with Apple through your NMI/merchant setup -- a prerequisite outside this plugin's control -- while Google Pay should work as soon as it's enabled and the browser/device is eligible.
+* Added Apple Pay and Google Pay to the native Blocks checkout. Both wallets reuse the SAME CollectJS.configure() call already used for Card/ACH -- Collect.js itself populates the wallet button containers and routes the resulting token through the same shared callback -- so no separate WooCommerce Blocks "express payment method" registration was needed. Fixed the actual gate that was blocking this: get_payment_method_script_handles()'s window.CARDZ3N_GW payload hardcoded enableApplePay/enableGooglePay to false regardless of the merchant's settings, which is what configureCollect() actually checks before adding these fields to Collect.js. Apple Pay additionally requires domain verification with Apple through your payment processor's merchant setup -- a prerequisite outside this plugin's control -- while Google Pay should work as soon as it's enabled and the browser/device is eligible.
 * Fixed a real, separate markup bug in the Blocks checkout found while implementing wallets: the Card and ACH hosted-field containers were missing their labels, used the wrong CSS class (.cardz3n-field instead of .cardz3n-collect-field, so the intended 40px field-box sizing never applied), and weren't grouped into two-column rows (Expiry/CVV, Routing/Account) the way the classic checkout is. Now matches classic's markup exactly. Likely a real contributor to the reported whitespace gap on the ACH tab.
 
 = 1.0.57 =
@@ -132,7 +135,7 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 = 1.0.56 =
 * Fixed all 5 remaining Devin Review flags on the native Blocks checkout PR: (1) a severe race where a stale, late-arriving Collect.js completion after a timeout could resolve a subsequent retry's Promise with the earlier attempt's token data -- now destroys and recreates the hosted-field iframes before a retry to sever that path; (2) the Blocks payment method stayed selectable with an incomplete (public-key-only) credential set that would fail every server-side transaction -- now requires complete credentials via Api_Client::has_credentials(); (3) a shared retry-attempt counter could be exhausted early by concurrent mount attempts (tab switches, React re-renders), cutting the 10-second Collect.js loading window short -- replaced with a single cancellable timer and wall-clock deadline; (4) white-label (AerospacePay) checkouts showed CARDZ3N's own branding text and link -- Brand::profile() now carries per-brand powered_by_label and website_url, consumed by both classic and Blocks; (5) the branding-link color validation accepted invalid CSS hex lengths (5 or 7 digits) that browsers silently discard.
-* Fixed a real, pre-existing bug (not Blocks-specific) found while testing ACH: completed ACH orders showed "Credit Card" as the payment method. Root cause: response.tokenType from Collect.js reports the *integration style* ("inline"), not the payment method type, per NMI's own documentation -- so `response.tokenType || activeSource()` always short-circuited on that always-truthy-but-wrong value and never reached the correct ach/card fallback. Now uses activeSource()/activePane (which tab is actually open) directly, on both classic and Blocks checkout.
+* Fixed a real, pre-existing bug (not Blocks-specific) found while testing ACH: completed ACH orders showed "Credit Card" as the payment method. Root cause: response.tokenType from Collect.js reports the *integration style* ("inline"), not the payment method type, per the processor's own documentation -- so `response.tokenType || activeSource()` always short-circuited on that always-truthy-but-wrong value and never reached the correct ach/card fallback. Now uses activeSource()/activePane (which tab is actually open) directly, on both classic and Blocks checkout.
 * Removed the "Account type" (Checking/Savings) selector from the classic checkout's ACH fields, matching the Blocks checkout's existing simpler behavior. ACH transactions are now always submitted as Checking on both checkouts.
 
 = 1.0.55 =
@@ -154,7 +157,7 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * Performance: added a preconnect resource hint for the Collect.js host (z3n.transactiongateway.com) on checkout/account pages, so the browser opens the DNS/TCP/TLS connection in parallel with the rest of page load instead of waiting until checkout.js's own script tag triggers it. Addresses a noticeable delay observed before the hosted card/ACH fields render on the native Blocks checkout. Does not affect the fields' own internal load time, only the network-connection portion of the delay.
 
 = 1.0.49 =
-* Fixed the generic "Something went wrong. Please contact us to get assistance." message shown on the Blocks checkout instead of the actual decline/error reason (e.g. the NMI decline text). The 1.0.48 fix returned `'result' => 'fail'` from process_payment()'s error branches, but WooCommerce's Store API compatibility layer (StoreApi/Legacy.php) specifically checks for the string 'failure', not 'fail' — so that check never matched, and WooCommerce fell back to its own generic message instead of surfacing ours. All five branches now return 'failure' plus an explicit 'message' key with the specific error text, matching WooCommerce's own documented convention.
+* Fixed the generic "Something went wrong. Please contact us to get assistance." message shown on the Blocks checkout instead of the actual decline/error reason (e.g. the processor's decline text). The 1.0.48 fix returned `'result' => 'fail'` from process_payment()'s error branches, but WooCommerce's Store API compatibility layer (StoreApi/Legacy.php) specifically checks for the string 'failure', not 'fail' — so that check never matched, and WooCommerce fell back to its own generic message instead of surfacing ours. All five branches now return 'failure' plus an explicit 'message' key with the specific error text, matching WooCommerce's own documented convention.
 
 = 1.0.48 =
 * Fixed a fatal error on the native Blocks checkout when a payment is declined or fails validation: process_payment() returned `null` on four error/decline branches instead of the array WooCommerce's own contract requires. Classic checkout tolerates this loosely, but the Blocks/Store API compatibility shim (WooCommerce core's StoreApi/Legacy.php) does `array_merge()` on that return value directly, and array_merge() against `null` is a fatal TypeError in PHP 8 — this is what caused "There has been a critical error on this website" on a declined test transaction. All four now correctly return array('result' => 'fail', 'redirect' => '').
