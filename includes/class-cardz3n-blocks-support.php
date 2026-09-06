@@ -154,10 +154,34 @@ class Blocks_Support extends AbstractPaymentMethodType {
 		 * way to touch or race against.
 		 */
 		$shared_handle = 'cardz3n-checkout';
+
+		/*
+		 * Google Pay's own web API requires the integrator to load its
+		 * JavaScript library themselves (Apple Pay, by contrast, is
+		 * bundled/proxied internally by Collect.js) -- see the matching,
+		 * fuller comment in Gateway::enqueue_checkout_assets() for why,
+		 * and why this is registered WITHOUT the `async` attribute
+		 * (so WordPress's dependency ordering below can guarantee it
+		 * finishes before configureCollect()'s one-time feature check).
+		 */
+		$google_pay_enabled = 'yes' === $this->get_setting( 'enable_google_pay', 'no' );
+		if ( $google_pay_enabled ) {
+			wp_register_script(
+				'cardz3n-google-pay-sdk',
+				'https://pay.google.com/gp/p/js/pay.js',
+				array(),
+				null,
+				true
+			);
+		}
+
 		wp_register_script(
 			$shared_handle,
 			CARDZ3N_GW_URL . 'assets/js/checkout.js',
-			array( 'jquery', 'cardz3n-collectjs' ),
+			array_merge(
+				array( 'jquery', 'cardz3n-collectjs' ),
+				$google_pay_enabled ? array( 'cardz3n-google-pay-sdk' ) : array()
+			),
 			CARDZ3N_GW_VERSION,
 			true
 		);

@@ -388,11 +388,53 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			2
 		);
 
+		/*
+		 * Google Pay's own web API requires the INTEGRATOR to load its
+		 * JavaScript library (https://pay.google.com/gp/p/js/pay.js)
+		 * themselves -- confirmed against Google's own documentation and
+		 * every other payment provider's Google Pay integration guide
+		 * (Braintree, PayPal, Bluefin, Finix, etc. all show this same
+		 * explicit <script> tag as a required step). Unlike Apple Pay,
+		 * which Collect.js bundles/proxies internally (confirmed via
+		 * DevTools Network tab showing Collect.js requesting its own
+		 * apple-pay-sdk.js/apple-wallet-sdk.js with zero equivalent
+		 * requests for Google's SDK), nothing loads Google's library on
+		 * its own -- so configureCollect()'s existing feature-detection
+		 * (window.google && window.google.payments && ...api) could NEVER
+		 * pass, since window.google was never defined in the first place.
+		 *
+		 * Registered WITHOUT the `async` attribute deliberately: async
+		 * scripts execute as soon as they finish downloading, regardless
+		 * of DOM position or WordPress's own script-dependency ordering --
+		 * that would defeat the point of listing it as a dependency of
+		 * cardz3n-checkout below, since there'd be no guarantee it finishes
+		 * before configureCollect()'s one-time (non-retried) feature check
+		 * runs. A normal, non-async script lets WordPress's dependency
+		 * resolution guarantee correct execution order instead.
+		 *
+		 * Gated on enable_google_pay specifically (not loaded for merchants
+		 * who don't use Google Pay at all) to avoid an unnecessary
+		 * third-party request.
+		 */
+		$google_pay_enabled = 'yes' === $this->get_option( 'enable_google_pay', 'no' );
+		if ( $google_pay_enabled ) {
+			wp_register_script(
+				'cardz3n-google-pay-sdk',
+				'https://pay.google.com/gp/p/js/pay.js',
+				array(),
+				null, // Never version-bust Google's own hosted, Google-versioned script.
+				true
+			);
+		}
+
 		// Our static checkout bundle (no inline JS, no synchronous AJAX).
 		wp_enqueue_script(
 			'cardz3n-checkout',
 			CARDZ3N_GW_URL . 'assets/js/checkout.js',
-			array( 'jquery', 'cardz3n-collectjs' ),
+			array_merge(
+				array( 'jquery', 'cardz3n-collectjs' ),
+				$google_pay_enabled ? array( 'cardz3n-google-pay-sdk' ) : array()
+			),
 			CARDZ3N_GW_VERSION,
 			true
 		);
