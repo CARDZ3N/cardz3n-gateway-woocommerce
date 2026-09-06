@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, apple pay, google pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.60
+Stable tag: 1.0.61
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.61 =
+* Fixed a fatal PHP parse error introduced in 1.0.60's NMI-removal pass: two admin warning-banner strings in class-cardz3n-gateway.php had their apostrophe's backslash escape ("NMI\'s" → "processor's") accidentally dropped during the text replacement, terminating the PHP string literal early and breaking the whole file. Restored the escape ("processor\'s"). Caused the "critical error" seen immediately after updating to 1.0.60.
 
 = 1.0.60 =
 * Completed the NMI-removal pass started in 1.0.59: internal code comments across all PHP/JS files, CHANGELOG.md, README.md, and docs/*.md are now scrubbed. This includes several previously-undiscovered merchant-visible spots: the plugin's own header Description (shown on the WordPress admin Plugins list page), three admin settings warning banners (Test Mode / shared-demo-key warnings), and the WooCommerce → Status → Logs message strings ("NMI transact.php POST/response" → "CARDZ3N transact.php POST/response"). Two deliberate exceptions remain: readme.txt's Privacy/External services sections (data-processing disclosures required for buyers to understand who processes their payment data) and one line in SECURITY.md (tells security researchers where to report a vulnerability found in the underlying processor's own platform, not this plugin) -- removing the processor's name from either would make those disclosures non-functional.
