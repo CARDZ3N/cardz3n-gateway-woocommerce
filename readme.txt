@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, apple pay, google pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.64
+Stable tag: 1.0.65
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.65 =
+* Fixed the card-brand logos (Visa/Mastercard/Amex/Discover) overflowing past the payment-method box's edge on mobile, specifically on the native Blocks checkout. The classic checkout's equivalent brand-icon row already had flex-wrap set; the Blocks Label component's version didn't, so on narrow viewports the icons forced themselves onto one line past the visible width instead of wrapping. Added flexWrap/maxWidth to match.
 
 = 1.0.64 =
 * Buyer-facing decline message now shows a clean, consistent "Your payment was declined. Please check your card details or try a different payment method." instead of passing through the processor's raw response text verbatim (which varies by which specific rule triggered the decline -- observed "DECLINE" in one scenario, "FAILED" in another, e.g. a test-mode sub-$1 auto-decline). Only applies to genuine declines (response code '2'); the raw text stays intact in the order note for merchant/support diagnostics either way, and error-code scenarios (bad token, misconfiguration) keep their own detailed, actionable messages since a buyer needs different guidance for those than for a simple decline.

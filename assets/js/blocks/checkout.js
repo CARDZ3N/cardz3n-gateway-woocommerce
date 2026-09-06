@@ -72,7 +72,7 @@
 				key: 'cardz3n-icon-' + i,
 				src: icon.src,
 				alt: icon.alt,
-				style: { height: 24, marginLeft: 8, verticalAlign: 'middle' }
+				style: { height: 24, verticalAlign: 'middle' }
 			} );
 		} );
 
@@ -109,7 +109,15 @@
 
 		return el(
 			'span',
-			{ style: { display: 'inline-flex', alignItems: 'center', gap: 8 } },
+			/*
+			 * flexWrap:'wrap' + minWidth:0 let the brand-icon row wrap to a
+			 * second line on narrow mobile viewports instead of overflowing
+			 * past the payment-method box's right edge (reported: icons ran
+			 * outside the box on mobile Safari). maxWidth:'100%' keeps the
+			 * whole label+icons group from exceeding its parent's width in
+			 * the first place.
+			 */
+			{ style: { display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, maxWidth: '100%', minWidth: 0 } },
 			labelNode,
 			iconNodes
 		);
