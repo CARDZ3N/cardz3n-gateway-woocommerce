@@ -122,6 +122,33 @@
 		return activePane === 'ach' ? 'ach' : 'card';
 	}
 
+	/**
+	 * 1.0.62 — Devin Review flag on 1.0.57's fix: wallet payments (Apple Pay,
+	 * Google Pay) don't change the active Card/ACH tab/pane, so blindly
+	 * using activeSource() for every completion classified every wallet
+	 * order as whichever tab happened to be open (almost always "card").
+	 *
+	 * Per NMI's own documented Collect.js response example for a Google Pay
+	 * transaction, response.tokenType is NOT always "inline" -- it reports
+	 * the wallet name itself ("applePay" / "googlePay") specifically for
+	 * wallet-initiated payments, and only "inline" for a regular typed
+	 * card/ACH submission via the hosted fields. So tokenType IS a reliable
+	 * signal here -- just not the ONLY one needed, since it's meaningless
+	 * ("inline") for the one distinction (card vs ach) it can't make.
+	 *
+	 * Wallet_Service::normalize_source() (PHP) already does a
+	 * case-insensitive substring match for "apple"/"google" anywhere in the
+	 * token type string, so passing the raw wallet tokenType straight
+	 * through is sufficient -- no need to duplicate that mapping here.
+	 */
+	function resolveTokenType(response) {
+		var tt = ( response && response.tokenType ) ? String( response.tokenType ).toLowerCase() : '';
+		if ( tt.indexOf( 'apple' ) !== -1 || tt.indexOf( 'google' ) !== -1 ) {
+			return response.tokenType; // Preserve the wallet-specific value for normalize_source() to classify.
+		}
+		return activeSource(); // Regular hosted Card/ACH fields: tokenType is just "inline" here, so the tab is the only real signal.
+	}
+
 	function setHidden(name, value) {
 		var $field = $ui().find('input[name="' + name + '"]');
 		if ($field.length) {
@@ -601,26 +628,29 @@
 		 * diagnostics without exposing the full value.
 		 */
 		/*
-		 * 1.0.57 — response.tokenType is NOT "card" vs "ach": per the processor's own
-		 * Collect.js documentation, it reports the INTEGRATION STYLE
-		 * ("inline" for this plugin's embedded-fields setup, vs "lightbox"
-		 * for a popup integration) -- a constant that's the SAME for every
-		 * transaction regardless of payment method. Using
-		 * `response.tokenType || activeSource()` meant activeSource()'s
-		 * correct ach/card fallback was NEVER reached (a truthy "inline"
-		 * always won), so every ACH transaction was tagged as a card
-		 * transaction downstream (Order_Service::apply_payment_method_title()
-		 * showed "Credit Card" on completed ACH orders). activeSource(),
-		 * driven by which tab is actually open, is the correct source of
-		 * truth here.
+		 * 1.0.62 — response.tokenType is "inline" for a regular typed
+		 * card/ACH submission (the INTEGRATION STYLE, not the payment
+		 * method), but per NMI's own documented response example it DOES
+		 * report the wallet name ("applePay" / "googlePay") specifically
+		 * for wallet-initiated payments. The 1.0.57 fix used activeSource()
+		 * unconditionally to fix ACH-vs-card mislabeling (tokenType being
+		 * "inline" for BOTH meant the old `response.tokenType ||
+		 * activeSource()` never reached the correct fallback), but that
+		 * overcorrected: wallets don't change the active tab, so every
+		 * wallet order got classified as whichever tab happened to be open
+		 * too (Devin Review). resolveTokenType() checks for the
+		 * wallet-specific value first and only falls back to the
+		 * pane-based activeSource() for the one distinction tokenType can't
+		 * make (card vs ach, both reported as "inline").
 		 */
 		if (window.console && console.debug) {
-			console.debug('[CARDZ3N] Collect.js minted token', (response.token || '').substring(0, 8) + '…', 'type=' + activeSource());
+			console.debug('[CARDZ3N] Collect.js minted token', (response.token || '').substring(0, 8) + '…', 'type=' + resolveTokenType(response));
 		}
 
+		var tokenKind = resolveTokenType(response); // Computed once, reused below, so setHidden and mirror can't disagree.
 		setHidden('cardz3n_payment_token', response.token);
-		setHidden('cardz3n_token_type', activeSource());
-		setHidden('cardz3n_payment_source', activeSource());
+		setHidden('cardz3n_token_type', tokenKind);
+		setHidden('cardz3n_payment_source', tokenKind);
 		var cardBrand = (response.card && response.card.type) ? response.card.type : '';
 		setHidden('cardz3n_card_brand', cardBrand);
 
@@ -650,8 +680,8 @@
 			$form.append('<input type="hidden" class="cardz3n-mirror" name="' + name + '" value="' + $('<div>').text(val == null ? '' : val).html() + '" />');
 		};
 		mirror('cardz3n_payment_token', response.token);
-		mirror('cardz3n_token_type', activeSource());
-		mirror('cardz3n_payment_source', activeSource());
+		mirror('cardz3n_token_type', tokenKind);
+		mirror('cardz3n_payment_source', tokenKind);
 		mirror('cardz3n_card_brand', cardBrand);
 
 		// Trigger the real submission; WC's own handler will send to the server.

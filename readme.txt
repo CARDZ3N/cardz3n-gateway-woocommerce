@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, apple pay, google pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.61
+Stable tag: 1.0.62
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.62 =
+* Fixed a regression flagged by Devin Review: the 1.0.57 fix for ACH orders showing "Credit Card" used the active Card/ACH tab as the sole signal for payment kind, but Apple Pay and Google Pay buttons don't change the active tab -- so every wallet order got classified as whichever tab happened to be open (almost always Card), on both classic and Blocks checkout. Verified against NMI's own documented Collect.js response example: response.tokenType reports "inline" for a regular typed card/ACH submission (not useful for card-vs-ach, which is why 1.0.57 stopped trusting it), but specifically reports the wallet name ("applePay"/"googlePay") for wallet-initiated payments. Now checks for that wallet-specific value first, falling back to the active-tab check only for the one distinction tokenType can't make.
 
 = 1.0.61 =
 * Fixed a fatal PHP parse error introduced in 1.0.60's NMI-removal pass: two admin warning-banner strings in class-cardz3n-gateway.php had their apostrophe's backslash escape ("NMI\'s" → "processor's") accidentally dropped during the text replacement, terminating the PHP string literal early and breaking the whole file. Restored the escape ("processor\'s"). Caused the "critical error" seen immediately after updating to 1.0.60.

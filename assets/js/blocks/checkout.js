@@ -192,16 +192,31 @@
 
 					var activePane = ( typeof window.cardz3nGwActivePane === 'function' ) ? window.cardz3nGwActivePane() : pane;
 					/*
-					 * 1.0.57 — response.tokenType is NOT "card" vs "ach": per
-					 * the processor's own Collect.js documentation, it reports the
-					 * INTEGRATION STYLE ("inline" for this plugin's
-					 * embedded-fields setup), a constant that's the SAME
-					 * for every transaction regardless of payment method.
-					 * Using it here meant every ACH transaction was tagged
-					 * as a card transaction downstream. activePane (which
-					 * tab is actually open) is the correct source of truth.
+					 * 1.0.62 — response.tokenType is "inline" for a regular
+					 * typed card/ACH submission (the integration style, not
+					 * the payment method), but per NMI's own documented
+					 * Collect.js response example it DOES report the wallet
+					 * name ("applePay" / "googlePay") specifically for
+					 * wallet-initiated payments. The 1.0.57 fix used
+					 * activePane unconditionally to fix ACH-vs-card
+					 * mislabeling, but that overcorrected: Apple Pay/Google
+					 * Pay buttons render above the Card/ACH tabs and don't
+					 * change which pane is active, so every wallet order
+					 * got classified as whichever tab happened to be open
+					 * too (Devin Review). Check for the wallet-specific
+					 * tokenType first; only fall back to the pane for the
+					 * one distinction tokenType can't make (card vs ach,
+					 * both reported as "inline").
+					 * Wallet_Service::normalize_source() (PHP) already does
+					 * a case-insensitive substring match for "apple"/
+					 * "google" anywhere in the token type string, so
+					 * passing the raw wallet tokenType straight through is
+					 * sufficient here.
 					 */
-					var kind       = ( 'ach' === activePane ? 'ach' : 'card' );
+					var ttLower = ( response.tokenType ? String( response.tokenType ).toLowerCase() : '' );
+					var kind = ( ttLower.indexOf( 'apple' ) !== -1 || ttLower.indexOf( 'google' ) !== -1 )
+						? response.tokenType
+						: ( 'ach' === activePane ? 'ach' : 'card' );
 					var cardBrand  = ( response.card && response.card.type ) ? response.card.type : '';
 
 					return {
