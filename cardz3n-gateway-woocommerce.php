@@ -2,8 +2,8 @@
 /**
  * Plugin Name: CARDZ3N Gateway for WooCommerce
  * Plugin URI: https://cardz3n.com/woocommerce
- * Description: Embedded on-site checkout for WooCommerce powered by the CARDZ3N/NMI payment gateway. Cards, ACH, Apple Pay, Google Pay, saved methods, subscriptions, refunds, captures, voids, and automatic Level 2/3 commercial-card data in a single gateway UI.
- * Version: 1.0.59
+ * Description: Embedded on-site checkout for WooCommerce powered by the CARDZ3N payment gateway. Cards, ACH, Apple Pay, Google Pay, saved methods, subscriptions, refunds, captures, voids, and automatic Level 2/3 commercial-card data in a single gateway UI.
+ * Version: 1.0.60
  * Requires at least: 6.4
  * Requires PHP: 7.4
  * Requires Plugins: woocommerce
@@ -27,7 +27,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Plugin constants
  * --------------------------------------------------------------------------
  */
-define( 'CARDZ3N_GW_VERSION', '1.0.59' );
+define( 'CARDZ3N_GW_VERSION', '1.0.60' );
 define( 'CARDZ3N_GW_FILE', __FILE__ );
 define( 'CARDZ3N_GW_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CARDZ3N_GW_URL', plugin_dir_url( __FILE__ ) );
@@ -93,7 +93,7 @@ add_action(
 			 * Off (default): we render inside the Cart/Checkout Blocks via
 			 * the classic-shortcode compatibility layer (payment_fields()/
 			 * process_payment()). This is the proven, stable path used since
-			 * 1.0.14, matching the pattern used by other NMI-family gateways.
+			 * 1.0.14, matching the pattern used by other gateways on the same underlying platform.
 			 *
 			 * On: declares native cart_checkout_blocks compatibility and
 			 * registers a dedicated Blocks_Support PaymentMethodType (see

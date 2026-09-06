@@ -2,7 +2,7 @@
 
 [![WordPress](https://img.shields.io/badge/WordPress-6.4%2B-blue)](https://wordpress.org) [![WooCommerce](https://img.shields.io/badge/WooCommerce-8.0%2B-96588a)](https://woocommerce.com) [![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4)](https://www.php.net) [![License](https://img.shields.io/badge/license-GPLv2%2B-green)](LICENSE)
 
-Embedded, on-site WooCommerce checkout powered by the CARDZ3N / NMI payment platform.
+Embedded, on-site WooCommerce checkout powered by the CARDZ3N payment platform.
 
 - **Embedded UX** — no redirect. Buyers stay on-site.
 - **Everything in one gateway** — credit/debit cards, ACH, Apple Pay, Google Pay, and saved methods inside a single gateway UI.
@@ -15,7 +15,7 @@ Embedded, on-site WooCommerce checkout powered by the CARDZ3N / NMI payment plat
 
 1. Upload the zip via `Plugins → Add New → Upload Plugin`.
 2. Go to `WooCommerce → Settings → Payments → CARDZ3N Gateway → Manage`.
-3. Paste your CARDZ3N / NMI **Security Key** and **Tokenization Key**.
+3. Paste your CARDZ3N **Security Key** and **Tokenization Key**.
 4. Save, click **Test Credentials**, then run a sandbox order.
 
 Full guide: [docs/INSTALL.md](docs/INSTALL.md)
@@ -38,7 +38,7 @@ cardz3n-gateway-woocommerce/
 │   └── img/*.svg                         # brand + card icons
 ├── includes/
 │   ├── class-cardz3n-gateway.php         # WC_Payment_Gateway_CC
-│   ├── class-cardz3n-api-client.php      # NMI transact.php client
+│   ├── class-cardz3n-api-client.php      # CARDZ3N transaction API client
 │   ├── class-cardz3n-level3-mapper.php   # L2/L3 payload builder
 │   ├── class-cardz3n-token-service.php   # saved methods
 │   ├── class-cardz3n-order-service.php   # order meta + auto-capture

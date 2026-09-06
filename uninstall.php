@@ -119,7 +119,7 @@ if ( defined( 'CARDZ3N_GW_DELETE_ORDER_META' ) && true === CARDZ3N_GW_DELETE_ORD
 
 /*
  * 4. Delete WooCommerce payment tokens owned by the plugin.
- *    Saved card/ACH tokens reference the now-gone NMI Customer Vault, so
+ *    Saved card/ACH tokens reference the now-gone CARDZ3N Customer Vault, so
  *    they are not useful after uninstall.
  */
 $cardz3n_token_tables = array(

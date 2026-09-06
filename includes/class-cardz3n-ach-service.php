@@ -28,7 +28,7 @@ class ACH_Service {
 	}
 
 	/**
-	 * Whether tokenized ACH reuse is allowed. NMI's behavior depends on the
+	 * Whether tokenized ACH reuse is allowed. The processor's behavior depends on the
 	 * sponsor bank, so we expose this as a merchant toggle that defaults off.
 	 */
 	public static function reuse_allowed() {

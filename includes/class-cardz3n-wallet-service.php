@@ -2,7 +2,7 @@
 /**
  * Wallet service — Apple Pay / Google Pay.
  *
- * Both wallets ride on NMI Collect.js, which handles device/eligibility detection
+ * Both wallets ride on CARDZ3N's Collect.js, which handles device/eligibility detection
  * and delivers a payment_token to our server. All we do server-side is mark the
  * order as wallet-sourced for reporting.
  *

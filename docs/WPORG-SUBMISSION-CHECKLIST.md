@@ -43,7 +43,7 @@ Everything below must be green before submitting **CARDZ3N Gateway for WooCommer
 - [ ] `== Screenshots ==` captions match `assets/screenshot-*.png` (see §7)
 - [ ] `== Changelog ==` has an entry for `= 1.0.0 =`
 - [ ] `== Upgrade Notice ==` entry for `= 1.0.0 =` (≤ 300 chars)
-- [ ] **External services disclosure** present — lists NMI, Collect.js, Apple Pay, Google Pay with purpose, data sent, TOS + Privacy URLs
+- [ ] **External services disclosure** present — lists Collect.js, Apple Pay, Google Pay with purpose, data sent, TOS + Privacy URLs
 
 ## 3. Code quality
 
@@ -62,7 +62,7 @@ Everything below must be green before submitting **CARDZ3N Gateway for WooCommer
 ## 4. Security & payments
 
 - [ ] No full PAN, CVV, or raw account/routing number written to logs, order notes, or DB
-- [ ] NMI `security_key` never sent to the browser — only the public `tokenization_key`
+- [ ] `security_key` never sent to the browser — only the public `tokenization_key`
 - [ ] Card data tokenized by Collect.js hosted fields — plugin never touches PAN
 - [ ] All `transact.php` calls are HTTPS with `sslverify=true`
 - [ ] Refund / void / capture endpoints gated behind `manage_woocommerce` capability

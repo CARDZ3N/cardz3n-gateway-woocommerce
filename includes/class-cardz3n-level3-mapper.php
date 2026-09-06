@@ -2,7 +2,7 @@
 /**
  * Level 2 / Level 3 commercial-data mapper.
  *
- * Translates a WooCommerce order into the NMI Level 3 field names accepted by
+ * Translates a WooCommerce order into the Level 3 field names accepted by
  * transact.php. Values are derived in this order of precedence:
  *
  *   1. Order-level meta (e.g., PO number from checkout)
@@ -13,7 +13,7 @@
  *
  * Per spec: if a value is unavailable, it is OMITTED rather than fabricated.
  *
- * NMI Level 3 field reference keys used here:
+ * Level 3 field reference keys used here:
  *   tax                → order tax
  *   shipping           → freight total
  *   ponumber           → customer PO
@@ -34,7 +34,7 @@ namespace Cardz3n_Gateway;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Maps a WooCommerce order into NMI Level 2/3 field data.
+ * Maps a WooCommerce order into Level 2/3 field data.
  */
 class Level3_Mapper {
 
@@ -135,7 +135,7 @@ class Level3_Mapper {
 			$payload['shipping_postal'] = self::ascii( $ship_zip );
 		}
 
-		// Order date. NMI generally accepts orderdate_YYMMDD on certain processors; we expose
+		// Order date. The processor generally accepts orderdate_YYMMDD on certain setups; we expose
 		// it as a merchant-defined field to avoid processor-specific rejection.
 		$payload['merchant_defined_field_4'] = $order->get_date_created()
 			? $order->get_date_created()->date( 'Y-m-d' )
@@ -201,7 +201,7 @@ class Level3_Mapper {
 			$unit_cost = $quantity > 0 ? round( $line_sub / $quantity, 2 ) : $line_sub;
 			$discount  = max( 0, round( $line_sub - $line_tot, 2 ) );
 
-			// Description: sanitized, truncated to 26 (NMI item_description limit is 35, but we stay safe for L3 Visa).
+			// Description: sanitized, truncated to 26 (item_description limit is 35, but we stay safe for L3 Visa).
 			$description = self::ascii( wp_strip_all_tags( $item->get_name() ) );
 			if ( strlen( $description ) > 35 ) {
 				$description = substr( $description, 0, 35 );
@@ -269,7 +269,7 @@ class Level3_Mapper {
 
 			++$index;
 
-			// NMI caps line items per transaction; 99 is a safe ceiling.
+			// The processor caps line items per transaction; 99 is a safe ceiling.
 			if ( $index > 99 ) {
 				break;
 			}

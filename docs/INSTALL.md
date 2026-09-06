@@ -8,7 +8,7 @@
 | WooCommerce       | 8.0                      |
 | PHP               | 7.4                      |
 | HTTPS             | Required for live mode   |
-| CARDZ3N / NMI     | Active merchant account with Collect.js enabled |
+| CARDZ3N            | Active merchant account with Collect.js enabled |
 
 ## 2. Install the plugin
 
@@ -28,9 +28,9 @@ cd wp-content/plugins
 git clone https://github.com/your-org/cardz3n-gateway-woocommerce.git
 ```
 
-## 3. Get your CARDZ3N / NMI API keys
+## 3. Get your CARDZ3N API keys
 
-1. Log in to the CARDZ3N / NMI Merchant Portal
+1. Log in to the CARDZ3N Merchant Portal
 2. Go to **Settings → Security Keys**
 3. Create or copy:
    - **Security Key** (private — server-side only)
@@ -50,11 +50,11 @@ git clone https://github.com/your-org/cardz3n-gateway-woocommerce.git
 
 1. Switch the gateway to **Sandbox mode** and save
 2. Place a test order on the store
-3. Use an NMI-supplied test card (for example `4111 1111 1111 1111`, any future expiry, any CVV)
+3. Use a processor-supplied test card (for example `4111 1111 1111 1111`, any future expiry, any CVV)
 4. Confirm:
    - Order transitions to **Processing** or **Completed**
    - Order note reads "SALE via card approved. Transaction ID: …"
-   - Transaction appears in your NMI dashboard
+   - Transaction appears in your CARDZ3N dashboard
    - If you enabled Level 3, order note reads "Level 3 data transmitted"
 
 ## 6. Go live

@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, apple pay, google pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.59
+Stable tag: 1.0.60
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Changelog ==
 
+= 1.0.60 =
+* Completed the NMI-removal pass started in 1.0.59: internal code comments across all PHP/JS files, CHANGELOG.md, README.md, and docs/*.md are now scrubbed. This includes several previously-undiscovered merchant-visible spots: the plugin's own header Description (shown on the WordPress admin Plugins list page), three admin settings warning banners (Test Mode / shared-demo-key warnings), and the WooCommerce → Status → Logs message strings ("NMI transact.php POST/response" → "CARDZ3N transact.php POST/response"). Two deliberate exceptions remain: readme.txt's Privacy/External services sections (data-processing disclosures required for buyers to understand who processes their payment data) and one line in SECURITY.md (tells security researchers where to report a vulnerability found in the underlying processor's own platform, not this plugin) -- removing the processor's name from either would make those disclosures non-functional.
+
 = 1.0.59 =
 * Removed NMI references from all merchant/buyer-facing text: the WordPress.org listing (Description, Key features, Installation, FAQ, License, and the "nmi" search tag), and the admin settings screen (Security Key field description, ACH description, dynamic descriptor description, and a code comment). The Privacy and External services sections of the listing still name NMI deliberately, since those are data-processing disclosures required for buyers to understand who actually processes their payment data -- not marketing copy. Internal code comments, CHANGELOG.md, and developer docs still reference NMI in this release; a further pass is possible if wanted.
 
@@ -190,7 +193,7 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * Fixed two PHP 8.4 deprecation warnings flagged by WooCommerce Marketplace's QIT Code Compatibility Test: the `$settings` constructor parameter in the API client and Level 3 mapper classes was implicitly nullable (typed `array $settings = null`), which PHP 8.4 deprecates in favor of an explicit `?array $settings = null`. No behavior change.
 
 = 1.0.39 =
-* Fixed Level 3 merchant postal-origin field name: `ship_from_postal` → `ship_from_postal_code` (confirmed with NMI support).
+* Fixed Level 3 merchant postal-origin field name: `ship_from_postal` → `ship_from_postal_code` (confirmed with processor support).
 
 = 1.0.38 =
 * Neutral (non-branded) checkout title changed from "Credit Card" to "Check Out".
@@ -321,7 +324,7 @@ Updates the declared 'WC tested up to' version from 9.5 to 11.1 (current WooComm
 Fixes two PHP 8.4 compatibility warnings (implicitly nullable constructor parameters). No behavior change. Safe to update.
 
 = 1.0.39 =
-Fixes a Level 3 field name (ship_from_postal_code) so merchant postal-origin data reaches NMI correctly. Safe to update.
+Fixes a Level 3 field name (ship_from_postal_code) so merchant postal-origin data reaches the processor correctly. Safe to update.
 
 = 1.0.38 =
 Wording-only change: the default (non-branded) checkout title is now "Check Out" instead of "Credit Card". Safe to update.

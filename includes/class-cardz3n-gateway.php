@@ -271,7 +271,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	 * Derives the origin from Api_Client::collectjs_url() rather than
 	 * hardcoding Api_Client::GATEWAY_HOST -- that URL runs through the
 	 * cardz3n_gw_collectjs_url filter, which white-label partners on a
-	 * different NMI host use to point Collect.js elsewhere (see
+	 * different processor host use to point Collect.js elsewhere (see
 	 * Api_Client's own class docblock). Hardcoding GATEWAY_HOST would
 	 * preconnect to a host the script never actually loads from for such a
 	 * partner -- an unused connection with zero benefit -- while giving no
@@ -347,7 +347,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		}
 
 		/*
-		 * CARDZ3N Collect.js tokenization script (white-labeled NMI host).
+		 * CARDZ3N Collect.js tokenization script (white-labeled processor host).
 		 *
 		 * CRITICAL: Collect.js reads its Public Tokenization Key from a
 		 * `data-tokenization-key` attribute on its own <script> tag during load.
@@ -445,7 +445,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	 * settings form when Test Mode is enabled with test credentials that
 	 * likely belong to mismatched merchant accounts. The #1 support
 	 * question we see ("why won't Test Mode process a card?") is caused
-	 * by pairing NMI's shared demo Security Key (`6457Thfj…`) with a
+	 * by pairing the processor's shared demo Security Key (`6457Thfj…`) with a
 	 * Collect Checkout public key minted on a different merchant.
 	 */
 	public function admin_options() {
@@ -454,14 +454,14 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		$test_tok    = (string) $this->get_option( 'test_tokenization_key' );
 		$live_sec    = (string) $this->get_option( 'live_security_key' );
 		$live_tok    = (string) $this->get_option( 'live_tokenization_key' );
-		$shared_demo = '6457Thfj624V5r7WUwc5v6a68Zsd6YEm'; // NMI's published demo Security Key.
+		$shared_demo = '6457Thfj624V5r7WUwc5v6a68Zsd6YEm'; // Processor's published demo Security Key.
 
 		$warnings = array();
 
 		/*
 		 * 1.0.27 — CORRECTED Public-Key scope guidance.
 		 *
-		 * NMI ships TWO different public key products and only ONE works with
+		 * The processor ships TWO different public key products and only ONE works with
 		 * this plugin:
 		 *
 		 *   a) Public API Key scoped "Tokenization"   ←  correct for this plugin.
@@ -487,13 +487,13 @@ class Gateway extends \WC_Payment_Gateway_CC {
 
 		if ( $test_on ) {
 			if ( '' === $test_sec || '' === $test_tok ) {
-				$warnings[] = __( '<strong>Test Mode is active but one or both Test keys are empty.</strong> Both a Test Private Key (API/Cart scope) and a Test Public Key (Tokenization scope) are required. Get matched test keys from CARDZ3N support — the NMI shared-demo Security Key alone will not process card transactions.', 'cardz3n-gateway' );
+				$warnings[] = __( '<strong>Test Mode is active but one or both Test keys are empty.</strong> Both a Test Private Key (API/Cart scope) and a Test Public Key (Tokenization scope) are required. Get matched test keys from CARDZ3N support — the shared-demo Security Key alone will not process card transactions.', 'cardz3n-gateway' );
 			} elseif ( $looks_like_checkout_key( $test_tok ) ) {
 				$warnings[] = __( '<strong>The Test Public Key looks like a Collect Checkout key (starts with <code>checkout_public_</code>) — this is the wrong key type for on-site checkout.</strong> Replace it with a Public API Key scoped "Tokenization" (four dash-delimited segments like <code>xxxxxx-xxxxxx-xxxxxx-xxxxxx</code>) from the CARDZ3N Portal under Settings → Security Keys → Public Security Keys → Tokenization. Collect Checkout keys drive the hosted redirect checkout, which this plugin does not use.', 'cardz3n-gateway' );
 			} elseif ( $test_sec === $shared_demo && $test_tok === $live_tok ) {
-				$warnings[] = __( '<strong>Test Mode will fail on card transactions.</strong> The Test Security Key is NMI\'s shared demo merchant but the Test Public Key is the same as your Live Public Key — those belong to different merchant accounts. A Collect.js token minted against your Live merchant cannot be redeemed by the demo merchant. Turn Test Mode off and use Live keys with test PANs (4111 1111 1111 1111 auto-voids in sandbox mode), or request a matched Test Public API Key (Tokenization scope) from CARDZ3N support.', 'cardz3n-gateway' );
+				$warnings[] = __( '<strong>Test Mode will fail on card transactions.</strong> The Test Security Key is the processor's shared demo merchant but the Test Public Key is the same as your Live Public Key — those belong to different merchant accounts. A Collect.js token minted against your Live merchant cannot be redeemed by the demo merchant. Turn Test Mode off and use Live keys with test PANs (4111 1111 1111 1111 auto-voids in sandbox mode), or request a matched Test Public API Key (Tokenization scope) from CARDZ3N support.', 'cardz3n-gateway' );
 			} elseif ( $test_sec === $shared_demo ) {
-				$warnings[] = __( '<strong>Using NMI\'s shared demo Security Key (<code>6457…</code>) in Test Mode will likely fail on card transactions.</strong> The shared demo merchant ships a Security Key for server-to-server auth testing but does not reliably mint Collect.js payment tokens that can be redeemed against itself. The most reliable way to test cards is to leave Test Mode OFF, use your Live keys, and run NMI\'s test PAN 4111 1111 1111 1111 — it auto-voids and never settles.', 'cardz3n-gateway' );
+				$warnings[] = __( '<strong>Using the processor's shared demo Security Key (<code>6457…</code>) in Test Mode will likely fail on card transactions.</strong> The shared demo merchant ships a Security Key for server-to-server auth testing but does not reliably mint Collect.js payment tokens that can be redeemed against itself. The most reliable way to test cards is to leave Test Mode OFF, use your Live keys, and run the processor's test PAN 4111 1111 1111 1111 — it auto-voids and never settles.', 'cardz3n-gateway' );
 			}
 		}
 
@@ -950,7 +950,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			);
 		}
 
-		// Determine NMI "payment" field.
+		// Determine the processor's "payment" field.
 		$payment_kind = in_array( $normalized_source, array( 'ach', 'ach_vault' ), true ) ? 'check' : 'creditcard';
 
 		// Transaction type from settings.
@@ -992,7 +992,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		/*
 		 * 1.0.28 — DESCRIPTOR GATING.
 		 *
-		 * NMI processors reject sales that include a `descriptor` field unless
+		 * Some processors reject sales that include a `descriptor` field unless
 		 * the merchant account has "Allow merchant to pass Dynamic Billing
 		 * Descriptors" explicitly enabled under Advanced Merchant Features.
 		 * When it isn't enabled, transact.php returns:
@@ -1106,7 +1106,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 
 				/*
 				 * 1.0.26 — the #1 cause of "Payment Token does not exist" in
-				 * Test Mode is pairing NMI's shared test-merchant Security Key
+				 * Test Mode is pairing the processor's shared test-merchant Security Key
 				 * (`6457Thfj…`) with a Collect Checkout public key minted on a
 				 * different merchant. The token exists in merchant A's store;
 				 * merchant B's transact.php can't redeem it. Show a surgical

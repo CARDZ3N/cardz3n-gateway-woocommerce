@@ -2,7 +2,7 @@
  * CARDZ3N Gateway — embedded WooCommerce checkout script.
  *
  * Responsibilities:
- *   - Configure NMI Collect.js inline hosted fields for card and ACH
+ *   - Configure CARDZ3N's Collect.js inline hosted fields for card and ACH
  *   - Render Apple Pay / Google Pay wallet buttons inside the single gateway UI
  *   - Intercept the WooCommerce checkout submit, request a payment_token from
  *     Collect.js, write it to a hidden field, and re-submit the native form
@@ -297,7 +297,7 @@
 	 * cardz3nGwMount()) scheduled it via a single one-shot
 	 * setTimeout(configureCollect, 50). If window.CollectJS wasn't defined
 	 * yet at that single 50ms check -- entirely possible, since Collect.js
-	 * is a third-party script loaded over the network from NMI's servers,
+	 * is a third-party script loaded over the network from the processor's servers,
 	 * and 50ms is not a reliable bound for that -- configureCollect()
 	 * silently no-opped and NOTHING scheduled another attempt.
 	 *
@@ -601,7 +601,7 @@
 		 * diagnostics without exposing the full value.
 		 */
 		/*
-		 * 1.0.57 — response.tokenType is NOT "card" vs "ach": per NMI's own
+		 * 1.0.57 — response.tokenType is NOT "card" vs "ach": per the processor's own
 		 * Collect.js documentation, it reports the INTEGRATION STYLE
 		 * ("inline" for this plugin's embedded-fields setup, vs "lightbox"
 		 * for a popup integration) -- a constant that's the SAME for every

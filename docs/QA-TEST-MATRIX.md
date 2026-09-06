@@ -1,7 +1,7 @@
 # CARDZ3N Gateway for WooCommerce — QA Test Matrix
 
 Run this matrix before every production release. All tests require a sandbox
-CARDZ3N / NMI account with Collect.js enabled.
+CARDZ3N account with Collect.js enabled.
 
 ## Environment
 
@@ -52,11 +52,11 @@ CARDZ3N / NMI account with Collect.js enabled.
 
 | #  | Scenario                                                    | Expected                                                | Pass |
 |----|-------------------------------------------------------------|---------------------------------------------------------|:----:|
-| 21 | Level 3 payload includes all available order + line fields  | NMI "view transaction" shows L3 fields                  |      |
+| 21 | Level 3 payload includes all available order + line fields  | CARDZ3N "view transaction" shows L3 fields                  |      |
 | 22 | Missing L3 fields omitted gracefully                        | No fabricated values sent                               |      |
 | 23 | Allocated shipping + discount calculations stable           | Line item freight/discount sum ≈ order freight/discount |      |
-| 24 | PO number transmission                                      | PO visible in NMI transaction detail                    |      |
-| 25 | Product UPC/commodity/UOM meta mapping                      | Item commodity code + UPC appear in NMI detail          |      |
+| 24 | PO number transmission                                      | PO visible in CARDZ3N transaction detail                    |      |
+| 25 | Product UPC/commodity/UOM meta mapping                      | Item commodity code + UPC appear in CARDZ3N detail          |      |
 
 ## 5. Edge cases & compliance
 

@@ -3,9 +3,9 @@
 ## Request flow
 
 ```
-Browser                         WordPress                          NMI
+Browser                         WordPress                          Processor
 ─────────                       ─────────                          ───
-Collect.js ─ tokenize ─▶                                    NMI tokenizer
+Collect.js ─ tokenize ─▶                                    Processor tokenizer
   │                              POST /?wc-ajax=checkout
   └─── payment_token ─▶         Gateway::process_payment
                                 Api_Client::transaction ───▶ transact.php
@@ -21,7 +21,7 @@ Collect.js ─ tokenize ─▶                                    NMI tokenizer
 ## Why Collect.js inline (not iframe redirect)
 
 The spec requires "embedded/on-site checkout rather than a visible off-site
-redirect." Collect.js inline mode injects NMI-controlled inputs into our DOM —
+redirect." Collect.js inline mode injects processor-controlled inputs into our DOM —
 no iframe, no redirect — yet the actual PAN/CVV keystrokes never cross our
 origin. This is the PCI DSS SAQ A-EP model and is what Stripe Elements, Adyen
 Web Drop-in, and Braintree Hosted Fields all use as well.

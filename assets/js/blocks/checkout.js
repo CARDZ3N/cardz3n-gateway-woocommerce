@@ -193,7 +193,7 @@
 					var activePane = ( typeof window.cardz3nGwActivePane === 'function' ) ? window.cardz3nGwActivePane() : pane;
 					/*
 					 * 1.0.57 — response.tokenType is NOT "card" vs "ach": per
-					 * NMI's own Collect.js documentation, it reports the
+					 * the processor's own Collect.js documentation, it reports the
 					 * INTEGRATION STYLE ("inline" for this plugin's
 					 * embedded-fields setup), a constant that's the SAME
 					 * for every transaction regardless of payment method.
