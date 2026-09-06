@@ -183,10 +183,11 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		}
 
 		$parsed = wp_parse_url( Api_Client::collectjs_url() );
-		if ( empty( $parsed['scheme'] ) || empty( $parsed['host'] ) || ! in_array( $parsed['scheme'], array( 'http', 'https' ), true ) ) {
+		$scheme = isset( $parsed['scheme'] ) ? strtolower( $parsed['scheme'] ) : '';
+		if ( empty( $scheme ) || empty( $parsed['host'] ) || ! in_array( $scheme, array( 'http', 'https' ), true ) ) {
 			return; // Filter returned something we can't safely form an origin from -- skip rather than guess.
 		}
-		$origin = $parsed['scheme'] . '://' . $parsed['host'] . ( isset( $parsed['port'] ) ? ':' . $parsed['port'] : '' );
+		$origin = $scheme . '://' . $parsed['host'] . ( isset( $parsed['port'] ) ? ':' . $parsed['port'] : '' );
 
 		printf(
 			'<link rel="preconnect" href="%s" crossorigin>' . "\n",

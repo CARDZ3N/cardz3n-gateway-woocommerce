@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.51
+Stable tag: 1.0.52
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.52 =
+* Fixed a case-sensitivity nitpick in the 1.0.51 preconnect fix (flagged by Devin Review): the scheme check used strict in_array() against lowercase 'http'/'https', so a filtered Collect.js URL with an uppercase scheme (e.g. HTTPS://...) would fail validation and silently skip the preconnect hint entirely. Now lowercases the parsed scheme before comparing.
 
 = 1.0.51 =
 * Fixed a white-label gap in the 1.0.50 preconnect hint (flagged by Devin Review): it hardcoded the default GATEWAY_HOST, but Api_Client::collectjs_url() runs through the cardz3n_gw_collectjs_url filter that white-label partners use to serve Collect.js from a different host. Now derives the preconnect origin from the actual filtered URL, so it always targets whichever host the script really loads from.
