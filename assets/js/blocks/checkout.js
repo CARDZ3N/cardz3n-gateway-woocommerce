@@ -72,10 +72,41 @@
 			} );
 		} );
 
+		var titleText = decodeEntities( cfg.title || 'CARDZ3N Gateway' );
+
+		/*
+		 * When the merchant has "Powered by CARDZ3N" branding enabled,
+		 * render a real clickable link to cardz3n.com instead of the
+		 * plain PaymentMethodLabel text node. Mirrors what
+		 * Gateway::linkify_checkout_title() does on the classic checkout
+		 * via the woocommerce_gateway_title filter -- that PHP filter has
+		 * no effect here, since the Blocks checkout reads its title
+		 * through this separate get_payment_method_data() JS payload, not
+		 * through WooCommerce's title-rendering filter chain.
+		 *
+		 * stopPropagation() keeps the link's own click (and its default
+		 * target="_blank" navigation) from also being intercepted by
+		 * whatever parent click handler the payment-method list item uses
+		 * to select this radio option.
+		 */
+		var labelNode = ( cfg.poweredByBranding && cfg.brandingUrl )
+			? el(
+				'a',
+				{
+					href: cfg.brandingUrl,
+					target: '_blank',
+					rel: 'noopener noreferrer',
+					onClick: function ( e ) { e.stopPropagation(); },
+					style: { color: 'inherit', textDecoration: 'underline' }
+				},
+				titleText
+			)
+			: el( PaymentMethodLabel, { text: titleText } );
+
 		return el(
 			'span',
 			{ style: { display: 'inline-flex', alignItems: 'center', gap: 8 } },
-			el( PaymentMethodLabel, { text: decodeEntities( cfg.title || 'CARDZ3N Gateway' ) } ),
+			labelNode,
 			iconNodes
 		);
 	}

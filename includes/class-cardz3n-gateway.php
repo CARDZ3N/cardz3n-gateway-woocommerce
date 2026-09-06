@@ -31,6 +31,14 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	use Compatibility_Trait;
 
 	/**
+	 * Destination for the "Powered by CARDZ3N" checkout-title link (both
+	 * the classic checkout, via linkify_checkout_title(), and the Blocks
+	 * checkout, via Blocks_Support::get_payment_method_data()'s
+	 * poweredByBranding/brandingUrl fields).
+	 */
+	const BRANDING_LINK_URL = 'https://cardz3n.com';
+
+	/**
 	 * Configure the gateway's identity, settings fields, and hooks.
 	 */
 	public function __construct() {
@@ -60,6 +68,11 @@ class Gateway extends \WC_Payment_Gateway_CC {
 
 		// Persist settings.
 		add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
+
+		// Make "Powered by CARDZ3N" clickable on the checkout page only —
+		// see linkify_checkout_title() for why this filters the rendered
+		// title instead of embedding the <a> in $this->title itself.
+		add_filter( 'woocommerce_gateway_title', array( $this, 'linkify_checkout_title' ), 10, 2 );
 
 		// Enqueue checkout assets.
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_checkout_assets' ) );
@@ -148,6 +161,52 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			return CARDZ3N_GW_URL . 'assets/img/' . Brand::get( 'logo_file' );
 		}
 		return ''; // Brand icons rendered inline by payment_fields() for finer control.
+	}
+
+	/**
+	 * Turn "Powered by CARDZ3N" into a clickable link to cardz3n.com,
+	 * opening in a new tab, WITHOUT changing the underlying title text
+	 * stored anywhere else.
+	 *
+	 * $this->title itself stays plain text on purpose: WooCommerce stores
+	 * whatever get_title() returns as the order's payment_method_title
+	 * (shown in admin order screens, order emails, the REST API, and
+	 * packing slips), and none of those contexts are checkout-page HTML
+	 * rendering -- embedding a raw <a> tag in $this->title would leak
+	 * clickable markup (or, worse, literal unescaped tag text) into places
+	 * that were never meant to render it.
+	 *
+	 * The woocommerce_gateway_title filter, by contrast, only ever affects
+	 * how the title is displayed at the point of use -- and WooCommerce's
+	 * own checkout/payment-method.php template deliberately echoes
+	 * $gateway->get_title() completely unescaped (confirmed against
+	 * WooCommerce core source, marked with its own
+	 * "phpcs:ignore WordPress.XSS.EscapeOutput.OutputNotEscaped" comment)
+	 * specifically so gateways CAN embed inline HTML in their checkout
+	 * label. Gated to is_checkout() so admin screens, emails, and the
+	 * Blocks checkout (which reads title via a separate JS-side path in
+	 * Blocks_Support::get_payment_method_data(), not through this filter)
+	 * are unaffected here.
+	 *
+	 * @param string $title      The gateway title WooCommerce is about to display.
+	 * @param string $gateway_id The gateway whose title this is.
+	 * @return string
+	 */
+	public function linkify_checkout_title( $title, $gateway_id ) {
+		if ( $gateway_id !== $this->id ) {
+			return $title;
+		}
+		if ( 'yes' !== $this->get_option( 'show_powered_by_branding' ) ) {
+			return $title;
+		}
+		if ( ! is_checkout() ) {
+			return $title;
+		}
+		return sprintf(
+			'<a href="%1$s" target="_blank" rel="noopener noreferrer">%2$s</a>',
+			esc_url( self::BRANDING_LINK_URL ),
+			esc_html( $title )
+		);
 	}
 
 	/**

@@ -280,23 +280,40 @@ class Blocks_Support extends AbstractPaymentMethodType {
 
 		$client = new Api_Client( $settings );
 
+		/*
+		 * Mirror Gateway::__construct()'s title logic exactly, rather than
+		 * reading a raw 'title' settings option: the classic gateway's
+		 * $this->title is COMPUTED from show_powered_by_branding (Powered
+		 * by CARDZ3N vs. the neutral "Check Out"), not read from a stored
+		 * 'title' option at all -- so falling back to Brand's default_title
+		 * here, as this previously did, would show a THIRD, different
+		 * string on the Blocks checkout that neither matches what classic
+		 * shows nor honors the merchant's branding choice.
+		 */
+		$powered_by_branding = 'yes' === $opt( 'show_powered_by_branding', 'no' );
+		$title               = $powered_by_branding
+			? __( 'Powered by CARDZ3N', 'cardz3n-gateway' )
+			: __( 'Check Out', 'cardz3n-gateway' );
+
 		return array(
-			'name'            => $this->name,
-			'gatewayId'       => $this->name,
-			'title'           => $opt( 'title', Brand::profile()['default_title'] ),
-			'description'     => $opt( 'description', '' ),
-			'icons'           => $this->get_icon_urls(),
-			'tokenizationKey' => $client->tokenization_key(),
-			'enableCards'     => 'yes' === $opt( 'enable_cards', 'yes' ),
-			'enableAch'       => 'yes' === $opt( 'enable_ach', 'no' ),
-			'enableApplePay'  => 'yes' === $opt( 'enable_apple_pay', 'no' ),
-			'enableGooglePay' => 'yes' === $opt( 'enable_google_pay', 'no' ),
-			'enableSaved'     => 'yes' === $opt( 'enable_saved_methods', 'no' ),
-			'allowedBrands'   => (array) $opt( 'allowed_card_brands', array() ),
-			'country'         => ( function_exists( 'WC' ) && WC()->customer && WC()->customer->get_billing_country() ) ? WC()->customer->get_billing_country() : 'US',
-			'currency'        => function_exists( 'get_woocommerce_currency' ) ? get_woocommerce_currency() : 'USD',
-			'supports'        => $this->get_supported_features(),
-			'i18n'            => array(
+			'name'              => $this->name,
+			'gatewayId'         => $this->name,
+			'title'             => $title,
+			'poweredByBranding' => $powered_by_branding,
+			'brandingUrl'       => Gateway::BRANDING_LINK_URL,
+			'description'       => $opt( 'description', '' ),
+			'icons'             => $this->get_icon_urls(),
+			'tokenizationKey'   => $client->tokenization_key(),
+			'enableCards'       => 'yes' === $opt( 'enable_cards', 'yes' ),
+			'enableAch'         => 'yes' === $opt( 'enable_ach', 'no' ),
+			'enableApplePay'    => 'yes' === $opt( 'enable_apple_pay', 'no' ),
+			'enableGooglePay'   => 'yes' === $opt( 'enable_google_pay', 'no' ),
+			'enableSaved'       => 'yes' === $opt( 'enable_saved_methods', 'no' ),
+			'allowedBrands'     => (array) $opt( 'allowed_card_brands', array() ),
+			'country'           => ( function_exists( 'WC' ) && WC()->customer && WC()->customer->get_billing_country() ) ? WC()->customer->get_billing_country() : 'US',
+			'currency'          => function_exists( 'get_woocommerce_currency' ) ? get_woocommerce_currency() : 'USD',
+			'supports'          => $this->get_supported_features(),
+			'i18n'              => array(
 				'cardTab'       => __( 'Card', 'cardz3n-gateway' ),
 				'achTab'        => __( 'Bank (ACH)', 'cardz3n-gateway' ),
 				'savedTab'      => __( 'Saved', 'cardz3n-gateway' ),

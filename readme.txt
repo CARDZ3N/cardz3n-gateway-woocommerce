@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.53
+Stable tag: 1.0.54
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.54 =
+* Feature: when "Powered by CARDZ3N" branding is enabled, the checkout title now links to cardz3n.com and opens in a new tab, on both the classic and native Blocks checkout. Classic checkout filters the rendered title only (via woocommerce_gateway_title, gated to is_checkout()) so the underlying stored title used in admin/order/email contexts stays plain text; the Blocks checkout gets the equivalent via a poweredByBranding/brandingUrl flag passed to its React label component. Also fixed a related inconsistency: the Blocks checkout's title previously read a raw, effectively-unused 'title' settings option (falling back to a brand default) instead of mirroring the classic gateway's actual show_powered_by_branding-driven title — it now computes the title identically on both paths.
 
 = 1.0.53 =
 * Fixed a likely contributor to the payment-fields load delay on the native Blocks checkout: configureCollect() only ever attempted to mount the hosted card/ACH fields once, via a single 50ms setTimeout, and silently gave up for good if Collect.js's third-party script hadn't finished loading by then — leaving field mounting dependent on an unrelated React re-render happening to occur later (e.g. a cart-total update), rather than on Collect.js's own actual load time. Now retries every 100ms for up to 10 seconds until Collect.js is genuinely available, so the fields mount as soon as the script itself is ready instead of waiting on incidental re-renders.
