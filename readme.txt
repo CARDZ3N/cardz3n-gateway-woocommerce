@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.57
+Stable tag: 1.0.58
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,10 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.58 =
+* Added Apple Pay and Google Pay to the native Blocks checkout. Both wallets reuse the SAME CollectJS.configure() call already used for Card/ACH -- Collect.js itself populates the wallet button containers and routes the resulting token through the same shared callback -- so no separate WooCommerce Blocks "express payment method" registration was needed. Fixed the actual gate that was blocking this: get_payment_method_script_handles()'s window.CARDZ3N_GW payload hardcoded enableApplePay/enableGooglePay to false regardless of the merchant's settings, which is what configureCollect() actually checks before adding these fields to Collect.js. Apple Pay additionally requires domain verification with Apple through your NMI/merchant setup -- a prerequisite outside this plugin's control -- while Google Pay should work as soon as it's enabled and the browser/device is eligible.
+* Fixed a real, separate markup bug in the Blocks checkout found while implementing wallets: the Card and ACH hosted-field containers were missing their labels, used the wrong CSS class (.cardz3n-field instead of .cardz3n-collect-field, so the intended 40px field-box sizing never applied), and weren't grouped into two-column rows (Expiry/CVV, Routing/Account) the way the classic checkout is. Now matches classic's markup exactly. Likely a real contributor to the reported whitespace gap on the ACH tab.
 
 = 1.0.57 =
 * Added a note to the Native Block Checkout (Experimental) setting: it now states plainly that Apple Pay, Google Pay, and saved payment methods are not yet available in the Blocks checkout even if enabled elsewhere, and links to support@cardz3n.com for questions or issues with this experimental feature.

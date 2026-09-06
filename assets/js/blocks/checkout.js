@@ -20,12 +20,16 @@
  *     see the long comment block on that file's "Blocks checkout bridge"
  *     section for how completion (no form.checkout to submit) differs from
  *     the classic flow.
- *   - MVP scope: Card and ACH tabs. Saved payment methods and Apple/Google
- *     Pay wallet buttons are NOT yet supported in the Blocks checkout path
- *     (get_payment_method_data() doesn't currently pass a saved-tokens list
- *     to the client, and wallet buttons need their own Blocks Express
- *     Payment Method integration) — deliberately hidden here rather than
- *     shown non-functional. Enabling "Saved" or wallets while
+ *   - Scope: Card, ACH, Apple Pay, and Google Pay are supported. Apple/
+ *     Google Pay reuse the SAME CollectJS.configure() call as Card/ACH --
+ *     Collect.js itself populates the wallet button DOM containers and
+ *     routes the resulting token through the same shared callback, so no
+ *     separate WooCommerce Blocks "express payment method" registration
+ *     was needed (see the wallet-rendering comment in Content() below).
+ *     Saved payment methods are NOT yet supported in the Blocks checkout
+ *     path (get_payment_method_data() doesn't currently pass a
+ *     saved-tokens list to the client) — deliberately hidden here rather
+ *     than shown non-functional. Enabling "Saved" while
  *     enable_experimental_blocks_checkout is on has no effect on this pane.
  */
 ( function ( wp, wc, settings ) {
@@ -256,6 +260,14 @@
 			) );
 		}
 
+		var wallets = [];
+		if ( cfg.enableApplePay ) {
+			wallets.push( el( 'div', { key: 'wallet-apple', className: 'cardz3n-applepay-button', 'data-cardz3n-wallet': 'apple' } ) );
+		}
+		if ( cfg.enableGooglePay ) {
+			wallets.push( el( 'div', { key: 'wallet-google', className: 'cardz3n-googlepay-button', 'data-cardz3n-wallet': 'google' } ) );
+		}
+
 		return el(
 			'div',
 			{
@@ -269,24 +281,96 @@
 				{ className: 'cardz3n-block-description', style: { margin: '0 0 12px' } },
 				decodeEntities( cfg.description || '' )
 			),
+			/*
+			 * Apple Pay / Google Pay -- rendered as DOM containers Collect.js
+			 * itself populates with the actual wallet button and click
+			 * handling, exactly as on the classic checkout (see
+			 * assets/js/checkout.js's configureCollect(): fields.applePay /
+			 * fields.googlePay are feature-detected and passed straight into
+			 * the SAME CollectJS.configure() call used for Card/ACH, so the
+			 * resulting token flows through the SAME shared callback/
+			 * cardz3nGwStartTokenization() bridge already wired up below --
+			 * no separate WooCommerce Blocks "express payment method"
+			 * registration needed). Wallets are feature-detected client-side
+			 * (ApplePaySession.canMakePayments() / window.google.payments)
+			 * inside configureCollect() itself, so an ineligible browser/
+			 * device simply never gets the field passed to Collect.js at
+			 * all -- these containers can render even when the wallet
+			 * isn't actually eligible; they just stay empty (CSS hides an
+			 * empty .cardz3n-wallets entirely, matching classic).
+			 */
+			wallets.length
+				? el(
+					'div',
+					{ className: 'cardz3n-wallets' },
+					wallets,
+					el(
+						'div',
+						{ className: 'cardz3n-wallets-divider' },
+						el( 'span', null, ( cfg.i18n && cfg.i18n.orPayWith ) || 'or pay with' )
+					)
+				)
+				: null,
 			tabs.length > 1
 				? el( 'div', { className: 'cardz3n-tabs', role: 'tablist' }, tabs )
 				: null,
 			// Card pane — hosted-field containers Collect.js mounts iframes into.
+			// Structure (label + .cardz3n-collect-field wrapper, .cardz3n-row
+			// pairing for Expiry/CVV) matches the classic checkout's markup
+			// exactly, since both share the same checkout.css rules and the
+			// same shared checkout.js module operating on these same ids.
 			el(
 				'div',
 				{ className: 'cardz3n-pane cardz3n-pane-card' + ( 'card' === pane ? ' is-active' : '' ), 'data-pane': 'card', style: showCard ? {} : { display: 'none' } },
-				el( 'div', { id: 'cardz3n-ccnumber', className: 'cardz3n-field' } ),
-				el( 'div', { id: 'cardz3n-ccexp',    className: 'cardz3n-field' } ),
-				el( 'div', { id: 'cardz3n-cvv',      className: 'cardz3n-field' } )
+				el(
+					'div',
+					{ className: 'cardz3n-field' },
+					el( 'label', null, ( cfg.i18n && cfg.i18n.cardNumber ) || 'Card number' ),
+					el( 'div', { id: 'cardz3n-ccnumber', className: 'cardz3n-collect-field' } )
+				),
+				el(
+					'div',
+					{ className: 'cardz3n-row' },
+					el(
+						'div',
+						{ className: 'cardz3n-field' },
+						el( 'label', null, ( cfg.i18n && cfg.i18n.expiry ) || 'MM / YY' ),
+						el( 'div', { id: 'cardz3n-ccexp', className: 'cardz3n-collect-field' } )
+					),
+					el(
+						'div',
+						{ className: 'cardz3n-field' },
+						el( 'label', null, ( cfg.i18n && cfg.i18n.cvv ) || 'CVV' ),
+						el( 'div', { id: 'cardz3n-cvv', className: 'cardz3n-collect-field' } )
+					)
+				)
 			),
 			// ACH pane.
 			el(
 				'div',
 				{ className: 'cardz3n-pane cardz3n-pane-ach' + ( 'ach' === pane ? ' is-active' : '' ), 'data-pane': 'ach', style: showAch ? {} : { display: 'none' } },
-				el( 'div', { id: 'cardz3n-checkname',    className: 'cardz3n-field' } ),
-				el( 'div', { id: 'cardz3n-checkaba',     className: 'cardz3n-field' } ),
-				el( 'div', { id: 'cardz3n-checkaccount', className: 'cardz3n-field' } )
+				el(
+					'div',
+					{ className: 'cardz3n-field' },
+					el( 'label', null, ( cfg.i18n && cfg.i18n.accountName ) || 'Name on account' ),
+					el( 'div', { id: 'cardz3n-checkname', className: 'cardz3n-collect-field' } )
+				),
+				el(
+					'div',
+					{ className: 'cardz3n-row' },
+					el(
+						'div',
+						{ className: 'cardz3n-field' },
+						el( 'label', null, ( cfg.i18n && cfg.i18n.routing ) || 'Routing number' ),
+						el( 'div', { id: 'cardz3n-checkaba', className: 'cardz3n-collect-field' } )
+					),
+					el(
+						'div',
+						{ className: 'cardz3n-field' },
+						el( 'label', null, ( cfg.i18n && cfg.i18n.account ) || 'Account number' ),
+						el( 'div', { id: 'cardz3n-checkaccount', className: 'cardz3n-collect-field' } )
+					)
+				)
 			),
 			el( 'div', { className: 'cardz3n-errors', style: { display: 'none' } } )
 		);

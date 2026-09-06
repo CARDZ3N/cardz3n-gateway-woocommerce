@@ -170,8 +170,8 @@ class Blocks_Support extends AbstractPaymentMethodType {
 				'tokenizationKey' => $pk,
 				'enableCards'     => 'yes' === $this->get_setting( 'enable_cards', 'yes' ),
 				'enableAch'       => 'yes' === $this->get_setting( 'enable_ach', 'no' ),
-				'enableApplePay'  => false, // Not yet supported in the Blocks path.
-				'enableGooglePay' => false, // Not yet supported in the Blocks path.
+				'enableApplePay'  => 'yes' === $this->get_setting( 'enable_apple_pay', 'no' ),
+				'enableGooglePay' => 'yes' === $this->get_setting( 'enable_google_pay', 'no' ),
 				'enableSaved'     => false, // Not yet supported in the Blocks path.
 				'allowedBrands'   => (array) $this->get_setting( 'allowed_card_brands', array() ),
 				'country'         => ( function_exists( 'WC' ) && WC()->customer && WC()->customer->get_billing_country() ) ? WC()->customer->get_billing_country() : 'US',
@@ -330,6 +330,7 @@ class Blocks_Support extends AbstractPaymentMethodType {
 				'accountName'   => __( 'Name on account', 'cardz3n-gateway' ),
 				'routing'       => __( 'Routing number', 'cardz3n-gateway' ),
 				'account'       => __( 'Account number', 'cardz3n-gateway' ),
+				'orPayWith'     => __( 'or pay with', 'cardz3n-gateway' ),
 				'processing'    => __( 'Processing…', 'cardz3n-gateway' ),
 				'invalidFields' => __( 'Please check your payment details and try again.', 'cardz3n-gateway' ),
 				'timeout'       => __( 'Tokenization timed out. Please try again.', 'cardz3n-gateway' ),
