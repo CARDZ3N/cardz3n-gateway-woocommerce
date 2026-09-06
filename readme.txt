@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, apple pay, google pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.63
+Stable tag: 1.0.64
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.64 =
+* Buyer-facing decline message now shows a clean, consistent "Your payment was declined. Please check your card details or try a different payment method." instead of passing through the processor's raw response text verbatim (which varies by which specific rule triggered the decline -- observed "DECLINE" in one scenario, "FAILED" in another, e.g. a test-mode sub-$1 auto-decline). Only applies to genuine declines (response code '2'); the raw text stays intact in the order note for merchant/support diagnostics either way, and error-code scenarios (bad token, misconfiguration) keep their own detailed, actionable messages since a buyer needs different guidance for those than for a simple decline.
 
 = 1.0.63 =
 * Fixed the Card/ACH whitespace gap on the Blocks checkout, root-caused via live DevTools inspection rather than guessing: the inactive pane's display:'none' was conditioned on whether that payment method was merely ENABLED (showCard/showAch) instead of whether it was the ACTIVE tab, so with both Card and ACH enabled (the common case) neither pane ever got display:none -- the inactive one stayed in normal layout flow (visibility:hidden still reserves space) and rendered its own full height directly before/after the active pane. Also restored the missing .cardz3n-panes wrapper div, which establishes the same CSS Grid "stacked panes" technique the classic checkout already relies on (checkout.css) so Card and ACH occupy the same grid cell instead of stacking as plain block-level siblings, matching classic's tab-switch behavior exactly.

@@ -1092,6 +1092,27 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			 * troubleshooting.
 			 */
 			$user_msg = $response['text'] ? $response['text'] : __( 'Payment could not be processed.', 'cardz3n-gateway' );
+
+			/*
+			 * 1.0.64 — show a clean, consistent "declined" message for a
+			 * genuine decline (code '2') instead of passing through the
+			 * processor's raw responsetext verbatim. That raw text varies
+			 * by which specific rule triggered the decline (observed:
+			 * "DECLINE" for one scenario, "FAILED" for another, e.g. a
+			 * test-mode sub-$1 auto-decline) and isn't always clear to a
+			 * buyer as "your payment did not go through." The raw text
+			 * stays fully intact in the order note above (Order_Service::
+			 * failure_note()) for merchant/support diagnostics either way.
+			 * Error codes ('3' -- bad token, misconfiguration, etc., NOT a
+			 * genuine decline) keep their own detailed, actionable
+			 * messages below, since a buyer needs different guidance for
+			 * "the store's payment setup is broken" than for "your card
+			 * was declined."
+			 */
+			if ( '2' === $response['code'] ) {
+				$user_msg = __( 'Your payment was declined. Please check your card details or try a different payment method.', 'cardz3n-gateway' );
+			}
+
 			if ( false !== stripos( (string) $response['text'], 'payment token does not exist' ) ) {
 				Logger::error(
 					'Gateway rejected Collect.js token — check Security Key / Tokenization Key pair',
