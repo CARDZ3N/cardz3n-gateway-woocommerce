@@ -187,7 +187,17 @@
 					}
 
 					var activePane = ( typeof window.cardz3nGwActivePane === 'function' ) ? window.cardz3nGwActivePane() : pane;
-					var kind       = response.tokenType || ( 'ach' === activePane ? 'ach' : 'card' );
+					/*
+					 * 1.0.57 — response.tokenType is NOT "card" vs "ach": per
+					 * NMI's own Collect.js documentation, it reports the
+					 * INTEGRATION STYLE ("inline" for this plugin's
+					 * embedded-fields setup), a constant that's the SAME
+					 * for every transaction regardless of payment method.
+					 * Using it here meant every ACH transaction was tagged
+					 * as a card transaction downstream. activePane (which
+					 * tab is actually open) is the correct source of truth.
+					 */
+					var kind       = ( 'ach' === activePane ? 'ach' : 'card' );
 					var cardBrand  = ( response.card && response.card.type ) ? response.card.type : '';
 
 					return {

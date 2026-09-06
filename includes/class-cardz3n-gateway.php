@@ -31,14 +31,6 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	use Compatibility_Trait;
 
 	/**
-	 * Destination for the "Powered by CARDZ3N" checkout-title link (both
-	 * the classic checkout, via linkify_checkout_title(), and the Blocks
-	 * checkout, via Blocks_Support::get_payment_method_data()'s
-	 * poweredByBranding/brandingUrl fields).
-	 */
-	const BRANDING_LINK_URL = 'https://cardz3n.com';
-
-	/**
 	 * Configure the gateway's identity, settings fields, and hooks.
 	 */
 	public function __construct() {
@@ -58,9 +50,15 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		 * explicitly opted in via the "show_powered_by_branding" checkbox
 		 * (unchecked by default), per WordPress.org guidelines requiring
 		 * affirmative admin opt-in for any buyer-facing attribution.
+		 *
+		 * 1.0.56 — uses $brand['powered_by_label'] (e.g. "Powered by
+		 * AerospacePay" for that white-label) instead of a hardcoded
+		 * "Powered by CARDZ3N" string, so a white-label brand shows ITS OWN
+		 * attribution rather than CARDZ3N's regardless of which brand is
+		 * actually active.
 		 */
 		$this->title       = $this->get_option( 'show_powered_by_branding' ) === 'yes'
-			? __( 'Powered by CARDZ3N', 'cardz3n-gateway' )
+			? $brand['powered_by_label']
 			: __( 'Check Out', 'cardz3n-gateway' );
 		$this->description = $this->get_option( 'description' );
 
@@ -164,9 +162,9 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	}
 
 	/**
-	 * Turn "Powered by CARDZ3N" into a clickable link to cardz3n.com,
-	 * opening in a new tab, WITHOUT changing the underlying title text
-	 * stored anywhere else.
+	 * Turn the checkout title's "Powered by" branding into a clickable
+	 * link to this brand's own website, opening in a new tab, WITHOUT
+	 * changing the underlying title text stored anywhere else.
 	 *
 	 * $this->title itself stays plain text on purpose: WooCommerce stores
 	 * whatever get_title() returns as the order's payment_method_title
@@ -204,15 +202,41 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		}
 		return sprintf(
 			'<a href="%1$s" target="_blank" rel="noopener noreferrer" style="color:%2$s;">%3$s</a>',
-			esc_url( self::BRANDING_LINK_URL ),
+			esc_url( self::branding_link_url() ),
 			esc_attr( self::branding_link_color() ),
 			esc_html( $title )
 		);
 	}
 
 	/**
-	 * Hex color for the "Powered by CARDZ3N" checkout-title link, matching
-	 * this brand's own primary accent color (Brand::profile()['primary_color']
+	 * URL for the "Powered by" checkout-title link, matching this brand's
+	 * own website (Brand::profile()['website_url']) rather than a
+	 * hardcoded cardz3n.com -- so a white-label brand's checkout links to
+	 * ITS OWN site, not CARDZ3N's, regardless of which brand is active.
+	 *
+	 * Validated as a well-formed http(s) URL before use: website_url comes
+	 * through the cardz3n_gw_brand_profile filter, so a malformed value
+	 * from a partner's filter callback shouldn't be trusted to reach an
+	 * HTML attribute unchecked.
+	 *
+	 * @return string
+	 */
+	public static function branding_link_url() {
+		$url = Brand::profile()['website_url'] ?? '';
+		if ( ! is_string( $url ) ) {
+			return 'https://cardz3n.com'; // CARDZ3N's own site, as a safe fallback.
+		}
+		$parsed = wp_parse_url( $url );
+		$scheme = isset( $parsed['scheme'] ) ? strtolower( $parsed['scheme'] ) : '';
+		if ( empty( $scheme ) || empty( $parsed['host'] ) || ! in_array( $scheme, array( 'http', 'https' ), true ) ) {
+			return 'https://cardz3n.com'; // Filter returned something we can't safely form a URL from.
+		}
+		return $url;
+	}
+
+	/**
+	 * Hex color for the "Powered by" checkout-title link, matching this
+	 * brand's own primary accent color (Brand::profile()['primary_color']
 	 * -- the same value checkout.css uses for --cardz3n-primary) rather than
 	 * a hardcoded color, so a white-label brand override
 	 * (cardz3n_gw_brand_profile filter) gets ITS color, not CARDZ3N's blue.
@@ -220,13 +244,17 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	 * Validated against a hex-color pattern before use: primary_color comes
 	 * through that same filter, so a malformed value from a partner's
 	 * filter callback shouldn't be trusted to reach an HTML attribute
-	 * unchecked.
+	 * unchecked. Only 3, 4, 6, or 8 hex digits are valid CSS hex-color
+	 * lengths (#rgb, #rgba, #rrggbb, #rrggbbaa) -- 5 or 7 digits are NOT
+	 * valid CSS and would be silently discarded by the browser, reverting
+	 * to the theme's own (e.g. red) link color instead of using our
+	 * fallback.
 	 *
 	 * @return string
 	 */
 	public static function branding_link_color() {
 		$color = Brand::profile()['primary_color'] ?? '';
-		if ( ! is_string( $color ) || ! preg_match( '/^#[0-9a-fA-F]{3,8}$/', $color ) ) {
+		if ( ! is_string( $color ) || ! preg_match( '/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/', $color ) ) {
 			return '#0a5cff'; // CARDZ3N's own primary color, as a safe fallback.
 		}
 		return $color;
@@ -403,8 +431,6 @@ class Gateway extends \WC_Payment_Gateway_CC {
 					'accountName'   => __( 'Name on account', 'cardz3n-gateway' ),
 					'routing'       => __( 'Routing number', 'cardz3n-gateway' ),
 					'account'       => __( 'Account number', 'cardz3n-gateway' ),
-					'checking'      => __( 'Checking', 'cardz3n-gateway' ),
-					'savings'       => __( 'Savings', 'cardz3n-gateway' ),
 					'processing'    => __( 'Processing…', 'cardz3n-gateway' ),
 					'invalidFields' => __( 'Please check your payment details and try again.', 'cardz3n-gateway' ),
 					'timeout'       => __( 'Tokenization timed out. Please try again.', 'cardz3n-gateway' ),
@@ -621,13 +647,6 @@ class Gateway extends \WC_Payment_Gateway_CC {
 						<label><?php esc_html_e( 'Account number', 'cardz3n-gateway' ); ?></label>
 						<div id="cardz3n-checkaccount" class="cardz3n-collect-field"></div>
 					</div>
-				</div>
-				<div class="cardz3n-field">
-					<label><?php esc_html_e( 'Account type', 'cardz3n-gateway' ); ?></label>
-					<select name="cardz3n_ach_account_type">
-						<option value="checking"><?php esc_html_e( 'Checking', 'cardz3n-gateway' ); ?></option>
-						<option value="savings"><?php esc_html_e( 'Savings', 'cardz3n-gateway' ); ?></option>
-					</select>
 				</div>
 				<?php if ( ACH_Service::reuse_allowed() && $has_tokenization ) : ?>
 				<label class="cardz3n-save-method">
@@ -1159,7 +1178,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 					$response['customer_vault_id'],
 					array(
 						'last4'        => substr( (string) ( $response['raw']['account_number'] ?? '' ), -4 ),
-						'account_type' => isset( $_POST['cardz3n_ach_account_type'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_ach_account_type'] ) ) : 'checking', // phpcs:ignore WordPress.Security.NonceVerification.Missing
+						'account_type' => 'checking', // Always Checking -- the Account type selector was removed from checkout; ACH accounts are treated as Checking uniformly on both classic and Blocks checkout.
 					)
 				);
 			}

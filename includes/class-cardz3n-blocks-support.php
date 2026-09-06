@@ -70,20 +70,25 @@ class Blocks_Support extends AbstractPaymentMethodType {
 	 * available.
 	 *
 	 * We instead check the bare minimum required to decide enqueue-worthiness:
-	 * the "Enabled" toggle, a configured tokenization key, and at least one
-	 * enabled native rail (cards or ACH — the only two this Blocks path
-	 * currently supports; see checkout.js's file header). All three of
-	 * these come straight from the settings array loaded in initialize(),
-	 * with no dependency on WC()->payment_gateways() being populated yet,
-	 * so they're safe to check this early. The full availability cascade
-	 * (HTTPS, currency/country) is still enforced client-side via
-	 * `canMakePayment` and server-side at `process_payment()` /
-	 * `is_available()`, so nothing dangerous slips through.
+	 * the "Enabled" toggle, complete credentials (both the public
+	 * tokenization key AND the private security key -- a public-key-only
+	 * setup can tokenize on the client but every server-side transaction
+	 * will fail), and at least one enabled native rail (cards or ACH — the
+	 * only two this Blocks path currently supports; see checkout.js's file
+	 * header). All of these come straight from the settings array loaded
+	 * in initialize(), with no dependency on WC()->payment_gateways() being
+	 * populated yet, so they're safe to check this early. The full
+	 * availability cascade (HTTPS, currency/country) is still enforced
+	 * client-side via `canMakePayment` and server-side at
+	 * `process_payment()` / `is_available()`, so nothing dangerous slips
+	 * through.
 	 *
 	 * Without the credentials/rail checks, a merchant with the gateway
-	 * enabled but no tokenization key configured (or both Cards and ACH
-	 * turned off) would still see a selectable "Pay with CARDZ3N" option
-	 * in the block checkout that could never actually tokenize a payment.
+	 * enabled but incomplete credentials (or both Cards and ACH turned
+	 * off) would still see a selectable "Pay with CARDZ3N" option in the
+	 * block checkout that could never actually tokenize a payment, or
+	 * (public-key-only case) could tokenize but would then fail on every
+	 * server-side transaction attempt.
 	 */
 	public function is_active() {
 		$enabled = isset( $this->settings['enabled'] ) ? $this->settings['enabled'] : 'no';
@@ -92,7 +97,7 @@ class Blocks_Support extends AbstractPaymentMethodType {
 		}
 
 		$client = new Api_Client( is_array( $this->settings ) ? $this->settings : array() );
-		if ( empty( $client->tokenization_key() ) ) {
+		if ( ! $client->has_credentials() ) {
 			return false;
 		}
 
@@ -283,16 +288,17 @@ class Blocks_Support extends AbstractPaymentMethodType {
 		/*
 		 * Mirror Gateway::__construct()'s title logic exactly, rather than
 		 * reading a raw 'title' settings option: the classic gateway's
-		 * $this->title is COMPUTED from show_powered_by_branding (Powered
-		 * by CARDZ3N vs. the neutral "Check Out"), not read from a stored
-		 * 'title' option at all -- so falling back to Brand's default_title
-		 * here, as this previously did, would show a THIRD, different
-		 * string on the Blocks checkout that neither matches what classic
-		 * shows nor honors the merchant's branding choice.
+		 * $this->title is COMPUTED from show_powered_by_branding (this
+		 * brand's own powered_by_label vs. the neutral "Check Out"), not
+		 * read from a stored 'title' option at all -- so falling back to
+		 * Brand's default_title here, as this previously did, would show a
+		 * THIRD, different string on the Blocks checkout that neither
+		 * matches what classic shows nor honors the merchant's branding
+		 * choice.
 		 */
 		$powered_by_branding = 'yes' === $opt( 'show_powered_by_branding', 'no' );
 		$title               = $powered_by_branding
-			? __( 'Powered by CARDZ3N', 'cardz3n-gateway' )
+			? Brand::profile()['powered_by_label']
 			: __( 'Check Out', 'cardz3n-gateway' );
 
 		return array(
@@ -300,7 +306,7 @@ class Blocks_Support extends AbstractPaymentMethodType {
 			'gatewayId'         => $this->name,
 			'title'             => $title,
 			'poweredByBranding' => $powered_by_branding,
-			'brandingUrl'       => Gateway::BRANDING_LINK_URL,
+			'brandingUrl'       => Gateway::branding_link_url(),
 			'brandingColor'     => Gateway::branding_link_color(),
 			'description'       => $opt( 'description', '' ),
 			'icons'             => $this->get_icon_urls(),
@@ -324,8 +330,6 @@ class Blocks_Support extends AbstractPaymentMethodType {
 				'accountName'   => __( 'Name on account', 'cardz3n-gateway' ),
 				'routing'       => __( 'Routing number', 'cardz3n-gateway' ),
 				'account'       => __( 'Account number', 'cardz3n-gateway' ),
-				'checking'      => __( 'Checking', 'cardz3n-gateway' ),
-				'savings'       => __( 'Savings', 'cardz3n-gateway' ),
 				'processing'    => __( 'Processing…', 'cardz3n-gateway' ),
 				'invalidFields' => __( 'Please check your payment details and try again.', 'cardz3n-gateway' ),
 				'timeout'       => __( 'Tokenization timed out. Please try again.', 'cardz3n-gateway' ),

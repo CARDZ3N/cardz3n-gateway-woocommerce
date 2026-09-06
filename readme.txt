@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.55
+Stable tag: 1.0.56
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,11 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.56 =
+* Fixed all 5 remaining Devin Review flags on the native Blocks checkout PR: (1) a severe race where a stale, late-arriving Collect.js completion after a timeout could resolve a subsequent retry's Promise with the earlier attempt's token data -- now destroys and recreates the hosted-field iframes before a retry to sever that path; (2) the Blocks payment method stayed selectable with an incomplete (public-key-only) credential set that would fail every server-side transaction -- now requires complete credentials via Api_Client::has_credentials(); (3) a shared retry-attempt counter could be exhausted early by concurrent mount attempts (tab switches, React re-renders), cutting the 10-second Collect.js loading window short -- replaced with a single cancellable timer and wall-clock deadline; (4) white-label (AerospacePay) checkouts showed CARDZ3N's own branding text and link -- Brand::profile() now carries per-brand powered_by_label and website_url, consumed by both classic and Blocks; (5) the branding-link color validation accepted invalid CSS hex lengths (5 or 7 digits) that browsers silently discard.
+* Fixed a real, pre-existing bug (not Blocks-specific) found while testing ACH: completed ACH orders showed "Credit Card" as the payment method. Root cause: response.tokenType from Collect.js reports the *integration style* ("inline"), not the payment method type, per NMI's own documentation -- so `response.tokenType || activeSource()` always short-circuited on that always-truthy-but-wrong value and never reached the correct ach/card fallback. Now uses activeSource()/activePane (which tab is actually open) directly, on both classic and Blocks checkout.
+* Removed the "Account type" (Checking/Savings) selector from the classic checkout's ACH fields, matching the Blocks checkout's existing simpler behavior. ACH transactions are now always submitted as Checking on both checkouts.
 
 = 1.0.55 =
 * The "Powered by CARDZ3N" checkout-title link (added in 1.0.54) now uses this brand's own primary accent color (matching the blue already used for the active payment-tab underline in checkout.css) instead of the theme's default red link color, on both the classic and Blocks checkout. Uses Brand::profile()['primary_color'] as the single source of truth, so a white-label brand's own color is used automatically instead of CARDZ3N's blue.
