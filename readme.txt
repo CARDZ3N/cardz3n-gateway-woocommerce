@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, apple pay, google pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.66
+Stable tag: 1.0.67
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.67 =
+* Documentation-only: added a note to the Apple Pay admin setting that domain verification/activation has only been reachable from a direct, live merchant account, not from a partner/reseller portal or a test-only account -- discovered while attempting to test Apple Pay on the demo store. No functional code change; Apple Pay's plugin-side implementation is already complete and follows the same mechanism confirmed working for Google Pay.
 
 = 1.0.66 =
 * Fixed Google Pay never appearing at all, root-caused via live DevTools diagnostics (Console + Network tab) rather than guessing: our own feature-detection (checking for window.google.payments.api before adding Google Pay to the Collect.js config) was correct, but nothing on the page ever loaded Google's own Pay API JavaScript library (https://pay.google.com/gp/p/js/pay.js) in the first place -- confirmed via window.google reading "undefined" and zero google-pay-related requests in the Network tab, while Apple Pay's SDK files loaded successfully alongside it. Unlike Apple Pay, which Collect.js bundles/proxies internally, Google's own API requires the integrator to load its library explicitly -- confirmed against Google's own documentation and every other payment provider's Google Pay integration guide. Now registers and enqueues https://pay.google.com/gp/p/js/pay.js (only when Google Pay is enabled in settings) as an explicit, non-async dependency of the shared checkout script, so WordPress's own script-loading order guarantees it's available before our feature check runs.
