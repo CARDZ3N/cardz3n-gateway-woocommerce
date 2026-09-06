@@ -329,61 +329,90 @@
 			tabs.length > 1
 				? el( 'div', { className: 'cardz3n-tabs', role: 'tablist' }, tabs )
 				: null,
-			// Card pane — hosted-field containers Collect.js mounts iframes into.
-			// Structure (label + .cardz3n-collect-field wrapper, .cardz3n-row
-			// pairing for Expiry/CVV) matches the classic checkout's markup
-			// exactly, since both share the same checkout.css rules and the
-			// same shared checkout.js module operating on these same ids.
+			/*
+			 * .cardz3n-panes establishes the SAME CSS Grid "stacked panes"
+			 * trick classic checkout uses (checkout.css: display:grid;
+			 * grid-template-areas:"stack"; each .cardz3n-pane placed in
+			 * that one area) -- both Card and ACH panes occupy the SAME
+			 * grid cell, with only the active one visible
+			 * (opacity/visibility, not display:none) so switching tabs
+			 * doesn't reflow/jump the layout.
+			 *
+			 * This wrapper was MISSING from the original Blocks markup --
+			 * without it, Card and ACH were plain block-level siblings, so
+			 * the inactive one (still visibility:hidden, which reserves
+			 * layout space) rendered its own full height directly
+			 * before/after the active one instead of overlapping it,
+			 * producing a large blank gap on whichever pane was active.
+			 *
+			 * Separately, the display:'none' below is now keyed on
+			 * whether THIS pane is the ACTIVE one ('card' === pane /
+			 * 'ach' === pane) rather than whether that payment method is
+			 * merely ENABLED (showCard/showAch) -- the previous condition
+			 * meant BOTH panes stayed in normal flow (never display:none)
+			 * whenever a merchant had both Card and ACH enabled, which is
+			 * the common case and exactly what these screenshots were
+			 * testing.
+			 */
 			el(
 				'div',
-				{ className: 'cardz3n-pane cardz3n-pane-card' + ( 'card' === pane ? ' is-active' : '' ), 'data-pane': 'card', style: showCard ? {} : { display: 'none' } },
+				{ className: 'cardz3n-panes' },
+				// Card pane — hosted-field containers Collect.js mounts iframes into.
+				// Structure (label + .cardz3n-collect-field wrapper, .cardz3n-row
+				// pairing for Expiry/CVV) matches the classic checkout's markup
+				// exactly, since both share the same checkout.css rules and the
+				// same shared checkout.js module operating on these same ids.
 				el(
 					'div',
-					{ className: 'cardz3n-field' },
-					el( 'label', null, ( cfg.i18n && cfg.i18n.cardNumber ) || 'Card number' ),
-					el( 'div', { id: 'cardz3n-ccnumber', className: 'cardz3n-collect-field' } )
-				),
-				el(
-					'div',
-					{ className: 'cardz3n-row' },
+					{ className: 'cardz3n-pane cardz3n-pane-card' + ( 'card' === pane ? ' is-active' : '' ), 'data-pane': 'card', style: 'card' === pane ? {} : { display: 'none' } },
 					el(
 						'div',
 						{ className: 'cardz3n-field' },
-						el( 'label', null, ( cfg.i18n && cfg.i18n.expiry ) || 'MM / YY' ),
-						el( 'div', { id: 'cardz3n-ccexp', className: 'cardz3n-collect-field' } )
+						el( 'label', null, ( cfg.i18n && cfg.i18n.cardNumber ) || 'Card number' ),
+						el( 'div', { id: 'cardz3n-ccnumber', className: 'cardz3n-collect-field' } )
 					),
 					el(
 						'div',
-						{ className: 'cardz3n-field' },
-						el( 'label', null, ( cfg.i18n && cfg.i18n.cvv ) || 'CVV' ),
-						el( 'div', { id: 'cardz3n-cvv', className: 'cardz3n-collect-field' } )
+						{ className: 'cardz3n-row' },
+						el(
+							'div',
+							{ className: 'cardz3n-field' },
+							el( 'label', null, ( cfg.i18n && cfg.i18n.expiry ) || 'MM / YY' ),
+							el( 'div', { id: 'cardz3n-ccexp', className: 'cardz3n-collect-field' } )
+						),
+						el(
+							'div',
+							{ className: 'cardz3n-field' },
+							el( 'label', null, ( cfg.i18n && cfg.i18n.cvv ) || 'CVV' ),
+							el( 'div', { id: 'cardz3n-cvv', className: 'cardz3n-collect-field' } )
+						)
 					)
-				)
-			),
-			// ACH pane.
-			el(
-				'div',
-				{ className: 'cardz3n-pane cardz3n-pane-ach' + ( 'ach' === pane ? ' is-active' : '' ), 'data-pane': 'ach', style: showAch ? {} : { display: 'none' } },
-				el(
-					'div',
-					{ className: 'cardz3n-field' },
-					el( 'label', null, ( cfg.i18n && cfg.i18n.accountName ) || 'Name on account' ),
-					el( 'div', { id: 'cardz3n-checkname', className: 'cardz3n-collect-field' } )
 				),
+				// ACH pane.
 				el(
 					'div',
-					{ className: 'cardz3n-row' },
+					{ className: 'cardz3n-pane cardz3n-pane-ach' + ( 'ach' === pane ? ' is-active' : '' ), 'data-pane': 'ach', style: 'ach' === pane ? {} : { display: 'none' } },
 					el(
 						'div',
 						{ className: 'cardz3n-field' },
-						el( 'label', null, ( cfg.i18n && cfg.i18n.routing ) || 'Routing number' ),
-						el( 'div', { id: 'cardz3n-checkaba', className: 'cardz3n-collect-field' } )
+						el( 'label', null, ( cfg.i18n && cfg.i18n.accountName ) || 'Name on account' ),
+						el( 'div', { id: 'cardz3n-checkname', className: 'cardz3n-collect-field' } )
 					),
 					el(
 						'div',
-						{ className: 'cardz3n-field' },
-						el( 'label', null, ( cfg.i18n && cfg.i18n.account ) || 'Account number' ),
-						el( 'div', { id: 'cardz3n-checkaccount', className: 'cardz3n-collect-field' } )
+						{ className: 'cardz3n-row' },
+						el(
+							'div',
+							{ className: 'cardz3n-field' },
+							el( 'label', null, ( cfg.i18n && cfg.i18n.routing ) || 'Routing number' ),
+							el( 'div', { id: 'cardz3n-checkaba', className: 'cardz3n-collect-field' } )
+						),
+						el(
+							'div',
+							{ className: 'cardz3n-field' },
+							el( 'label', null, ( cfg.i18n && cfg.i18n.account ) || 'Account number' ),
+							el( 'div', { id: 'cardz3n-checkaccount', className: 'cardz3n-collect-field' } )
+						)
 					)
 				)
 			),
