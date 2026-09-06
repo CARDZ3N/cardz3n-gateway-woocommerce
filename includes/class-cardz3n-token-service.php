@@ -3,7 +3,7 @@
  * Token service — saved payment method management.
  *
  * Uses WooCommerce's native WC_Payment_Token APIs. We store only non-sensitive
- * metadata locally (last4, brand, expiry label) plus the CARDZ3N/NMI customer_vault_id
+ * metadata locally (last4, brand, expiry label) plus the CARDZ3N customer_vault_id
  * as the remote reference.
  *
  * @package Cardz3n_Gateway
@@ -23,7 +23,7 @@ class Token_Service {
 	 *
 	 * @param int    $user_id    WooCommerce user ID.
 	 * @param string $gateway_id 'cardz3n_gateway' or 'aerospacepay_gateway'.
-	 * @param string $vault_id   NMI customer_vault_id.
+	 * @param string $vault_id   CARDZ3N customer_vault_id.
 	 * @param array  $card_info  ['last4','brand','exp_month','exp_year'].
 	 * @return int|false             Token ID
 	 */
@@ -52,7 +52,7 @@ class Token_Service {
 	 *
 	 * @param int    $user_id    WooCommerce user ID.
 	 * @param string $gateway_id 'cardz3n_gateway' or 'aerospacepay_gateway'.
-	 * @param string $vault_id   NMI customer_vault_id.
+	 * @param string $vault_id   CARDZ3N customer_vault_id.
 	 * @param array  $ach_info   Bank account metadata.
 	 */
 	public static function save_ach_token( $user_id, $gateway_id, $vault_id, array $ach_info ) {

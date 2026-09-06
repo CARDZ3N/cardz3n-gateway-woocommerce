@@ -92,7 +92,7 @@ trait Settings_Trait {
 				'title'       => __( 'Native Block Checkout', 'cardz3n-gateway' ),
 				'type'        => 'checkbox',
 				'label'       => __( 'Enable native WooCommerce Cart & Checkout Blocks integration (Experimental)', 'cardz3n-gateway' ),
-				'description' => __( 'Off by default. When off, the block checkout renders this gateway through the classic-shortcode compatibility layer (the current, stable behavior). When on, WooCommerce is told this gateway natively supports Cart & Checkout Blocks, and a dedicated block payment method is registered. Test on a staging site before enabling on a live store — if registration is not picked up by your WooCommerce/Blocks version, the block checkout may show no payment methods at all until this is turned back off.', 'cardz3n-gateway' ),
+				'description' => __( 'Off by default. When off, the block checkout renders this gateway through the classic-shortcode compatibility layer (the current, stable behavior). When on, WooCommerce is told this gateway natively supports Cart & Checkout Blocks, and a dedicated block payment method is registered. Card and ACH are supported; Apple Pay, Google Pay, and saved payment methods are not yet available in the block checkout and won\'t appear as options there even if enabled below. Test on a staging site before enabling on a live store — if registration is not picked up by your WooCommerce/Blocks version, the block checkout may show no payment methods at all until this is turned back off. Questions or issues with this experimental feature? Contact <a href="mailto:support@cardz3n.com">support@cardz3n.com</a>.', 'cardz3n-gateway' ),
 				'desc_tip'    => false,
 				'default'     => 'no',
 			),
@@ -129,7 +129,7 @@ trait Settings_Trait {
 				'type'        => 'password',
 				'default'     => '',
 				'custom_attributes' => array( 'autocomplete' => 'off' ),
-				'description' => __( 'Test-merchant Private Security Key with <em>Cart</em> scope. The shared NMI demo Security Key is published on the <a href="https://z3n.transactiongateway.com/merchants/resources/integration/integration_portal.php#testing_information" target="_blank">Testing Information page</a>.', 'cardz3n-gateway' ),
+				'description' => __( 'Test-merchant Private Security Key with <em>Cart</em> scope. The shared CARDZ3N demo Security Key is published on the <a href="https://z3n.transactiongateway.com/merchants/resources/integration/integration_portal.php#testing_information" target="_blank">Testing Information page</a>.', 'cardz3n-gateway' ),
 			),
 			'test_tokenization_key'     => array(
 				'title'       => __( 'Test Public Key (Tokenization)', 'cardz3n-gateway' ),
@@ -159,7 +159,7 @@ trait Settings_Trait {
 				'title'   => __( 'ACH / eCheck', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
 				'label'   => __( 'Enable ACH bank-account payments.', 'cardz3n-gateway' ),
-				'description' => __( 'Requires a separate ACH account with CARDZ3N/NMI in addition to your card-processing account. Contact CARDZ3N to enable ACH before turning this on.', 'cardz3n-gateway' ),
+				'description' => __( 'Requires a separate ACH account with CARDZ3N in addition to your card-processing account. Contact CARDZ3N to enable ACH before turning this on.', 'cardz3n-gateway' ),
 				'default'    => 'no',
 			),
 			'enable_ach_reuse'          => array(
@@ -172,7 +172,7 @@ trait Settings_Trait {
 				'title'   => __( 'Apple Pay', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
 				'label'   => __( 'Offer Apple Pay when the buyer is on a supported device.', 'cardz3n-gateway' ),
-				'description' => __( 'Checking this box only enables the button in checkout. You must also finish Apple Pay setup in your CARDZ3N merchant account for it to actually work: <a href="https://z3n.transactiongateway.com/merchants/resources/integration/integration_portal.php?tid=24d698c53e47b00cec19bfba8b20e997#applepay_variables" target="_blank" rel="noopener noreferrer">Apple Pay setup</a> and <a href="https://z3n.transactiongateway.com/merchants/resources/integration/integration_portal.php?tid=24d698c53e47b00cec19bfba8b20e997&rand=18034#cjs_applePay" target="_blank" rel="noopener noreferrer">Apple Pay Collect.js setup</a>.', 'cardz3n-gateway' ),
+				'description' => __( 'Checking this box only enables the button in checkout. You must also finish Apple Pay setup in your CARDZ3N merchant account for it to actually work: <a href="https://z3n.transactiongateway.com/merchants/resources/integration/integration_portal.php?tid=24d698c53e47b00cec19bfba8b20e997#applepay_variables" target="_blank" rel="noopener noreferrer">Apple Pay setup</a> and <a href="https://z3n.transactiongateway.com/merchants/resources/integration/integration_portal.php?tid=24d698c53e47b00cec19bfba8b20e997&rand=18034#cjs_applePay" target="_blank" rel="noopener noreferrer">Apple Pay Collect.js setup</a>. Note: Apple Pay domain verification/activation has only been reachable from a direct, live merchant account — not from a partner/reseller portal or a test-only account. Contact CARDZ3N support if the Apple Pay activation option is not visible on your account.', 'cardz3n-gateway' ),
 				'default' => 'no',
 			),
 			'enable_google_pay'         => array(
@@ -241,7 +241,7 @@ trait Settings_Trait {
 				'title'       => __( 'Send Dynamic Descriptor', 'cardz3n-gateway' ),
 				'type'        => 'checkbox',
 				'label'       => __( 'Send a dynamic billing descriptor with every card transaction', 'cardz3n-gateway' ),
-				'description' => __( '<strong>Leave this off unless your processor explicitly supports merchant-supplied descriptors.</strong> Most CARDZ3N / NMI processors reject transactions that include a <code>descriptor</code> field with <em>"Custom descriptors are not allowed for this processor"</em>. To use this feature, first log in to the CARDZ3N Partner Portal, open your merchant account\'s <strong>Advanced Merchant Features</strong>, and enable <strong>Allow merchant to pass Dynamic Billing Descriptors</strong>. Then return here and check this box.', 'cardz3n-gateway' ),
+				'description' => __( '<strong>Leave this off unless your processor explicitly supports merchant-supplied descriptors.</strong> Most CARDZ3N processors reject transactions that include a <code>descriptor</code> field with <em>"Custom descriptors are not allowed for this processor"</em>. To use this feature, first log in to the CARDZ3N Partner Portal, open your merchant account\'s <strong>Advanced Merchant Features</strong>, and enable <strong>Allow merchant to pass Dynamic Billing Descriptors</strong>. Then return here and check this box.', 'cardz3n-gateway' ),
 				'default'     => 'no',
 			),
 			'descriptor'                => array(
@@ -275,8 +275,8 @@ trait Settings_Trait {
 					'unionpay'   => __( 'UnionPay', 'cardz3n-gateway' ),
 				),
 				// 1.0.23 — Maestro, JCB, Diners Club, and UnionPay are now on by
-				// default so the checkout brand row advertises the full CARDZ3N /
-				// NMI routing coverage out of the box. Merchants can still
+				// default so the checkout brand row advertises the full CARDZ3N
+				// routing coverage out of the box. Merchants can still
 				// deselect any brand they don't want displayed.
 				'default'  => array( 'visa', 'mastercard', 'amex', 'discover', 'maestro', 'jcb', 'diners', 'unionpay' ),
 				'desc_tip' => true,

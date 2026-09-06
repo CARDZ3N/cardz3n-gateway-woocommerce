@@ -27,7 +27,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [1.0.39] - 2026-09-04
 ### Fixed
-- Level 3 payload sent the merchant postal-origin field as `ship_from_postal`, which is not a field NMI's Payment API recognizes. Renamed to the correct `ship_from_postal_code`, per confirmation from NMI support. (`orderid` was also raised in the same NMI exchange but confirmed already correctly sent elsewhere in the request — no change needed there.)
+- Level 3 payload sent the merchant postal-origin field as `ship_from_postal`, which is not a field the processor's Payment API recognizes. Renamed to the correct `ship_from_postal_code`, per confirmation from processor support. (`orderid` was also raised in the same support exchange but confirmed already correctly sent elsewhere in the request — no change needed there.)
 
 ## [1.0.38] - 2026-09-04
 ### Changed
@@ -57,7 +57,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ### Fixed
   - - The hardcoded 'yes' fallback bug fixed in 1.0.33 for ACH/Apple Pay/Google Pay was still present for Saved Payment Methods, Subscriptions, and Pre-Orders. Fixed in trait-cardz3n-compatibility.php, class-cardz3n-gateway.php, and class-cardz3n-blocks-support.php so the new unchecked default actually takes effect at runtime.
 ### Docs
-- Corrected the Apple Pay and Google Pay setup descriptions: setup happens in the CARDZ3N merchant account, not the NMI merchant account.
+- Corrected the Apple Pay and Google Pay setup descriptions: setup happens in the CARDZ3N merchant account, not the underlying processor merchant account.
      
 
 ### Fixed
@@ -65,13 +65,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ### Changed
 - Apple Pay, Google Pay, and ACH now default to unchecked on a fresh install. Only Credit / Debit Cards ships enabled out of the box, since it's the only method that works without additional setup.
   ### Added
-  - Settings descriptions under Apple Pay, Google Pay, and ACH linking directly to the NMI merchant-portal pages needed to finish setup for each, so checking the box doesn't give a merchant a false sense that nothing else is required.
+  - Settings descriptions under Apple Pay, Google Pay, and ACH linking directly to the processor's merchant-portal pages needed to finish setup for each, so checking the box doesn't give a merchant a false sense that nothing else is required.
 ### Removed
     - Leftover debug test image (assets/img/test-red.png) with no code references.
       
 ## [1.0.32] - 2026-09-03
 ### Fixed
-- Payment method now shows the real detected card brand (Visa, Mastercard, Amex, Discover, JCB, Diners, Maestro, UnionPay) instead of the generic "Credit Card" label. Root cause: NMI's `transact.php` sale response does not include a card-brand field, so brand detection now uses Collect.js's own client-side card-type detection instead.
+- Payment method now shows the real detected card brand (Visa, Mastercard, Amex, Discover, JCB, Diners, Maestro, UnionPay) instead of the generic "Credit Card" label. Root cause: the processor's `transact.php` sale response does not include a card-brand field, so brand detection now uses Collect.js's own client-side card-type detection instead.
 - WooCommerce Blocks checkout was not carrying the detected card brand to the server; it now reads the same hidden field the classic checkout populates.
   - Saved/reused cards were losing their detected brand on later orders because the saved token's brand was read from a meta key that was never written. Now reads from the correct token property.
 
@@ -83,7 +83,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Real CARDZ3N logo now renders for the "Show CARDZ3N logo only" gateway icon style (previously a placeholder).
 - "Level 2 / Level 3 Commercial Data" settings section renamed to "Level 3 / CEDP", with an updated description noting Visa's 2026 retirement of Level 2 and that all applicable fields must be present together to qualify for the discount. Settings page now groups fields into "Auto-Pulled from Order & Profile" and "Merchant Overrides" subsections.
 ### Added
-- New Level 3/CEDP payload fields: `customerid` (Customer Code), `summary_commodity_code`, `duty_amount`, `vat_tax_amount`, `vat_tax_rate`, `vat_invoice_reference_number`. Field names confirmed against NMI's own Integration Portal (Retail Data reference), not guessed. `customerid` is auto-pulled from the order's WooCommerce customer ID; the rest are read from dedicated order meta keys and omitted (never fabricated) when absent.
+- New Level 3/CEDP payload fields: `customerid` (Customer Code), `summary_commodity_code`, `duty_amount`, `vat_tax_amount`, `vat_tax_rate`, `vat_invoice_reference_number`. Field names confirmed against the processor's own Integration Portal (Retail Data reference), not guessed. `customerid` is auto-pulled from the order's WooCommerce customer ID; the rest are read from dedicated order meta keys and omitted (never fabricated) when absent.
 ### CI
 - Pinned `stylelint-config-standard` to a version compatible with the pinned `stylelint@^16`, fixing the JS/CSS lint job which was failing at `npm install` on every PR.
 - Merged the 1.0.29 release line forward from `main` into `develop`, so the native Apple Pay / Google Pay wallet restoration and the `esc_url()` output-escaping fix ship from the mainline branch. No behavioral change relative to 1.0.29 -- this is the forward-merge that puts `develop` ahead of `main` again.
@@ -96,7 +96,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [1.0.29] - 2026-08-30
 ### Fixed
-- **Native Apple Pay / Google Pay wallet buttons restored** (suspended since 1.0.20). Root cause found via NMI's Collect.js documentation (docs.nmi.com/docs/digital-wallet-setup and /docs/advanced-integrations): the old `fields.applePay` config mixed in Google-Pay-only keys (`emailRequired`, `buttonColor`) and an incorrectly-shaped `style` object. Collect.js validates each wallet's config against its own attribute set and throws on any unrecognized key -- which is also why card and ACH iframes went dead alongside the wallets, since a single `configure()` throw is fatal to the whole form.
+- **Native Apple Pay / Google Pay wallet buttons restored** (suspended since 1.0.20). Root cause found via the processor's Collect.js documentation (docs.nmi.com/docs/digital-wallet-setup and /docs/advanced-integrations): the old `fields.applePay` config mixed in Google-Pay-only keys (`emailRequired`, `buttonColor`) and an incorrectly-shaped `style` object. Collect.js validates each wallet's config against its own attribute set and throws on any unrecognized key -- which is also why card and ACH iframes went dead alongside the wallets, since a single `configure()` throw is fatal to the whole form.
 - `enable_apple`/`enable_google` in `class-cardz3n-gateway.php` were hardcoded to `false` regardless of the merchant's saved settings (a 1.0.20 stopgap that was never reverted). Both now read the actual `enable_apple_pay`/`enable_google_pay` options.
 - `fields.applePay` and `fields.googlePay` in `checkout.js` now receive only their own minimal, documented attributes (`selector`, and `type` for Apple Pay), and each is feature-detected (`ApplePaySession.canMakePayments()` / `google.payments.api`) before being added to the Collect.js config, so an ineligible device or browser is never sent a wallet config at all.
 - Escaped `$plugins_url` at the point of output in the version-mismatch admin notice (`cardz3n-gateway-woocommerce.php`). It was already escaped at assignment via `esc_url()`, but WPCS's `OutputNotEscaped` sniff checks escaping at the output/concatenation site, not assignment, and can't trace it back -- calling `esc_url()` again at output is the standard, safe (idempotent) fix for this pattern.
@@ -107,28 +107,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ## [1.0.28] — 2026-04-23
 
 ### Fixed
-- **Cards rejected with `"Custom descriptors are not allowed for this processor"` on NMI processors that don't permit merchant-supplied descriptors.** Confirmed by NMI Integration Support against live transact.php responses on CARDZ3N Gateway ID 969835: `response=3 responsetext="Custom descriptors are not allowed for this processor" response_code=300`. Every 1.0.17–1.0.27 card sale included a `descriptor` field in the transact.php POST whenever the merchant's Dynamic Descriptor setting was non-blank (or left at the pre-1.0.26 brand-name default). Processors that route to MIDs without "Allow merchant to pass Dynamic Billing Descriptors" under Advanced Merchant Features reject the sale with response_code=300 on the descriptor line alone. Because Collect.js `payment_token` values are single-use, that first rejection burns the token — and every buyer retry against the same token then returns `"Payment Token does not exist"`, which is the error merchants actually saw in the plugin's logs and in NMI's transaction history.
+- **Cards rejected with `"Custom descriptors are not allowed for this processor"` on processors that don't permit merchant-supplied descriptors.** Confirmed by processor Integration Support against live transact.php responses on CARDZ3N Gateway ID 969835: `response=3 responsetext="Custom descriptors are not allowed for this processor" response_code=300`. Every 1.0.17–1.0.27 card sale included a `descriptor` field in the transact.php POST whenever the merchant's Dynamic Descriptor setting was non-blank (or left at the pre-1.0.26 brand-name default). Processors that route to MIDs without "Allow merchant to pass Dynamic Billing Descriptors" under Advanced Merchant Features reject the sale with response_code=300 on the descriptor line alone. Because Collect.js `payment_token` values are single-use, that first rejection burns the token — and every buyer retry against the same token then returns `"Payment Token does not exist"`, which is the error merchants actually saw in the plugin's logs and in the processor's transaction history.
   
   1.0.28 introduces a new `allow_dynamic_descriptors` checkbox (default OFF) immediately above the existing Dynamic Descriptor text field in the gateway settings. When the checkbox is off, `Gateway::process_payment()` passes an empty descriptor to `Api_Client::transaction()`, so the `descriptor` field is never written into the transact.php POST body. Merchants who actively want statement-level dynamic descriptors must (1) enable "Allow merchant to pass Dynamic Billing Descriptors" in the CARDZ3N Partner Portal → Merchant Account → Advanced Merchant Features, then (2) return to the plugin settings and check the new box. This keeps every existing install safe by default without removing the feature for merchants whose processor actually supports it.
 
 ### Notes for support
-- If a merchant reports `"Custom descriptors are not allowed for this processor"` in CARDZ3N / NMI logs after upgrading, either their plugin didn't upgrade or another integration is also POSTing to transact.php with a descriptor. Confirm `CARDZ3N_GW_VERSION === '1.0.28'` from the version-mismatch banner and scan for rogue `descriptor=` bodies in server logs.
+- If a merchant reports `"Custom descriptors are not allowed for this processor"` in CARDZ3N logs after upgrading, either their plugin didn't upgrade or another integration is also POSTing to transact.php with a descriptor. Confirm `CARDZ3N_GW_VERSION === '1.0.28'` from the version-mismatch banner and scan for rogue `descriptor=` bodies in server logs.
 - Merchants who previously relied on dynamic descriptors will see their statements fall back to the processor-assigned descriptor after upgrading until they flip the new checkbox. This is documented in the settings description.
 - No change to `process_payment`, capture, void, refund, the Collect.js tokenization flow, or the request shape for ACH (ACH never sent a descriptor anyway).
 
 ## [1.0.27] — 2026-04-21
 
 ### Fixed
-- **Cards rejected with "There was an error processing your order" while ACH worked, in Live Mode, with all four credential fields populated — a root-cause fix, not a workaround.** NMI ships two different public-key products that look superficially similar:
+- **Cards rejected with "There was an error processing your order" while ACH worked, in Live Mode, with all four credential fields populated — a root-cause fix, not a workaround.** The processor ships two different public-key products that look superficially similar:
   - A **Public API Key with "Tokenization" scope** (format: `xxxxxx-xxxxxx-xxxxxx-xxxxxx`, four dash-delimited segments) drives inline Collect.js hosted fields — the product this plugin has always used.
-  - A **Collect Checkout Key** (format: `checkout_public_<32 hex>`) drives a completely separate NMI product — a hosted-redirect checkout (CollectCheckout.js) that this plugin does NOT use.
+  - A **Collect Checkout Key** (format: `checkout_public_<32 hex>`) drives a completely separate product — a hosted-redirect checkout (CollectCheckout.js) that this plugin does NOT use.
   
-  The 1.0.24–1.0.26 settings UI, field labels, field descriptions, tokenize-empty notices, and admin-side warning banner all told merchants to paste a `checkout_public_`-prefixed Collect Checkout key into the public-key slot. That advice was exactly backwards. A Collect Checkout key loaded into `data-tokenization-key=` will cause the `ccnumber` / `ccexp` / `cvv` iframes to mount (Collect.js accepts the string), the form appears to work, and tokens are even emitted at submit — but those tokens belong to the Collect Checkout product and `transact.php` cannot redeem them. NMI rejects the sale silently from the merchant's perspective (the generic "There was an error processing your order" comes back). ACH's checkname/checkaba/checkaccount iframes tokenize against a path that happens to still succeed, which is why ACH kept working and cards didn't. Every scope-guidance surface in the plugin has been rewritten to direct merchants to the Public API Key with Tokenization scope. If a `checkout_public_`-prefixed key is detected in the Live Public Key field, `admin_options()` now flags it as wrong-scope at the top of the settings page, and the checkout-time "Payment Token does not exist" live-mode error surfaces a scope-specific explanation instead of the generic message.
-- **`payment=creditcard` / `payment=check` body field removed from `transact.php` calls when a Collect.js `payment_token` or a stored `customer_vault_id` is present.** Both reference plugins we compared against — the WPGateways white-labeled CARDZ3N plugin (`cardz3n_request()` / `$payment_args`) and the Evergreen Payments Northwest WooCommerce gateway (`class-wceg-gateway.php` process flow) — omit the `payment` key when posting a token. NMI infers the instrument from the token itself; sending `payment=creditcard` alongside a token NMI classifies otherwise is a request-shape mismatch that can cause card charges to reject while ACH passes. The `payment` field is still sent when the request is a raw-PAN submission (neither a token nor a vault ID present).
+  The 1.0.24–1.0.26 settings UI, field labels, field descriptions, tokenize-empty notices, and admin-side warning banner all told merchants to paste a `checkout_public_`-prefixed Collect Checkout key into the public-key slot. That advice was exactly backwards. A Collect Checkout key loaded into `data-tokenization-key=` will cause the `ccnumber` / `ccexp` / `cvv` iframes to mount (Collect.js accepts the string), the form appears to work, and tokens are even emitted at submit — but those tokens belong to the Collect Checkout product and `transact.php` cannot redeem them. The processor rejects the sale silently from the merchant's perspective (the generic "There was an error processing your order" comes back). ACH's checkname/checkaba/checkaccount iframes tokenize against a path that happens to still succeed, which is why ACH kept working and cards didn't. Every scope-guidance surface in the plugin has been rewritten to direct merchants to the Public API Key with Tokenization scope. If a `checkout_public_`-prefixed key is detected in the Live Public Key field, `admin_options()` now flags it as wrong-scope at the top of the settings page, and the checkout-time "Payment Token does not exist" live-mode error surfaces a scope-specific explanation instead of the generic message.
+- **`payment=creditcard` / `payment=check` body field removed from `transact.php` calls when a Collect.js `payment_token` or a stored `customer_vault_id` is present.** Both reference plugins we compared against — the WPGateways white-labeled CARDZ3N plugin (`cardz3n_request()` / `$payment_args`) and the Evergreen Payments Northwest WooCommerce gateway (`class-wceg-gateway.php` process flow) — omit the `payment` key when posting a token. The processor infers the instrument from the token itself; sending `payment=creditcard` alongside a token it classifies otherwise is a request-shape mismatch that can cause card charges to reject while ACH passes. The `payment` field is still sent when the request is a raw-PAN submission (neither a token nor a vault ID present).
 
 ### Notes for support
-- Merchants on 1.0.24–1.0.26 whose card processing stopped working should replace the `checkout_public_...` value in `WooCommerce → Payments → CARDZ3N → Live Public Key` with their Public API Key from NMI scoped "Tokenization" (four-segment dash format). The plugin no longer asks for a Collect Checkout key anywhere.
-- The `cardz3n_gw_api_endpoint`, `cardz3n_gw_collectjs_url`, `cardz3n_gw_query_url`, and `cardz3n_gw_three_step_url` filters remain available as escape hatches for merchants on non-standard NMI hosts.
+- Merchants on 1.0.24–1.0.26 whose card processing stopped working should replace the `checkout_public_...` value in `WooCommerce → Payments → CARDZ3N → Live Public Key` with their Public API Key scoped "Tokenization" (four-segment dash format). The plugin no longer asks for a Collect Checkout key anywhere.
+- The `cardz3n_gw_api_endpoint`, `cardz3n_gw_collectjs_url`, `cardz3n_gw_query_url`, and `cardz3n_gw_three_step_url` filters remain available as escape hatches for merchants on non-standard processor hosts.
 
 ## [1.0.21] — 2026-04-20
 
@@ -143,14 +143,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ### Reference — How stored cards are retrieved and used
 - **Save at checkout:** when the buyer is logged in and checks “Save this card for faster checkout next time.” the form submits `wc-cardz3n_gateway-new-payment-method=true`. `process_payment()` detects this via `$should_vault_card`, sends `vault=add_customer` with the single-use Collect.js `payment_token` to `transact.php`, and the gateway responds with a `customer_vault_id`. `Token_Service::save_card_token($user_id, $gateway_id, $vault_id, $card_info)` persists that as a `WC_Payment_Token_CC` whose primary token is the `customer_vault_id` and whose metadata stores last4, brand, exp_month, exp_year. The identical flow works for ACH via `Token_Service::save_ach_token()` → `WC_Payment_Token_ECheck`.
-- **Retrieve on subsequent checkout:** on render, `payment_fields()` calls WooCommerce’s `get_tokens()` for the current user + gateway. If any exist, the **Saved** tab appears and is auto-selected; each saved token renders as a radio under its own `<input name="wc-cardz3n_gateway-payment-token">`. The card brand, last4, and expiry come from token metadata, not from NMI — no network call at render time.
+- **Retrieve on subsequent checkout:** on render, `payment_fields()` calls WooCommerce’s `get_tokens()` for the current user + gateway. If any exist, the **Saved** tab appears and is auto-selected; each saved token renders as a radio under its own `<input name="wc-cardz3n_gateway-payment-token">`. The card brand, last4, and expiry come from token metadata, not from the processor — no network call at render time.
 - **Charge a saved method:** when the buyer submits with a saved-token radio selected, `process_payment()` loads `WC_Payment_Tokens::get( $payment_token_id )`, verifies the token belongs to the current user and to this gateway, pulls `cardz3n_vault_id` metadata (fallback to the token’s primary key), and calls `transact.php` with `customer_vault_id=<id>` instead of `payment_token`. No Collect.js interaction is required on that pageview — saved-method submits never hit the hosted-field iframes.
-- **Delete a saved method:** from `My Account → Payment methods`, `Token_Service::delete_token($token_id)` calls `Api_Client::delete_vault($vault_id)` which posts `customer_vault=delete_customer&customer_vault_id=<id>` to NMI, then removes the local `WC_Payment_Token`. If the remote delete fails the local token is still removed and a warning is logged — avoids leaving an orphan row the buyer can’t get rid of.
+- **Delete a saved method:** from `My Account → Payment methods`, `Token_Service::delete_token($token_id)` calls `Api_Client::delete_vault($vault_id)` which posts `customer_vault=delete_customer&customer_vault_id=<id>` to the processor, then removes the local `WC_Payment_Token`. If the remote delete fails the local token is still removed and a warning is logged — avoids leaving an orphan row the buyer can’t get rid of.
 
 ## [1.0.20] — 2026-04-20
 
 ### Fixed
-- **Card and ACH fields rejected all input with “Unable to initialize secure payment form”.** Live-checkout diagnostic (Playwright + DevTools console) showed Collect.js throwing `You provided too many fields. Unexpected fields for applePay` during `CollectJS.configure()`. NMI’s current Collect.js build at `z3n.transactiongateway.com/token/Collect.js` rejects the documented `{selector: '.cardz3n-applepay-button'}` shape for the `applePay` / `googlePay` config blocks, and the throw prevented the `ccnumber` / `ccexp` / `cvv` / `checkname` / `checkaba` / `checkaccount` iframes from completing their event wiring — so the fields rendered but were non-interactive. A card-only fallback that rebuilt `collectConfig` without those keys also threw the same error (Collect.js appears to retain bad state after a failed configure call). 1.0.20 drops the `applePay` / `googlePay` blocks from the config entirely. Card and ACH iframes now initialize on the first pass; the retry path has been removed.
+- **Card and ACH fields rejected all input with “Unable to initialize secure payment form”.** Live-checkout diagnostic (Playwright + DevTools console) showed Collect.js throwing `You provided too many fields. Unexpected fields for applePay` during `CollectJS.configure()`. The processor’s current Collect.js build at `z3n.transactiongateway.com/token/Collect.js` rejects the documented `{selector: '.cardz3n-applepay-button'}` shape for the `applePay` / `googlePay` config blocks, and the throw prevented the `ccnumber` / `ccexp` / `cvv` / `checkname` / `checkaba` / `checkaccount` iframes from completing their event wiring — so the fields rendered but were non-interactive. A card-only fallback that rebuilt `collectConfig` without those keys also threw the same error (Collect.js appears to retain bad state after a failed configure call). 1.0.20 drops the `applePay` / `googlePay` blocks from the config entirely. Card and ACH iframes now initialize on the first pass; the retry path has been removed.
 
 ### Added
 - **“Save this card for faster checkout next time.”** Opt-in checkbox on the Card tab for logged-in buyers with tokenization support. Submits the existing `wc-cardz3n-new-payment-method` field, so the 1.0.17 `process_payment()` path that vaults `customer_vault_id` via `Token_Service::save_card_token()` already picks it up. Matches the `wc-cardz3n-new-ach-method` checkbox that ACH already had.
@@ -225,7 +225,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ### Fixed
 - **Critical: "Unable to initialize secure payment form."** Card and ACH fields accepted no input in 1.0.14. Live DevTools diagnostic revealed Collect.js was throwing `You provided too many fields. Unexpected fields for applePay` because we were passing `type`, `style`, `contactFields`, `emailRequired`, and `buttonColor` to its `applePay`/`googlePay` config — all keys Collect.js rejects. That single `configure()` throw also blocked the `ccnumber` / `ccexp` / `cvv` iframes from rendering, so the entire form was dead.
 - `applePay` and `googlePay` config objects now contain only `selector` (the minimal documented field set).
-- Added a defensive fallback: if `configure()` still throws for any reason (e.g. Collect.js updates on NMI's side that change accepted fields), the plugin retries `configure()` without the wallet configs so the card form at least renders. A hidden wallet is a better outcome than a broken checkout.
+- Added a defensive fallback: if `configure()` still throws for any reason (e.g. Collect.js updates on the processor's side that change accepted fields), the plugin retries `configure()` without the wallet configs so the card form at least renders. A hidden wallet is a better outcome than a broken checkout.
 
 ### Changed
 - **Collapsed four-field credential UI into two fields.** `sandbox_security_key`, `sandbox_tokenization_key`, `live_security_key`, and `live_tokenization_key` are replaced by a single `security_key` + single `tokenization_key`, because CARDZ3N has no separate sandbox portal — Test Mode is a toggle on the same gateway account using the same keys. Merchant-reported requirement.
@@ -246,7 +246,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ### Fixed
 - **Critical: Checkout Block still showed "There are no payment methods available" on 1.0.13.** Live DevTools inspection on 1.0.13 confirmed `cardz3n_gateway_data` wcSetting was still `null`, `blocksRegistry` was empty, and our Blocks JS bundle was never enqueued — even though the classic `assets/js/checkout.js` was loading correctly. After three iterations (1.0.11 diagnostic banner, 1.0.12 DI-container registration, 1.0.13 `is_active()` fallback), it became clear that something upstream of our `Blocks_Support` registration was preventing Woo Blocks from picking up our `AbstractPaymentMethodType` on this stack.
-- **Strategy change:** rather than continue debugging the native Blocks PaymentMethodType integration, 1.0.14 switches to the same approach used by production NMI-family gateways like Evergreen Payments Northwest 1.1.0 — declare `cart_checkout_blocks` feature compatibility as `false`, which tells WooCommerce Blocks to render our gateway via the classic-shortcode compatibility layer. The same `payment_fields()` HTML, `assets/js/checkout.js`, and `process_payment()` server path used for classic shortcode checkouts now renders *inside* the Block checkout too. Single code path, proven pattern, no hook-timing surface.
+- **Strategy change:** rather than continue debugging the native Blocks PaymentMethodType integration, 1.0.14 switches to the same approach used by other gateways on the same underlying platform, like Evergreen Payments Northwest 1.1.0 — declare `cart_checkout_blocks` feature compatibility as `false`, which tells WooCommerce Blocks to render our gateway via the classic-shortcode compatibility layer. The same `payment_fields()` HTML, `assets/js/checkout.js`, and `process_payment()` server path used for classic shortcode checkouts now renders *inside* the Block checkout too. Single code path, proven pattern, no hook-timing surface.
 
 ### Changed
 - `declare_compatibility('cart_checkout_blocks', ..., false)` (was `true`).
@@ -400,7 +400,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ## [1.0.6] — 2026-04-19
 
 ### Fixed (critical)
-- **Wrong gateway host.** Every hardcoded `secure.nmi.com` URL in the plugin has been replaced with the CARDZ3N white-label host `z3n.transactiongateway.com`. The merchant reported an HTTP 400 Bad Request on the admin *Test Credentials* button and during live checkout attempts — the root cause was the plugin POSTing to the wrong NMI instance (and, for some diagnostic flows, accidentally hitting `/merchants/login.php`, which is a human login page, not an API endpoint).
+- **Wrong gateway host.** Every hardcoded `secure.nmi.com` URL in the plugin has been replaced with the CARDZ3N white-label host `z3n.transactiongateway.com`. The merchant reported an HTTP 400 Bad Request on the admin *Test Credentials* button and during live checkout attempts — the root cause was the plugin POSTing to the wrong gateway instance (and, for some diagnostic flows, accidentally hitting `/merchants/login.php`, which is a human login page, not an API endpoint).
   - Transaction API → `https://z3n.transactiongateway.com/api/transact.php`
   - Query API       → `https://z3n.transactiongateway.com/api/query.php`
   - 3-Step Redirect → `https://z3n.transactiongateway.com/api/v2/three-step`
@@ -408,7 +408,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ### Added
 - New `Api_Client::COLLECTJS_URL`, `QUERY_URL`, `THREE_STEP_URL` constants plus `Api_Client::collectjs_url()`, `::query_url()`, `::three_step_url()` static helpers — a single source of truth for every external gateway URL.
-- New runtime filters for merchants who operate on a different white-label NMI host: `cardz3n_gw_api_endpoint`, `cardz3n_gw_collectjs_url`, `cardz3n_gw_query_url`, `cardz3n_gw_three_step_url`.
+- New runtime filters for merchants who operate on a different white-label processor host: `cardz3n_gw_api_endpoint`, `cardz3n_gw_collectjs_url`, `cardz3n_gw_query_url`, `cardz3n_gw_three_step_url`.
 
 ### Changed
 - Classic checkout (`includes/class-cardz3n-gateway.php`) and Blocks checkout (`includes/class-cardz3n-blocks-support.php`) both now enqueue Collect.js via `Api_Client::collectjs_url()` rather than a hardcoded string.
@@ -459,7 +459,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ## [1.0.2] — 2026-04-18
 
 ### Added
-- `== Privacy ==` section in `readme.txt` documenting exactly what data is stored on the WP site vs. transmitted to NMI, and the controller/processor relationship.
+- `== Privacy ==` section in `readme.txt` documenting exactly what data is stored on the WP site vs. transmitted to the processor, and the controller/processor relationship.
 - `== License ==` section in `readme.txt` and full GPLv2 license text bundled in `LICENSE`, with an explicit attribution note stating that all bundled assets are first-party and GPLv2-or-later, and that no third-party libraries are redistributed inside the package.
 - `uninstall.php` that removes plugin options, transients, and (optionally) order meta + saved tokens when the plugin is deleted from **Plugins → Delete**.
 
@@ -483,10 +483,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ### Added
 - Initial public release.
-- Embedded WooCommerce checkout via NMI Collect.js inline hosted fields.
+- Embedded WooCommerce checkout via the processor's Collect.js inline hosted fields.
 - Single gateway UI with tabs for **Card**, **ACH / eCheck**, and **Saved** methods.
 - Apple Pay and Google Pay wallet buttons inside the gateway panel.
-- Saved payment methods (card + ACH) backed by the NMI Customer Vault.
+- Saved payment methods (card + ACH) backed by the processor's Customer Vault.
 - WooCommerce Subscriptions compatibility (renewals via vault tokens).
 - WooCommerce Pre-Orders compatibility.
 - Transaction modes: Sale and Authorize-only.

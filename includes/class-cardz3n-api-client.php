@@ -1,8 +1,8 @@
 <?php
 /**
- * NMI / CARDZ3N API client.
+ * CARDZ3N API client.
  *
- * Centralises all server-to-server gateway communication. The NMI Transaction
+ * Centralises all server-to-server gateway communication. The Transaction
  * API (transact.php) accepts x-www-form-urlencoded POSTs and returns a
  * &-delimited key=value response. This client handles:
  *
@@ -21,11 +21,11 @@ namespace Cardz3n_Gateway;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Server-to-server client for the NMI / CARDZ3N transaction API.
+ * Server-to-server client for the CARDZ3N transaction API.
  */
 class Api_Client {
 	/*
-	 * CARDZ3N is a white-labeled NMI instance. All server-to-server traffic
+	 * CARDZ3N is a white-labeled processor instance. All server-to-server traffic
 	 * and the browser-side Collect.js script must be served from the CARDZ3N
 	 * gateway host (z3n.transactiongateway.com), never from secure.nmi.com.
 	 *
@@ -35,7 +35,7 @@ class Api_Client {
 	 *
 	 * These constants can be overridden at runtime via the
 	 * `cardz3n_gw_api_endpoint` and `cardz3n_gw_collectjs_url` filters for
-	 * merchants who operate on a different white-label NMI host.
+	 * merchants who operate on a different white-label host.
 	 */
 	const GATEWAY_HOST     = 'https://z3n.transactiongateway.com';
 	const ENDPOINT_LIVE    = 'https://z3n.transactiongateway.com/api/transact.php';
@@ -89,7 +89,7 @@ class Api_Client {
 	 *
 	 * 1.0.22 — PAIRED RESOLUTION. The Security Key (server-side) and the
 	 * Tokenization Key (Collect.js in-browser) MUST belong to the same
-	 * merchant account. NMI accepts a Collect.js-minted token on transact.php
+	 * merchant account. The processor accepts a Collect.js-minted token on transact.php
 	 * only when signed with the matching security key from the same pair —
 	 * otherwise it returns "Payment Token does not exist", which is the
 	 * exact ACH error buyers saw on 1.0.21.
@@ -227,7 +227,7 @@ class Api_Client {
 
 	/**
 	 * URL of the Collect.js tokenization script.
-	 * Filterable for merchants on a different white-label NMI host.
+	 * Filterable for merchants on a different white-label host.
 	 */
 	public static function collectjs_url() {
 		return (string) apply_filters( 'cardz3n_gw_collectjs_url', self::COLLECTJS_URL );
@@ -235,7 +235,7 @@ class Api_Client {
 
 	/**
 	 * URL of the Query API endpoint.
-	 * Filterable for merchants on a different white-label NMI host.
+	 * Filterable for merchants on a different white-label host.
 	 */
 	public static function query_url() {
 		return (string) apply_filters( 'cardz3n_gw_query_url', self::QUERY_URL );
@@ -243,7 +243,7 @@ class Api_Client {
 
 	/**
 	 * URL of the 3-Step Redirect API root.
-	 * Filterable for merchants on a different white-label NMI host.
+	 * Filterable for merchants on a different white-label host.
 	 */
 	public static function three_step_url() {
 		return (string) apply_filters( 'cardz3n_gw_three_step_url', self::THREE_STEP_URL );
@@ -273,7 +273,7 @@ class Api_Client {
 		unset( $payload['tokenization_key'], $payload['public_key'] );
 
 		$loggable = Logger::redact( $payload );
-		Logger::debug( 'NMI transact.php POST', $loggable );
+		Logger::debug( 'CARDZ3N transact.php POST', $loggable );
 
 		$response = wp_remote_post(
 			$this->endpoint(),
@@ -292,22 +292,22 @@ class Api_Client {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			Logger::error( 'NMI transport error', array( 'error' => $response->get_error_message() ) );
+			Logger::error( 'CARDZ3N transport error', array( 'error' => $response->get_error_message() ) );
 			return $this->error_result( $response->get_error_message() );
 		}
 
 		$body   = wp_remote_retrieve_body( $response );
 		$parsed = $this->parse_response( $body );
 
-		Logger::debug( 'NMI transact.php response', Logger::redact( $parsed['raw'] ) );
+		Logger::debug( 'CARDZ3N transact.php response', Logger::redact( $parsed['raw'] ) );
 
 		return $parsed;
 	}
 
 	/**
-	 * Parse an NMI response body (key=value&key=value) into a normalized array.
+	 * Parse a processor response body (key=value&key=value) into a normalized array.
 	 *
-	 * NMI response field reference:
+	 * Processor response field reference:
 	 *   response      = 1 (approved), 2 (declined), 3 (error)
 	 *   responsetext  = human-readable result
 	 *   transactionid = gateway transaction ID
@@ -400,7 +400,7 @@ class Api_Client {
 		/*
 		 * 1.0.27 -- CRITICAL CARD FIX.
 		 *
-		 * When a Collect.js `payment_token` is present, NMI's Payment API
+		 * When a Collect.js `payment_token` is present, the processor's Payment API
 		 * infers the payment type (card vs check) from the token itself.
 		 * Sending an explicit `payment=creditcard` alongside a Collect.js
 		 * card token can be rejected by transact.php depending on how
@@ -416,7 +416,7 @@ class Api_Client {
 		 * Both reference integrations we audited -- the WPGateways
 		 * white-label CARDZ3N plugin and the Evergreen Payments Northwest
 		 * plugin -- OMIT the `payment` field entirely when posting a
-		 * `payment_token`. NMI's own Quick Start Guide documents the same
+		 * `payment_token`. The processor's own Quick Start Guide documents the same
 		 * pattern. We now follow suit.
 		 *
 		 * Rules:
@@ -581,7 +581,7 @@ class Api_Client {
 	/**
 	 * Validate credentials (cheap no-op "validate" request).
 	 *
-	 * NMI will respond with code=3 "Invalid security key" when the key is wrong,
+	 * The processor will respond with code=3 "Invalid security key" when the key is wrong,
 	 * otherwise it will reject for a different reason (e.g., "Missing card data"),
 	 * which we treat as proof the key is accepted.
 	 */

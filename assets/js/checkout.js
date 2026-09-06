@@ -2,7 +2,7 @@
  * CARDZ3N Gateway — embedded WooCommerce checkout script.
  *
  * Responsibilities:
- *   - Configure NMI Collect.js inline hosted fields for card and ACH
+ *   - Configure CARDZ3N's Collect.js inline hosted fields for card and ACH
  *   - Render Apple Pay / Google Pay wallet buttons inside the single gateway UI
  *   - Intercept the WooCommerce checkout submit, request a payment_token from
  *     Collect.js, write it to a hidden field, and re-submit the native form
@@ -26,6 +26,50 @@
 	var $body = $(document.body);
 	var collectInitErrored = false;
 	var tabsBound = false;
+
+	/**
+	 * Whether we're running inside the Blocks checkout, checked directly
+	 * against WooCommerce Blocks' OWN native settings registry
+	 * (wc.wcSettings.getSetting) instead of a custom flag carried on
+	 * window.CARDZ3N_GW.
+	 *
+	 * Why: this shared file is registered under the SAME script handle by
+	 * both the classic gateway (Gateway::enqueue_checkout_assets()) and
+	 * Blocks_Support (get_payment_method_script_handles()) so both can
+	 * localize CARDZ3N_GW onto it. wp_localize_script() does NOT merge
+	 * two calls for the same handle -- it just concatenates two separate
+	 * `var CARDZ3N_GW = {...};` statements, and whichever one happens to
+	 * print SECOND wins outright via plain JS reassignment, discarding the
+	 * other entirely. Which one runs first/second depends on WooCommerce
+	 * Blocks' internal hook timing, which we don't control and isn't
+	 * guaranteed across WooCommerce versions or themes -- so a flag riding
+	 * on CARDZ3N_GW is fundamentally a coin flip.
+	 *
+	 * wc.wcSettings.getSetting('cardz3n_gateway_data'/'aerospacepay_
+	 * gateway_data') is populated by WooCommerce Blocks' OWN
+	 * AssetDataRegistry, a completely separate, namespaced channel that
+	 * ONLY Blocks_Support::get_payment_method_data() ever writes to and
+	 * that classic checkout has no way to touch or collide with -- so this
+	 * check is reliable regardless of load/hook order. Called fresh each
+	 * time (not cached at module-load) since this file has no explicit
+	 * dependency on wc-settings and may execute before it's loaded; every
+	 * actual call site below runs later, from event handlers or the React
+	 * bridge functions invoked well after page load, by which point
+	 * wc.wcSettings is always available if this is genuinely Blocks mode.
+	 *
+	 * @return {boolean}
+	 */
+	function isBlocksMode() {
+		try {
+			var getSetting = window.wc && window.wc.wcSettings && window.wc.wcSettings.getSetting;
+			if (typeof getSetting !== 'function') {
+				return false;
+			}
+			return !!(getSetting('cardz3n_gateway_data', null) || getSetting('aerospacepay_gateway_data', null));
+		} catch (e) {
+			return false;
+		}
+	}
 
 	/*
 	 * 1.0.24 — catch Collect.js init errors (e.g. "Invalid tokenization key format")
@@ -76,6 +120,33 @@
 	function activeSource() {
 		// Infer based on visible pane; overridden when wallet callback fires.
 		return activePane === 'ach' ? 'ach' : 'card';
+	}
+
+	/**
+	 * 1.0.62 — Devin Review flag on 1.0.57's fix: wallet payments (Apple Pay,
+	 * Google Pay) don't change the active Card/ACH tab/pane, so blindly
+	 * using activeSource() for every completion classified every wallet
+	 * order as whichever tab happened to be open (almost always "card").
+	 *
+	 * Per NMI's own documented Collect.js response example for a Google Pay
+	 * transaction, response.tokenType is NOT always "inline" -- it reports
+	 * the wallet name itself ("applePay" / "googlePay") specifically for
+	 * wallet-initiated payments, and only "inline" for a regular typed
+	 * card/ACH submission via the hosted fields. So tokenType IS a reliable
+	 * signal here -- just not the ONLY one needed, since it's meaningless
+	 * ("inline") for the one distinction (card vs ach) it can't make.
+	 *
+	 * Wallet_Service::normalize_source() (PHP) already does a
+	 * case-insensitive substring match for "apple"/"google" anywhere in the
+	 * token type string, so passing the raw wallet tokenType straight
+	 * through is sufficient -- no need to duplicate that mapping here.
+	 */
+	function resolveTokenType(response) {
+		var tt = ( response && response.tokenType ) ? String( response.tokenType ).toLowerCase() : '';
+		if ( tt.indexOf( 'apple' ) !== -1 || tt.indexOf( 'google' ) !== -1 ) {
+			return response.tokenType; // Preserve the wallet-specific value for normalize_source() to classify.
+		}
+		return activeSource(); // Regular hosted Card/ACH fields: tokenType is just "inline" here, so the tab is the only real signal.
 	}
 
 	function setHidden(name, value) {
@@ -189,7 +260,7 @@
 			 */
 			if ((target === 'card' || target === 'ach') && target !== previousPane) {
 				resetCollect();
-				setTimeout(configureCollect, 120);
+				scheduleConfigureCollect(120, true);
 			}
 			clearError();
 		});
@@ -230,8 +301,102 @@
 		return null;
 	}
 
+	var COLLECT_RETRY_INTERVAL_MS = 100;
+
+	/*
+	 * Set by timeoutCallback below when Collect.js's OWN internal timeout
+	 * fires for the CURRENT tokenization attempt. Collect.js exposes no
+	 * cancellation API, so a request that timed out from OUR side may
+	 * still be silently alive underneath and could later deliver a STALE
+	 * completion to the SHARED `callback` (handleToken) — which, since
+	 * that callback has no way to know which attempt it belongs to, would
+	 * otherwise resolve a LATER retry's Promise with the earlier attempt's
+	 * (possibly outdated) token data. See cardz3nGwStartTokenization()'s
+	 * use of this flag.
+	 */
+	var collectHadPendingTimeout = false;
+
+	/*
+	 * 1.0.53 — deterministic retry instead of relying on incidental re-renders.
+	 *
+	 * Previously, every caller of configureCollect() (the classic
+	 * updated_checkout handler, the first-render call, and Blocks'
+	 * cardz3nGwMount()) scheduled it via a single one-shot
+	 * setTimeout(configureCollect, 50). If window.CollectJS wasn't defined
+	 * yet at that single 50ms check -- entirely possible, since Collect.js
+	 * is a third-party script loaded over the network from the processor's servers,
+	 * and 50ms is not a reliable bound for that -- configureCollect()
+	 * silently no-opped and NOTHING scheduled another attempt.
+	 *
+	 * On the Blocks checkout specifically, the only path that ever calls
+	 * configureCollect() again after that is cardz3nGwMount() firing on a
+	 * LATER React re-render (e.g. a cart-total or shipping-method update)
+	 * that happens to occur, coincidentally, after Collect.js has finally
+	 * finished loading. That's not a bound on load time -- it's a bound on
+	 * whenever some UNRELATED re-render next happens to occur, which is why
+	 * the observed field-mount delay (3-5s) was inconsistent and much
+	 * longer than Collect.js's own network+init time alone should require.
+	 *
+	 * Now configureCollect() retries itself on a short, bounded interval
+	 * until window.CollectJS actually exists, so field mounting is bound by
+	 * Collect.js's real load time instead of by incidental re-render timing.
+	 *
+	 * 1.0.56 — a shared attempt-COUNTER (removed) let concurrent mount
+	 * attempts (e.g. cardz3nGwMount() firing again from a React re-render
+	 * while an earlier retry chain from the SAME mount was still ticking,
+	 * or a tab switch overlapping with either) each schedule their OWN
+	 * retry chain against the SAME counter -- multiple chains incrementing
+	 * one shared count exhausted the 100-attempt budget in real time far
+	 * faster than the intended 10 seconds, so payment fields could give up
+	 * and go permanently unavailable even when Collect.js finished loading
+	 * well within 10s (Devin Review: "Parallel retries shorten the loading
+	 * window"). Replaced with a single cancellable timer
+	 * (pendingRetryTimer) plus a wall-clock DEADLINE (retryDeadline,
+	 * Date.now()-based, immune to how many concurrent chains exist) that's
+	 * only reset when a genuinely NEW mount attempt begins --
+	 * scheduleConfigureCollect()'s isNewMountAttempt flag controls this.
+	 * Every mount entry point (resetCollect() callers, cardz3nGwUnmount())
+	 * now cancels any in-flight timer before starting or ending its own
+	 * sequence, so at most one retry chain is ever ticking at a time.
+	 */
+	var pendingRetryTimer = null;
+	var retryDeadline     = 0;
+
+	/**
+	 * Schedule (or reschedule) configureCollect(), cancelling any timer
+	 * already pending first so at most one retry chain is ever active.
+	 *
+	 * @param {number}  delay             Milliseconds until the next attempt.
+	 * @param {boolean} isNewMountAttempt True to start a fresh 10s retry
+	 *   window (a genuinely new mount: first render, a tab switch, a
+	 *   Blocks (re)mount); false to continue an EXISTING window (an
+	 *   automatic retry tick from configureCollect() itself finding
+	 *   Collect.js not yet loaded).
+	 */
+	function scheduleConfigureCollect(delay, isNewMountAttempt) {
+		if (pendingRetryTimer !== null) {
+			clearTimeout(pendingRetryTimer);
+			pendingRetryTimer = null;
+		}
+		if (isNewMountAttempt) {
+			retryDeadline = Date.now() + 10000;
+		}
+		pendingRetryTimer = setTimeout(function () {
+			pendingRetryTimer = null;
+			configureCollect();
+		}, delay);
+	}
+
 	function configureCollect() {
-		if (configured || typeof window.CollectJS === 'undefined') {
+		if (configured) {
+			return;
+		}
+		if (typeof window.CollectJS === 'undefined') {
+			if (Date.now() < retryDeadline) {
+				scheduleConfigureCollect(COLLECT_RETRY_INTERVAL_MS, false);
+			} else if (window.console && console.warn) {
+				console.warn('[CARDZ3N] Collect.js did not become available within 10s; payment fields were not mounted.');
+			}
 			return;
 		}
 
@@ -293,6 +458,18 @@
 			timeoutDuration: 12000,
 			timeoutCallback: function () {
 				submitting = false;
+				/*
+				 * Blocks checkout has no form.checkout to re-render and no
+				 * updated_checkout listener -- the buyer's checkout is
+				 * waiting on the Promise from cardz3nGwStartTokenization().
+				 * Without this branch that Promise never resolved on a
+				 * timeout, leaving the block checkout hung indefinitely.
+				 */
+				if (isBlocksMode()) {
+					collectHadPendingTimeout = true;
+					resolveBlocksTokenization({ token: null, error: cfg.i18n && cfg.i18n.timeout });
+					return;
+				}
 				showError(cfg.i18n.timeout);
 				$body.trigger('updated_checkout');
 			},
@@ -376,6 +553,10 @@
 			});
 		}
 		configured = false;
+		if (pendingRetryTimer !== null) {
+			clearTimeout(pendingRetryTimer);
+			pendingRetryTimer = null;
+		}
 	}
 
 	function getCartTotal() {
@@ -399,7 +580,7 @@
 	 * Classic checkout: proceeds exactly as before (mirror hidden fields,
 	 * trigger the native form submit).
 	 *
-	 * Blocks checkout (cfg.isBlocksCheckout): the tokenization was kicked off
+	 * Blocks checkout (isBlocksMode()): the tokenization was kicked off
 	 * by cardz3nGwStartTokenization()'s Promise, which stashed its resolver
 	 * on window.CARDZ3N_GW_BLOCKS_RESOLVE. Hand the raw Collect.js response
 	 * to that resolver instead — there is no form.checkout to submit; the
@@ -407,15 +588,28 @@
 	 * WooCommerce needs.
 	 */
 	function handleToken(response) {
-		if (cfg.isBlocksCheckout) {
-			var resolve = window.CARDZ3N_GW_BLOCKS_RESOLVE;
-			window.CARDZ3N_GW_BLOCKS_RESOLVE = null;
-			if (typeof resolve === 'function') {
-				resolve(response);
-			}
+		if (isBlocksMode()) {
+			resolveBlocksTokenization(response);
 			return;
 		}
 		onTokenReceived(response);
+	}
+
+	/**
+	 * Blocks-only: resolve the pending cardz3nGwStartTokenization() Promise
+	 * exactly once, whether Collect.js finished normally (handleToken) or
+	 * hit its timeoutCallback. Nulling CARDZ3N_GW_BLOCKS_RESOLVE as soon as
+	 * it's consumed guards against a late/duplicate resolution -- e.g. a
+	 * slow callback arriving after the timeout has already resolved the
+	 * Promise -- which would otherwise silently resolve a stale request.
+	 * Classic (non-Blocks) checkout never calls this.
+	 */
+	function resolveBlocksTokenization(result) {
+		var resolve = window.CARDZ3N_GW_BLOCKS_RESOLVE;
+		window.CARDZ3N_GW_BLOCKS_RESOLVE = null;
+		if (typeof resolve === 'function') {
+			resolve(result);
+		}
 	}
 
 	function onTokenReceived(response) {
@@ -433,13 +627,30 @@
 		 * second attempt. We log the first 8 chars of the token for support
 		 * diagnostics without exposing the full value.
 		 */
+		/*
+		 * 1.0.62 — response.tokenType is "inline" for a regular typed
+		 * card/ACH submission (the INTEGRATION STYLE, not the payment
+		 * method), but per NMI's own documented response example it DOES
+		 * report the wallet name ("applePay" / "googlePay") specifically
+		 * for wallet-initiated payments. The 1.0.57 fix used activeSource()
+		 * unconditionally to fix ACH-vs-card mislabeling (tokenType being
+		 * "inline" for BOTH meant the old `response.tokenType ||
+		 * activeSource()` never reached the correct fallback), but that
+		 * overcorrected: wallets don't change the active tab, so every
+		 * wallet order got classified as whichever tab happened to be open
+		 * too (Devin Review). resolveTokenType() checks for the
+		 * wallet-specific value first and only falls back to the
+		 * pane-based activeSource() for the one distinction tokenType can't
+		 * make (card vs ach, both reported as "inline").
+		 */
 		if (window.console && console.debug) {
-			console.debug('[CARDZ3N] Collect.js minted token', (response.token || '').substring(0, 8) + '…', 'type=' + (response.tokenType || activeSource()));
+			console.debug('[CARDZ3N] Collect.js minted token', (response.token || '').substring(0, 8) + '…', 'type=' + resolveTokenType(response));
 		}
 
+		var tokenKind = resolveTokenType(response); // Computed once, reused below, so setHidden and mirror can't disagree.
 		setHidden('cardz3n_payment_token', response.token);
-		setHidden('cardz3n_token_type', response.tokenType || activeSource());
-		setHidden('cardz3n_payment_source', response.tokenType || activeSource());
+		setHidden('cardz3n_token_type', tokenKind);
+		setHidden('cardz3n_payment_source', tokenKind);
 		var cardBrand = (response.card && response.card.type) ? response.card.type : '';
 		setHidden('cardz3n_card_brand', cardBrand);
 
@@ -469,8 +680,8 @@
 			$form.append('<input type="hidden" class="cardz3n-mirror" name="' + name + '" value="' + $('<div>').text(val == null ? '' : val).html() + '" />');
 		};
 		mirror('cardz3n_payment_token', response.token);
-		mirror('cardz3n_token_type', response.tokenType || activeSource());
-		mirror('cardz3n_payment_source', response.tokenType || activeSource());
+		mirror('cardz3n_token_type', tokenKind);
+		mirror('cardz3n_payment_source', tokenKind);
 		mirror('cardz3n_card_brand', cardBrand);
 
 		// Trigger the real submission; WC's own handler will send to the server.
@@ -572,7 +783,7 @@
 	 * --------------------------------------------------------------- */
 
 	$(document).ready(function () {
-		if (cfg.isBlocksCheckout) {
+		if (isBlocksMode()) {
 			// Blocks checkout has no form.checkout submit event and no
 			// updated_checkout event — its lifecycle is driven entirely by
 			// the React component calling cardz3nGwMount() (see below).
@@ -587,7 +798,7 @@
 		$body.on('updated_checkout', function () {
 			if ($ui().length === 0) { return; }
 			resetCollect();
-			setTimeout(configureCollect, 50);
+			scheduleConfigureCollect(50, true);
 			bindCheckoutForm();
 			// 1.0.22 — restore the active pane invariant that PHP's initial
 			// render just clobbered. Without this, the pane the buyer was
@@ -599,7 +810,7 @@
 
 		// First render.
 		if ($ui().length) {
-			setTimeout(configureCollect, 50);
+			scheduleConfigureCollect(50, true);
 		}
 	});
 
@@ -623,11 +834,11 @@
 	 * previous iframes before configureCollect() re-creates them.
 	 */
 	window.cardz3nGwMount = function () {
-		if (!cfg.isBlocksCheckout) { return; }
+		if (!isBlocksMode()) { return; }
 		bindTabs();
 		resetCollect();
 		applyActivePane(activePane);
-		setTimeout(configureCollect, 50);
+		scheduleConfigureCollect(50, true);
 	};
 
 	/**
@@ -637,7 +848,7 @@
 	 * `configured` flag and no new iframes are created.
 	 */
 	window.cardz3nGwUnmount = function () {
-		if (!cfg.isBlocksCheckout) { return; }
+		if (!isBlocksMode()) { return; }
 		resetCollect();
 	};
 
@@ -648,22 +859,47 @@
 	 */
 	window.cardz3nGwStartTokenization = function () {
 		return new Promise(function (resolve) {
-			if (!cfg.isBlocksCheckout) {
+			if (!isBlocksMode()) {
 				resolve({ token: null, error: 'Not running in Blocks checkout.' });
 				return;
 			}
 			clearError();
-			window.CARDZ3N_GW_BLOCKS_RESOLVE = resolve;
-			if (typeof window.CollectJS === 'undefined' || typeof window.CollectJS.startPaymentRequest !== 'function') {
-				window.CARDZ3N_GW_BLOCKS_RESOLVE = null;
-				resolve({ token: null, error: cfg.i18n && cfg.i18n.invalidFields });
-				return;
+
+			function beginRequest() {
+				window.CARDZ3N_GW_BLOCKS_RESOLVE = resolve;
+				if (typeof window.CollectJS === 'undefined' || typeof window.CollectJS.startPaymentRequest !== 'function') {
+					window.CARDZ3N_GW_BLOCKS_RESOLVE = null;
+					resolve({ token: null, error: cfg.i18n && cfg.i18n.invalidFields });
+					return;
+				}
+				try {
+					window.CollectJS.startPaymentRequest();
+				} catch (err) {
+					window.CARDZ3N_GW_BLOCKS_RESOLVE = null;
+					resolve({ token: null, error: cfg.i18n && cfg.i18n.invalidFields });
+				}
 			}
-			try {
-				window.CollectJS.startPaymentRequest();
-			} catch (err) {
-				window.CARDZ3N_GW_BLOCKS_RESOLVE = null;
-				resolve({ token: null, error: cfg.i18n && cfg.i18n.invalidFields });
+
+			/*
+			 * A previous attempt timed out rather than genuinely completing
+			 * -- Collect.js's underlying request may still be silently alive
+			 * and could later deliver a stale completion to the SHARED
+			 * `callback` (handleToken), which would otherwise resolve THIS
+			 * new attempt's Promise with the earlier attempt's token data
+			 * (Devin Review: "Checkout can charge payment details entered
+			 * before retrying"). Destroying and recreating the hosted-field
+			 * iframes severs whatever channel Collect.js used to deliver
+			 * that stale result to us, since the iframe it would come from
+			 * no longer exists. Only paid on an actual retry -- the normal
+			 * first-attempt path is unaffected.
+			 */
+			if (collectHadPendingTimeout) {
+				collectHadPendingTimeout = false;
+				resetCollect();
+				configureCollect();
+				setTimeout(beginRequest, 150);
+			} else {
+				beginRequest();
 			}
 		});
 	};

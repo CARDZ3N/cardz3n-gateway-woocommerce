@@ -20,12 +20,16 @@
  *     see the long comment block on that file's "Blocks checkout bridge"
  *     section for how completion (no form.checkout to submit) differs from
  *     the classic flow.
- *   - MVP scope: Card and ACH tabs. Saved payment methods and Apple/Google
- *     Pay wallet buttons are NOT yet supported in the Blocks checkout path
- *     (get_payment_method_data() doesn't currently pass a saved-tokens list
- *     to the client, and wallet buttons need their own Blocks Express
- *     Payment Method integration) — deliberately hidden here rather than
- *     shown non-functional. Enabling "Saved" or wallets while
+ *   - Scope: Card, ACH, Apple Pay, and Google Pay are supported. Apple/
+ *     Google Pay reuse the SAME CollectJS.configure() call as Card/ACH --
+ *     Collect.js itself populates the wallet button DOM containers and
+ *     routes the resulting token through the same shared callback, so no
+ *     separate WooCommerce Blocks "express payment method" registration
+ *     was needed (see the wallet-rendering comment in Content() below).
+ *     Saved payment methods are NOT yet supported in the Blocks checkout
+ *     path (get_payment_method_data() doesn't currently pass a
+ *     saved-tokens list to the client) — deliberately hidden here rather
+ *     than shown non-functional. Enabling "Saved" while
  *     enable_experimental_blocks_checkout is on has no effect on this pane.
  */
 ( function ( wp, wc, settings ) {
@@ -68,14 +72,53 @@
 				key: 'cardz3n-icon-' + i,
 				src: icon.src,
 				alt: icon.alt,
-				style: { height: 24, marginLeft: 8, verticalAlign: 'middle' }
+				style: { height: 24, verticalAlign: 'middle' }
 			} );
 		} );
 
+		var titleText = decodeEntities( cfg.title || 'CARDZ3N Gateway' );
+
+		/*
+		 * When the merchant has "Powered by CARDZ3N" branding enabled,
+		 * render a real clickable link to cardz3n.com instead of the
+		 * plain PaymentMethodLabel text node. Mirrors what
+		 * Gateway::linkify_checkout_title() does on the classic checkout
+		 * via the woocommerce_gateway_title filter -- that PHP filter has
+		 * no effect here, since the Blocks checkout reads its title
+		 * through this separate get_payment_method_data() JS payload, not
+		 * through WooCommerce's title-rendering filter chain.
+		 *
+		 * stopPropagation() keeps the link's own click (and its default
+		 * target="_blank" navigation) from also being intercepted by
+		 * whatever parent click handler the payment-method list item uses
+		 * to select this radio option.
+		 */
+		var labelNode = ( cfg.poweredByBranding && cfg.brandingUrl )
+			? el(
+				'a',
+				{
+					href: cfg.brandingUrl,
+					target: '_blank',
+					rel: 'noopener noreferrer',
+					onClick: function ( e ) { e.stopPropagation(); },
+					style: { color: cfg.brandingColor || '#0a5cff', textDecoration: 'underline' }
+				},
+				titleText
+			)
+			: el( PaymentMethodLabel, { text: titleText } );
+
 		return el(
 			'span',
-			{ style: { display: 'inline-flex', alignItems: 'center', gap: 8 } },
-			el( PaymentMethodLabel, { text: decodeEntities( cfg.title || 'CARDZ3N Gateway' ) } ),
+			/*
+			 * flexWrap:'wrap' + minWidth:0 let the brand-icon row wrap to a
+			 * second line on narrow mobile viewports instead of overflowing
+			 * past the payment-method box's right edge (reported: icons ran
+			 * outside the box on mobile Safari). maxWidth:'100%' keeps the
+			 * whole label+icons group from exceeding its parent's width in
+			 * the first place.
+			 */
+			{ style: { display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, maxWidth: '100%', minWidth: 0 } },
+			labelNode,
 			iconNodes
 		);
 	}
@@ -156,7 +199,32 @@
 					}
 
 					var activePane = ( typeof window.cardz3nGwActivePane === 'function' ) ? window.cardz3nGwActivePane() : pane;
-					var kind       = response.tokenType || ( 'ach' === activePane ? 'ach' : 'card' );
+					/*
+					 * 1.0.62 — response.tokenType is "inline" for a regular
+					 * typed card/ACH submission (the integration style, not
+					 * the payment method), but per NMI's own documented
+					 * Collect.js response example it DOES report the wallet
+					 * name ("applePay" / "googlePay") specifically for
+					 * wallet-initiated payments. The 1.0.57 fix used
+					 * activePane unconditionally to fix ACH-vs-card
+					 * mislabeling, but that overcorrected: Apple Pay/Google
+					 * Pay buttons render above the Card/ACH tabs and don't
+					 * change which pane is active, so every wallet order
+					 * got classified as whichever tab happened to be open
+					 * too (Devin Review). Check for the wallet-specific
+					 * tokenType first; only fall back to the pane for the
+					 * one distinction tokenType can't make (card vs ach,
+					 * both reported as "inline").
+					 * Wallet_Service::normalize_source() (PHP) already does
+					 * a case-insensitive substring match for "apple"/
+					 * "google" anywhere in the token type string, so
+					 * passing the raw wallet tokenType straight through is
+					 * sufficient here.
+					 */
+					var ttLower = ( response.tokenType ? String( response.tokenType ).toLowerCase() : '' );
+					var kind = ( ttLower.indexOf( 'apple' ) !== -1 || ttLower.indexOf( 'google' ) !== -1 )
+						? response.tokenType
+						: ( 'ach' === activePane ? 'ach' : 'card' );
 					var cardBrand  = ( response.card && response.card.type ) ? response.card.type : '';
 
 					return {
@@ -215,6 +283,14 @@
 			) );
 		}
 
+		var wallets = [];
+		if ( cfg.enableApplePay ) {
+			wallets.push( el( 'div', { key: 'wallet-apple', className: 'cardz3n-applepay-button', 'data-cardz3n-wallet': 'apple' } ) );
+		}
+		if ( cfg.enableGooglePay ) {
+			wallets.push( el( 'div', { key: 'wallet-google', className: 'cardz3n-googlepay-button', 'data-cardz3n-wallet': 'google' } ) );
+		}
+
 		return el(
 			'div',
 			{
@@ -228,24 +304,125 @@
 				{ className: 'cardz3n-block-description', style: { margin: '0 0 12px' } },
 				decodeEntities( cfg.description || '' )
 			),
+			/*
+			 * Apple Pay / Google Pay -- rendered as DOM containers Collect.js
+			 * itself populates with the actual wallet button and click
+			 * handling, exactly as on the classic checkout (see
+			 * assets/js/checkout.js's configureCollect(): fields.applePay /
+			 * fields.googlePay are feature-detected and passed straight into
+			 * the SAME CollectJS.configure() call used for Card/ACH, so the
+			 * resulting token flows through the SAME shared callback/
+			 * cardz3nGwStartTokenization() bridge already wired up below --
+			 * no separate WooCommerce Blocks "express payment method"
+			 * registration needed). Wallets are feature-detected client-side
+			 * (ApplePaySession.canMakePayments() / window.google.payments)
+			 * inside configureCollect() itself, so an ineligible browser/
+			 * device simply never gets the field passed to Collect.js at
+			 * all -- these containers can render even when the wallet
+			 * isn't actually eligible; they just stay empty (CSS hides an
+			 * empty .cardz3n-wallets entirely, matching classic).
+			 */
+			wallets.length
+				? el(
+					'div',
+					{ className: 'cardz3n-wallets' },
+					wallets,
+					el(
+						'div',
+						{ className: 'cardz3n-wallets-divider' },
+						el( 'span', null, ( cfg.i18n && cfg.i18n.orPayWith ) || 'or pay with' )
+					)
+				)
+				: null,
 			tabs.length > 1
 				? el( 'div', { className: 'cardz3n-tabs', role: 'tablist' }, tabs )
 				: null,
-			// Card pane — hosted-field containers Collect.js mounts iframes into.
+			/*
+			 * .cardz3n-panes establishes the SAME CSS Grid "stacked panes"
+			 * trick classic checkout uses (checkout.css: display:grid;
+			 * grid-template-areas:"stack"; each .cardz3n-pane placed in
+			 * that one area) -- both Card and ACH panes occupy the SAME
+			 * grid cell, with only the active one visible
+			 * (opacity/visibility, not display:none) so switching tabs
+			 * doesn't reflow/jump the layout.
+			 *
+			 * This wrapper was MISSING from the original Blocks markup --
+			 * without it, Card and ACH were plain block-level siblings, so
+			 * the inactive one (still visibility:hidden, which reserves
+			 * layout space) rendered its own full height directly
+			 * before/after the active one instead of overlapping it,
+			 * producing a large blank gap on whichever pane was active.
+			 *
+			 * Separately, the display:'none' below is now keyed on
+			 * whether THIS pane is the ACTIVE one ('card' === pane /
+			 * 'ach' === pane) rather than whether that payment method is
+			 * merely ENABLED (showCard/showAch) -- the previous condition
+			 * meant BOTH panes stayed in normal flow (never display:none)
+			 * whenever a merchant had both Card and ACH enabled, which is
+			 * the common case and exactly what these screenshots were
+			 * testing.
+			 */
 			el(
 				'div',
-				{ className: 'cardz3n-pane cardz3n-pane-card' + ( 'card' === pane ? ' is-active' : '' ), 'data-pane': 'card', style: showCard ? {} : { display: 'none' } },
-				el( 'div', { id: 'cardz3n-ccnumber', className: 'cardz3n-field' } ),
-				el( 'div', { id: 'cardz3n-ccexp',    className: 'cardz3n-field' } ),
-				el( 'div', { id: 'cardz3n-cvv',      className: 'cardz3n-field' } )
-			),
-			// ACH pane.
-			el(
-				'div',
-				{ className: 'cardz3n-pane cardz3n-pane-ach' + ( 'ach' === pane ? ' is-active' : '' ), 'data-pane': 'ach', style: showAch ? {} : { display: 'none' } },
-				el( 'div', { id: 'cardz3n-checkname',    className: 'cardz3n-field' } ),
-				el( 'div', { id: 'cardz3n-checkaba',     className: 'cardz3n-field' } ),
-				el( 'div', { id: 'cardz3n-checkaccount', className: 'cardz3n-field' } )
+				{ className: 'cardz3n-panes' },
+				// Card pane — hosted-field containers Collect.js mounts iframes into.
+				// Structure (label + .cardz3n-collect-field wrapper, .cardz3n-row
+				// pairing for Expiry/CVV) matches the classic checkout's markup
+				// exactly, since both share the same checkout.css rules and the
+				// same shared checkout.js module operating on these same ids.
+				el(
+					'div',
+					{ className: 'cardz3n-pane cardz3n-pane-card' + ( 'card' === pane ? ' is-active' : '' ), 'data-pane': 'card', style: 'card' === pane ? {} : { display: 'none' } },
+					el(
+						'div',
+						{ className: 'cardz3n-field' },
+						el( 'label', null, ( cfg.i18n && cfg.i18n.cardNumber ) || 'Card number' ),
+						el( 'div', { id: 'cardz3n-ccnumber', className: 'cardz3n-collect-field' } )
+					),
+					el(
+						'div',
+						{ className: 'cardz3n-row' },
+						el(
+							'div',
+							{ className: 'cardz3n-field' },
+							el( 'label', null, ( cfg.i18n && cfg.i18n.expiry ) || 'MM / YY' ),
+							el( 'div', { id: 'cardz3n-ccexp', className: 'cardz3n-collect-field' } )
+						),
+						el(
+							'div',
+							{ className: 'cardz3n-field' },
+							el( 'label', null, ( cfg.i18n && cfg.i18n.cvv ) || 'CVV' ),
+							el( 'div', { id: 'cardz3n-cvv', className: 'cardz3n-collect-field' } )
+						)
+					)
+				),
+				// ACH pane.
+				el(
+					'div',
+					{ className: 'cardz3n-pane cardz3n-pane-ach' + ( 'ach' === pane ? ' is-active' : '' ), 'data-pane': 'ach', style: 'ach' === pane ? {} : { display: 'none' } },
+					el(
+						'div',
+						{ className: 'cardz3n-field' },
+						el( 'label', null, ( cfg.i18n && cfg.i18n.accountName ) || 'Name on account' ),
+						el( 'div', { id: 'cardz3n-checkname', className: 'cardz3n-collect-field' } )
+					),
+					el(
+						'div',
+						{ className: 'cardz3n-row' },
+						el(
+							'div',
+							{ className: 'cardz3n-field' },
+							el( 'label', null, ( cfg.i18n && cfg.i18n.routing ) || 'Routing number' ),
+							el( 'div', { id: 'cardz3n-checkaba', className: 'cardz3n-collect-field' } )
+						),
+						el(
+							'div',
+							{ className: 'cardz3n-field' },
+							el( 'label', null, ( cfg.i18n && cfg.i18n.account ) || 'Account number' ),
+							el( 'div', { id: 'cardz3n-checkaccount', className: 'cardz3n-collect-field' } )
+						)
+					)
+				)
 			),
 			el( 'div', { className: 'cardz3n-errors', style: { display: 'none' } } )
 		);
@@ -259,13 +436,26 @@
 		);
 	}
 
+	/**
+	 * Mirror the server-side Blocks_Support::is_active() gate: hide the
+	 * payment method rather than show a selectable-but-unusable option
+	 * when there's no configured tokenization key or neither native rail
+	 * (Cards / ACH — the only two this Blocks path currently supports) is
+	 * enabled. Server-side process_payment()/is_available() still enforce
+	 * this independently; this is purely a UX guard against an offer the
+	 * gateway could never actually fulfill.
+	 */
+	function canMakePayment() {
+		return !! ( cfg.tokenizationKey && ( cfg.enableCards || cfg.enableAch ) );
+	}
+
 	registerPaymentMethod( {
 		name: cfg.gatewayId,
 		label: el( Label, {} ),
 		ariaLabel: decodeEntities( cfg.title || 'CARDZ3N Gateway' ),
 		content: el( Content, {} ),
 		edit:    el( Description, {} ),
-		canMakePayment: function () { return true; },
+		canMakePayment: canMakePayment,
 		paymentMethodId: cfg.gatewayId,
 		supports: {
 			features: cfg.supports || [ 'products' ],
