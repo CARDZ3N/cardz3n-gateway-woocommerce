@@ -92,7 +92,7 @@ trait Settings_Trait {
 				'title'       => __( 'Native Block Checkout', 'cardz3n-gateway' ),
 				'type'        => 'checkbox',
 				'label'       => __( 'Enable native WooCommerce Cart & Checkout Blocks integration (Experimental)', 'cardz3n-gateway' ),
-				'description' => __( 'Off by default. When off, the block checkout renders this gateway through the classic-shortcode compatibility layer (the current, stable behavior). When on, WooCommerce is told this gateway natively supports Cart & Checkout Blocks, and a dedicated block payment method is registered. Test on a staging site before enabling on a live store — if registration is not picked up by your WooCommerce/Blocks version, the block checkout may show no payment methods at all until this is turned back off.', 'cardz3n-gateway' ),
+				'description' => __( 'Off by default. When off, the block checkout renders this gateway through the classic-shortcode compatibility layer (the current, stable behavior). When on, WooCommerce is told this gateway natively supports Cart & Checkout Blocks, and a dedicated block payment method is registered. Card and ACH are supported; Apple Pay, Google Pay, and saved payment methods are not yet available in the block checkout and won\'t appear as options there even if enabled below. Test on a staging site before enabling on a live store — if registration is not picked up by your WooCommerce/Blocks version, the block checkout may show no payment methods at all until this is turned back off. Questions or issues with this experimental feature? Contact <a href="mailto:support@cardz3n.com">support@cardz3n.com</a>.', 'cardz3n-gateway' ),
 				'desc_tip'    => false,
 				'default'     => 'no',
 			),

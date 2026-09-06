@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.56
+Stable tag: 1.0.57
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.57 =
+* Added a note to the Native Block Checkout (Experimental) setting: it now states plainly that Apple Pay, Google Pay, and saved payment methods are not yet available in the Blocks checkout even if enabled elsewhere, and links to support@cardz3n.com for questions or issues with this experimental feature.
 
 = 1.0.56 =
 * Fixed all 5 remaining Devin Review flags on the native Blocks checkout PR: (1) a severe race where a stale, late-arriving Collect.js completion after a timeout could resolve a subsequent retry's Promise with the earlier attempt's token data -- now destroys and recreates the hosted-field iframes before a retry to sever that path; (2) the Blocks payment method stayed selectable with an incomplete (public-key-only) credential set that would fail every server-side transaction -- now requires complete credentials via Api_Client::has_credentials(); (3) a shared retry-attempt counter could be exhausted early by concurrent mount attempts (tab switches, React re-renders), cutting the 10-second Collect.js loading window short -- replaced with a single cancellable timer and wall-clock deadline; (4) white-label (AerospacePay) checkouts showed CARDZ3N's own branding text and link -- Brand::profile() now carries per-brand powered_by_label and website_url, consumed by both classic and Blocks; (5) the branding-link color validation accepted invalid CSS hex lengths (5 or 7 digits) that browsers silently discard.
