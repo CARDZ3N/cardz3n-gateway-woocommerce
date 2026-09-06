@@ -97,7 +97,7 @@
 					target: '_blank',
 					rel: 'noopener noreferrer',
 					onClick: function ( e ) { e.stopPropagation(); },
-					style: { color: 'inherit', textDecoration: 'underline' }
+					style: { color: cfg.brandingColor || '#0a5cff', textDecoration: 'underline' }
 				},
 				titleText
 			)

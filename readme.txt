@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.54
+Stable tag: 1.0.55
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.55 =
+* The "Powered by CARDZ3N" checkout-title link (added in 1.0.54) now uses this brand's own primary accent color (matching the blue already used for the active payment-tab underline in checkout.css) instead of the theme's default red link color, on both the classic and Blocks checkout. Uses Brand::profile()['primary_color'] as the single source of truth, so a white-label brand's own color is used automatically instead of CARDZ3N's blue.
 
 = 1.0.54 =
 * Feature: when "Powered by CARDZ3N" branding is enabled, the checkout title now links to cardz3n.com and opens in a new tab, on both the classic and native Blocks checkout. Classic checkout filters the rendered title only (via woocommerce_gateway_title, gated to is_checkout()) so the underlying stored title used in admin/order/email contexts stays plain text; the Blocks checkout gets the equivalent via a poweredByBranding/brandingUrl flag passed to its React label component. Also fixed a related inconsistency: the Blocks checkout's title previously read a raw, effectively-unused 'title' settings option (falling back to a brand default) instead of mirroring the classic gateway's actual show_powered_by_branding-driven title — it now computes the title identically on both paths.

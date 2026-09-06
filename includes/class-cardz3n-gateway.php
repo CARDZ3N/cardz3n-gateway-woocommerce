@@ -203,10 +203,33 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			return $title;
 		}
 		return sprintf(
-			'<a href="%1$s" target="_blank" rel="noopener noreferrer">%2$s</a>',
+			'<a href="%1$s" target="_blank" rel="noopener noreferrer" style="color:%2$s;">%3$s</a>',
 			esc_url( self::BRANDING_LINK_URL ),
+			esc_attr( self::branding_link_color() ),
 			esc_html( $title )
 		);
+	}
+
+	/**
+	 * Hex color for the "Powered by CARDZ3N" checkout-title link, matching
+	 * this brand's own primary accent color (Brand::profile()['primary_color']
+	 * -- the same value checkout.css uses for --cardz3n-primary) rather than
+	 * a hardcoded color, so a white-label brand override
+	 * (cardz3n_gw_brand_profile filter) gets ITS color, not CARDZ3N's blue.
+	 *
+	 * Validated against a hex-color pattern before use: primary_color comes
+	 * through that same filter, so a malformed value from a partner's
+	 * filter callback shouldn't be trusted to reach an HTML attribute
+	 * unchecked.
+	 *
+	 * @return string
+	 */
+	public static function branding_link_color() {
+		$color = Brand::profile()['primary_color'] ?? '';
+		if ( ! is_string( $color ) || ! preg_match( '/^#[0-9a-fA-F]{3,8}$/', $color ) ) {
+			return '#0a5cff'; // CARDZ3N's own primary color, as a safe fallback.
+		}
+		return $color;
 	}
 
 	/**

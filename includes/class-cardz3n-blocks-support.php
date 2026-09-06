@@ -301,6 +301,7 @@ class Blocks_Support extends AbstractPaymentMethodType {
 			'title'             => $title,
 			'poweredByBranding' => $powered_by_branding,
 			'brandingUrl'       => Gateway::BRANDING_LINK_URL,
+			'brandingColor'     => Gateway::branding_link_color(),
 			'description'       => $opt( 'description', '' ),
 			'icons'             => $this->get_icon_urls(),
 			'tokenizationKey'   => $client->tokenization_key(),
