@@ -3,6 +3,15 @@
 All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.43] - 2026-10-22
+### Added
+- `Cardz3n_Gateway\Php_Security` (`includes/class-cardz3n-php-security.php`): advisory PHP patch-level check for the PHP2Shell vulnerabilities (CVE-2026-109618, CVE-2026-109619), which are unauthenticated remote-code-execution flaws in the PHP runtime itself. Warns via a Site Health test (`critical`) and a notice on the gateway settings screen when the running PHP is older than the first fixed release on its branch (8.2.35, 8.3.36, 8.4.27, 8.5.12) or is on a branch older than 8.2. Never blocks activation or checkout, because hosts that backport fixes (Debian, Ubuntu, RHEL, CloudLinux) keep the old version string while being patched.
+- Filters: `cardz3n_gw_php_patched_releases` (correct/extend the per-branch thresholds without a release) and `cardz3n_gw_php_security_notice` (return `false` to silence the warning once a host has confirmed a backported fix).
+- CI: PHP lint + WPCS matrix now also runs on PHP 8.4 and 8.5.
+
+### Notes
+- The plugin cannot patch PHP2Shell; only the host can, by running a patched PHP. `Requires PHP` is intentionally left at 7.4 in this release. A header cannot express per-branch patch levels, and a patch-level floor (for example 8.2.35) would block hosts whose distro backports the fix under an older version string while doing nothing for sites that stay on an old version.
+
 ## [1.0.41] - 2026-09-04
 ### Fixed
 - WooCommerce Marketplace QIT Validation Test flagged an error: the `WC tested up to` plugin header declared `9.5`, an unsupported major version (current major confirmed as `11.x` by the QIT test environment itself, running WooCommerce 11.1.0). Bumped to `11.1`. No functional change.

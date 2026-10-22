@@ -3,7 +3,7 @@
  * Plugin Name: CARDZ3N Gateway for WooCommerce
  * Plugin URI: https://cardz3n.com/woocommerce
  * Description: Embedded on-site checkout for WooCommerce powered by the CARDZ3N/NMI payment gateway. Cards, ACH, Apple Pay, Google Pay, saved methods, subscriptions, refunds, captures, voids, and automatic Level 2/3 commercial-card data in a single gateway UI.
- * Version: 1.0.41
+ * Version: 1.0.43
  * Requires at least: 6.4
  * Requires PHP: 7.4
  * Requires Plugins: woocommerce
@@ -27,7 +27,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Plugin constants
  * --------------------------------------------------------------------------
  */
-define( 'CARDZ3N_GW_VERSION', '1.0.41' );
+define( 'CARDZ3N_GW_VERSION', '1.0.43' );
 define( 'CARDZ3N_GW_FILE', __FILE__ );
 define( 'CARDZ3N_GW_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CARDZ3N_GW_URL', plugin_dir_url( __FILE__ ) );
@@ -118,6 +118,10 @@ function cardz3n_gw_bootstrap() {
 	require_once CARDZ3N_GW_PATH . 'includes/helpers.php';
 	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-gateway.php';
 	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-admin.php';
+	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-php-security.php';
+
+	// Advisory PHP patch-level check (Site Health + gateway settings notice).
+	Cardz3n_Gateway\Php_Security::init();
 
 	// Register the gateway with WooCommerce.
 	add_filter( 'woocommerce_payment_gateways', 'cardz3n_gw_register_gateway' );
