@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.42
+Stable tag: 1.0.43
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,7 +123,7 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Changelog ==
 
-= 1.0.42 =
+= 1.0.43 =
 * New: PHP security patch-level check. The "PHP2Shell" vulnerabilities (CVE-2026-109618 and CVE-2026-109619) are flaws in PHP itself that allow unauthenticated remote code execution; no plugin can fix them, only a host running a patched PHP can. The gateway now adds a Site Health test and a notice on its settings screen that warn when the server's PHP version is older than the first fixed release for its branch (8.2.35, 8.3.36, 8.4.27, 8.5.12). Advisory only; it never blocks checkout or activation. Hosts that backport fixes without changing the version number can silence it with the `cardz3n_gw_php_security_notice` filter.
 * Tested: the plugin's code checks now run against PHP 7.4 through 8.5.
 
@@ -255,7 +255,7 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Upgrade Notice ==
 
-= 1.0.42 =
+= 1.0.43 =
 Adds a warning if your server's PHP version is missing the PHP2Shell security fix (CVE-2026-109618 / CVE-2026-109619). Ask your host to update PHP to 8.2.35, 8.3.36, 8.4.27, 8.5.12 or newer. No change to checkout behavior.
 
 = 1.0.41 =
