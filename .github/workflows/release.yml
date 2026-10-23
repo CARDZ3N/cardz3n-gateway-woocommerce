@@ -33,21 +33,18 @@ jobs:
         run: |
           # WP.org slug is 'cardz3n-gateway' (the name 'cardz3n-gateway-woocommerce'
           # is reserved because 'woocommerce' is a restricted trademark term).
+          # The zip folder uses the slug; the MAIN FILE KEEPS ITS NAME
+          # (cardz3n-gateway-woocommerce.php), exactly as published on
+          # WordPress.org. WordPress tracks an active plugin by its main file
+          # path, so renaming it here would silently deactivate the plugin on
+          # any site that updates across the two sources.
+          # What is excluded comes from .distignore, shared with
+          # deploy-wporg.yml, so this zip matches WordPress.org trunk.
           mkdir -p build/cardz3n-gateway
-          rsync -a \
-                --exclude='.git' --exclude='.gitignore' --exclude='.gitattributes' \
-                --exclude='.github' --exclude='.DS_Store' --exclude='.editorconfig' \
-                --exclude='build' --exclude='tests' --exclude='node_modules' \
-                --exclude='phpcs.xml.dist' --exclude='composer.json' --exclude='composer.lock' \
-                --exclude='CONTRIBUTING.md' --exclude='CODE_OF_CONDUCT.md' --exclude='SECURITY.md' \
-                --exclude='docs/WPORG-SUBMISSION-CHECKLIST.md' \
-                ./ build/cardz3n-gateway/
-          # Rename the main plugin file to match the slug — WP requires the
-          # primary PHP file basename to equal the plugin slug.
-          mv build/cardz3n-gateway/cardz3n-gateway-woocommerce.php build/cardz3n-gateway/cardz3n-gateway.php
+          rsync -a --exclude-from=.distignore ./ build/cardz3n-gateway/
           # Double-check: remove any stray hidden files the zip would contain.
           find build/cardz3n-gateway -name '.*' -type f -delete
-          find build/cardz3n-gateway -name '.*' -type d -exec rm -rf {} +
+          find build/cardz3n-gateway -name '.*' -type d -exec rm -rf {} + 2>/dev/null || true
 
       - name: Create zip
         run: |

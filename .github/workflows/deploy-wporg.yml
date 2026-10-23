@@ -1,0 +1,113 @@
+name: Deploy to WordPress.org
+
+# Publishes a tagged release to the WordPress.org plugin directory
+# (https://wordpress.org/plugins/cardz3n-gateway/) by committing the tag's
+# contents to the plugin's SVN trunk and creating the matching SVN tag.
+#
+# SAFETY MODEL
+#   1. Secrets (SVN_USERNAME / SVN_PASSWORD) are stored ONLY as secrets of the
+#      `wordpress-org` GitHub Environment, and that environment requires a
+#      reviewer. A tag push therefore waits for a human approval before the job
+#      can read the credentials or publish anything. If the environment or its
+#      secrets are missing, the job fails; it can never publish unprotected.
+#   2. The tag must be vMAJOR.MINOR.PATCH, must sit on `main`, and the plugin
+#      header, CARDZ3N_GW_VERSION and readme Stable tag must all equal the tag.
+#   3. Third-party actions are pinned to full commit SHAs, because this job
+#      handles a credential that can publish to every site running the plugin.
+#   4. If the SVN tag already exists the deploy action exits without changes, so
+#      re-running a deployment is safe.
+#
+# MANUAL RUN (dry run or re-deploy of an existing tag): Actions tab ->
+# "Deploy to WordPress.org" -> Run workflow. Dry run defaults to ON.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing git tag to deploy, e.g. v1.0.43"
+        required: true
+        type: string
+      dry_run:
+        description: "Dry run: do everything except the final SVN commit"
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-wporg
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to WordPress.org
+    runs-on: ubuntu-latest
+    environment: wordpress-org
+    steps:
+      - name: Resolve tag, version and mode
+        id: v
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+          INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            TAG="$INPUT_TAG"
+            DRY_RUN="$INPUT_DRY_RUN"
+          else
+            TAG="$REF_NAME"
+            DRY_RUN="false"
+          fi
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag '$TAG' is not of the form vMAJOR.MINOR.PATCH"
+            exit 1
+          fi
+          {
+            echo "tag=$TAG"
+            echo "version=${TAG#v}"
+            echo "dry_run=$DRY_RUN"
+          } >> "$GITHUB_OUTPUT"
+          echo "Deploying $TAG (dry run: $DRY_RUN)"
+
+      - name: Check out the tag
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: refs/tags/${{ steps.v.outputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Guard - tag is on main and versions agree
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          set -euo pipefail
+          git fetch --quiet origin main
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "::error::This tag is not on main. Refusing to publish a commit that was never merged."
+            exit 1
+          fi
+          HEADER=$(grep -E '^\s*\*\s*Version:' cardz3n-gateway-woocommerce.php | head -1 | awk '{print $3}')
+          CONST=$(grep "CARDZ3N_GW_VERSION" cardz3n-gateway-woocommerce.php | head -1 | grep -oE "'[0-9.]+'" | tr -d "'")
+          STABLE=$(grep -E '^Stable tag:' readme.txt | awk '{print $3}')
+          echo "tag=$VERSION header=$HEADER const=$CONST stable=$STABLE"
+          test "$HEADER" = "$VERSION"
+          test "$CONST" = "$VERSION"
+          test "$STABLE" = "$VERSION"
+          test -f .distignore
+
+      - name: Deploy to WordPress.org (SVN)
+        uses: 10up/action-wordpress-plugin-deploy@54bd289b8525fd23a5c365ec369185f2966529c2 # 2.3.0
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: cardz3n-gateway
+          VERSION: ${{ steps.v.outputs.version }}
+        with:
+          dry-run: ${{ steps.v.outputs.dry_run }}
