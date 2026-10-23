@@ -1,0 +1,23 @@
+# Files that exist in the git repo but must NOT ship to the WordPress.org plugin
+# directory or into the GitHub release zip. Single source of truth, used by:
+#   - .github/workflows/deploy-wporg.yml (10up action, rsync --exclude-from)
+#   - .github/workflows/release.yml      (release zip staging)
+# Patterns are rsync exclude syntax; a leading slash anchors to the repo root.
+# This list reproduces exactly what the live WordPress.org trunk already omits.
+/.git
+/.github
+/.gitignore
+/.gitattributes
+/.editorconfig
+/.distignore
+/.wordpress-org
+.DS_Store
+/build
+/node_modules
+/tests
+/docs
+/CODE_OF_CONDUCT.md
+/CONTRIBUTING.md
+/SECURITY.md
+/composer.lock
+/phpcs.xml.dist
