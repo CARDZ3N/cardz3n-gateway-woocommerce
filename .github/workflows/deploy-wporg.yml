@@ -86,21 +86,33 @@ jobs:
       - name: Guard - tag is on main and versions agree
         env:
           VERSION: ${{ steps.v.outputs.version }}
+          TAG: ${{ steps.v.outputs.tag }}
+          WORKFLOW_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
+          fail() { echo "::error::$1"; exit 1; }
+
           git fetch --quiet origin main
-          if ! git merge-base --is-ancestor HEAD origin/main; then
-            echo "::error::This tag is not on main. Refusing to publish a commit that was never merged."
-            exit 1
-          fi
+          git merge-base --is-ancestor HEAD origin/main \
+            || fail "Tag $TAG is not on main. Refusing to publish a commit that was never merged."
+
           HEADER=$(grep -E '^\s*\*\s*Version:' cardz3n-gateway-woocommerce.php | head -1 | awk '{print $3}')
           CONST=$(grep "CARDZ3N_GW_VERSION" cardz3n-gateway-woocommerce.php | head -1 | grep -oE "'[0-9.]+'" | tr -d "'")
           STABLE=$(grep -E '^Stable tag:' readme.txt | awk '{print $3}')
           echo "tag=$VERSION header=$HEADER const=$CONST stable=$STABLE"
-          test "$HEADER" = "$VERSION"
-          test "$CONST" = "$VERSION"
-          test "$STABLE" = "$VERSION"
-          test -f .distignore
+          [ "$HEADER" = "$VERSION" ] || fail "Plugin header Version ($HEADER) does not match tag ($VERSION)."
+          [ "$CONST" = "$VERSION" ]  || fail "CARDZ3N_GW_VERSION ($CONST) does not match tag ($VERSION)."
+          [ "$STABLE" = "$VERSION" ] || fail "readme.txt Stable tag ($STABLE) does not match tag ($VERSION)."
+
+          # .distignore decides what is published. Tags cut before this automation
+          # existed (e.g. v1.0.43) do not contain it, so fall back to the copy at the
+          # commit this workflow is running from (reviewed, on main). The plugin CODE
+          # always comes from the tag; only the exclusion list comes from here.
+          if [ ! -f .distignore ]; then
+            git show "$WORKFLOW_SHA:.distignore" > .distignore 2>/dev/null || true
+            [ -s .distignore ] || { rm -f .distignore; fail ".distignore is missing from tag $TAG and from workflow commit $WORKFLOW_SHA. Refusing to deploy without an exclusion list."; }
+            echo "::notice::.distignore is not in tag $TAG (it predates the deploy automation); using the copy from workflow commit ${WORKFLOW_SHA:0:7}."
+          fi
 
       - name: Deploy to WordPress.org (SVN)
         uses: 10up/action-wordpress-plugin-deploy@54bd289b8525fd23a5c365ec369185f2966529c2 # 2.3.0
