@@ -2,7 +2,7 @@
 
 [![WordPress](https://img.shields.io/badge/WordPress-6.4%2B-blue)](https://wordpress.org) [![WooCommerce](https://img.shields.io/badge/WooCommerce-8.0%2B-96588a)](https://woocommerce.com) [![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4)](https://www.php.net) [![License](https://img.shields.io/badge/license-GPLv2%2B-green)](LICENSE)
 
-Embedded, on-site WooCommerce checkout powered by the CARDZ3N payment gateway.
+Embedded, on-site WooCommerce checkout using the CARDZ3N payment gateway.
 
 - **Embedded UX** — no redirect. Buyers stay on-site.
 - **Everything in one gateway** — credit/debit cards, ACH, Apple Pay, Google Pay, and saved methods inside a single gateway UI.

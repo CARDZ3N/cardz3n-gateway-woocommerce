@@ -496,7 +496,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Embedded WooCommerce checkout via NMI Collect.js inline hosted fields.
 - Single gateway UI with tabs for **Card**, **ACH / eCheck**, and **Saved** methods.
 - Apple Pay and Google Pay wallet buttons inside the gateway panel.
-- Saved payment methods (card + ACH) backed by the NMI Customer Vault.
+- Saved payment methods (card + ACH) stored in a secure vault.
 - WooCommerce Subscriptions compatibility (renewals via vault tokens).
 - WooCommerce Pre-Orders compatibility.
 - Transaction modes: Sale and Authorize-only.

@@ -17,7 +17,7 @@ Closes #
 
 - [ ] Checkout UI / Collect.js
 - [ ] API client / gateway transactions
-- [ ] Customer Vault / saved methods
+- [ ] Saved methods (vault)
 - [ ] Refunds / voids / captures
 - [ ] Level 2/3 commercial data
 - [ ] Subscriptions / Pre-Orders
