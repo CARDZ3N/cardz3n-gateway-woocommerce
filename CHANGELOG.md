@@ -3,6 +3,21 @@
 All notable changes to CARDZ3N for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.68] - 2026-10-24
+### Added
+- Experimental, opt-in native Cart & Checkout Blocks payment method for CARD payments (setting `enable_experimental_blocks_checkout`, "Native Block Checkout", default off). Registered through `Cardz3n_Gateway\Blocks_Support` on `woocommerce_blocks_payment_method_type_registration`; the settings key is resolved through `Brand::id()` (`cardz3n_gw_settings_option_key()`), so white-label gateway IDs work.
+- CI: the JS / CSS lint job now runs `node --check` on every file in `assets/js`, because ESLint there is non-blocking and a syntax error would otherwise pass.
+
+### Fixed
+- Root cause of the earlier empty Blocks payment method: the shared `assets/js/checkout.js` exits unless `window.CARDZ3N_GW` exists, and nothing created it before the script ran in the Blocks context. `Blocks_Support` now registers the shared script and localizes `CARDZ3N_GW` onto it server-side, so the bridge functions (`cardz3nGwMount`, `cardz3nGwUnmount`, `cardz3nGwStartTokenization`) exist when the React component mounts.
+- Blocks mode is detected from WooCommerce Blocks' own settings registry (`wc.wcSettings.getSetting('cardz3n_gateway_data')`) instead of a flag inside `CARDZ3N_GW`, which could be overwritten when classic and Blocks both localize the same script handle.
+- A Collect.js tokenization timeout in the block checkout no longer leaves the checkout waiting forever.
+- `Gateway::process_payment()` returned `null` on error and decline paths, which is a fatal error in the Blocks checkout; it now returns a `failure` result with the message. An invalid saved-payment-method ID now returns immediately.
+
+### Notes
+- `cart_checkout_blocks` stays declared `false` and HPOS (`custom_order_tables`) stays `true`. The Blocks declaration flips to `true` in a later release, after a live test.
+- In the native Blocks path ACH, Apple Pay, Google Pay and saved methods stay off, and the method advertises only `products` and `refunds` (no `subscriptions`, `pre-orders` or `tokenization`), so a card is never taken without a vault token being stored. Not yet tested live; see the pull request.
+
 ## [1.0.43] - 2026-10-22
 ### Added
 - `Cardz3n_Gateway\Php_Security` (`includes/class-cardz3n-php-security.php`): advisory PHP patch-level check for the PHP2Shell vulnerabilities (CVE-2026-109618, CVE-2026-109619), which are unauthenticated remote-code-execution flaws in the PHP runtime itself. Warns via a Site Health test (`critical`) and a notice on the gateway settings screen when the running PHP is older than the first fixed release on its branch (8.2.35, 8.3.36, 8.4.27, 8.5.12) or is on a branch older than 8.2. Never blocks activation or checkout, because hosts that backport fixes (Debian, Ubuntu, RHEL, CloudLinux) keep the old version string while being patched.

@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, nmi, apple pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.43
+Stable tag: 1.0.68
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,6 +122,11 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.0.68 =
+* New, experimental and OFF by default: a "Native Block Checkout" setting. When switched on, the block-based Checkout shows this gateway as a native block payment method for card payments. ACH, Apple Pay, Google Pay and saved payment methods are not available in the block checkout yet, and carts containing subscriptions or pre-orders will not offer this method there. Stores that leave the setting off see no change.
+* Fixed: a declined card or a failed payment on the block checkout no longer ends in a server error. Every error and decline path now returns the result WooCommerce expects, so the buyer sees the message and can try again.
+* Fixed: an invalid or tampered saved-payment-method ID now stops processing immediately instead of continuing and failing a moment later.
 
 = 1.0.43 =
 * New: PHP security patch-level check. The "PHP2Shell" vulnerabilities (CVE-2026-109618 and CVE-2026-109619) are flaws in PHP itself that allow unauthenticated remote code execution; no plugin can fix them, only a host running a patched PHP can. The gateway now adds a Site Health test and a notice on its settings screen that warn when the server's PHP version is older than the first fixed release for its branch (8.2.35, 8.3.36, 8.4.27, 8.5.12). Advisory only; it never blocks checkout or activation. Hosts that backport fixes without changing the version number can silence it with the `cardz3n_gw_php_security_notice` filter.
@@ -254,6 +259,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * Initial release. Embedded Collect.js checkout -- Card, ACH, Apple Pay, Google Pay, saved methods, Subscriptions/Pre-Orders, refunds, Level 2/3 data, 3DS2/SCA, HPOS.
 
 == Upgrade Notice ==
+
+= 1.0.68 =
+Adds an optional, off-by-default "Native Block Checkout" setting (card payments only) and makes declined or failed payments on the block checkout show a clear message instead of an error. No change to checkout unless you turn the setting on.
 
 = 1.0.43 =
 Adds a warning if your server's PHP version is missing the PHP2Shell security fix (CVE-2026-109618 / CVE-2026-109619). Ask your host to update PHP to 8.2.35, 8.3.36, 8.4.27, 8.5.12 or newer. No change to checkout behavior.
