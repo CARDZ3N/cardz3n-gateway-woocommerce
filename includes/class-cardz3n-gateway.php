@@ -330,7 +330,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			if ( '' === $test_sec || '' === $test_tok ) {
 				$warnings[] = __( '<strong>Test Mode is active but one or both Test keys are empty.</strong> Both a Test Private Key (API/Cart scope) and a Test Public Key (Tokenization scope) are required. Get matched test keys from CARDZ3N support — the shared demo Security Key alone will not process card transactions.', 'cardz3n-gateway' );
 			} elseif ( $looks_like_checkout_key( $test_tok ) ) {
-				$warnings[] = __( '<strong>The Test Public Key looks like a Collect Checkout key (starts with <code>checkout_public_</code>) — this is the wrong key type for on-site checkout.</strong> Replace it with a Public API Key scoped "Tokenization" (four dash-delimited segments like <code>xxxxxx-xxxxxx-xxxxxx-xxxxxx</code>) from the CARDZ3N Portal under Settings → Security Keys → Public Security Keys → Tokenization. Collect Checkout keys drive the hosted redirect checkout, which this plugin does not use.', 'cardz3n-gateway' );
+				$warnings[] = __( '<strong>The Test Public Key looks like a checkout-only key (starts with <code>checkout_public_</code>) — this is the wrong key type for on-site checkout.</strong> Replace it with a Public API Key scoped "Tokenization" (four dash-delimited segments like <code>xxxxxx-xxxxxx-xxxxxx-xxxxxx</code>) from the CARDZ3N Portal under Settings → Security Keys → Public Security Keys → Tokenization. Checkout-only keys drive the hosted redirect checkout, which this plugin does not use.', 'cardz3n-gateway' );
 			} elseif ( $test_sec === $shared_demo && $test_tok === $live_tok ) {
 				$warnings[] = __( '<strong>Test Mode will fail on card transactions.</strong> The Test Security Key is the shared demo merchant but the Test Public Key is the same as your Live Public Key — those belong to different merchant accounts. A Collect.js token minted against your Live merchant cannot be redeemed by the demo merchant. Turn Test Mode off and use Live keys with test PANs (4111 1111 1111 1111 auto-voids in sandbox mode), or request a matched Test Public API Key (Tokenization scope) from CARDZ3N support.', 'cardz3n-gateway' );
 			} elseif ( $test_sec === $shared_demo ) {
@@ -342,7 +342,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			if ( '' === $live_sec || '' === $live_tok ) {
 				$warnings[] = __( '<strong>Live Mode is active but one or both Live keys are empty.</strong> Enter both the Live Private Key (API/Cart scope) and the Live Public Key (Tokenization scope) before taking real payments.', 'cardz3n-gateway' );
 			} elseif ( $looks_like_checkout_key( $live_tok ) ) {
-				$warnings[] = __( '<strong>Your Live Public Key looks like a Collect Checkout key (starts with <code>checkout_public_</code>) — this is the wrong key type and is the most likely reason card transactions are failing right now.</strong> Collect Checkout keys drive the hosted redirect checkout (CollectCheckout.js); this plugin uses on-site inline Collect.js, which requires a Public API Key scoped "Tokenization" (four dash-delimited segments like <code>xxxxxx-xxxxxx-xxxxxx-xxxxxx</code>). Go to the CARDZ3N Portal → Settings → Security Keys → Public Security Keys, add a key and pick <strong>Tokenization</strong> (NOT <strong>Collect Checkout</strong>) for scope, then paste that key here. ACH may appear to work with the wrong key, but cards will consistently fail.', 'cardz3n-gateway' );
+				$warnings[] = __( '<strong>Your Live Public Key looks like a checkout-only key (starts with <code>checkout_public_</code>) — this is the wrong key type and is the most likely reason card transactions are failing right now.</strong> Checkout-only keys drive the hosted redirect checkout; this plugin uses on-site inline Collect.js, which requires a Public API Key scoped "Tokenization" (four dash-delimited segments like <code>xxxxxx-xxxxxx-xxxxxx-xxxxxx</code>). Go to the CARDZ3N Portal → Settings → Security Keys → Public Security Keys, add a key and pick <strong>Tokenization</strong> (NOT <strong>a checkout-only scope</strong>) for scope, then paste that key here. ACH may appear to work with the wrong key, but cards will consistently fail.', 'cardz3n-gateway' );
 			}
 		}
 
@@ -790,7 +790,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				)
 			);
 
-			$cardz3n_gw_error_msg = __( 'Payment details could not be tokenized. The most common cause is that the Public Key in the CARDZ3N settings was issued with the wrong scope. This plugin uses inline Collect.js, which requires a Public API Key scoped "Tokenization" (format: xxxxxx-xxxxxx-xxxxxx-xxxxxx). A "Collect Checkout" key (starting with checkout_public_) will NOT work — it drives a different hosted-redirect checkout. Verify in the CARDZ3N Merchant Portal: Settings → Security Keys → Public Security Keys → scope must be "Tokenization".', 'cardz3n-gateway' );
+			$cardz3n_gw_error_msg = __( 'Payment details could not be tokenized. The most common cause is that the Public Key in the CARDZ3N settings was issued with the wrong scope. This plugin uses inline Collect.js, which requires a Public API Key scoped "Tokenization" (format: xxxxxx-xxxxxx-xxxxxx-xxxxxx). A "checkout-only" key (starting with checkout_public_) will NOT work — it drives a different hosted-redirect checkout. Verify in the CARDZ3N Merchant Portal: Settings → Security Keys → Public Security Keys → scope must be "Tokenization".', 'cardz3n-gateway' );
 			wc_add_notice( $cardz3n_gw_error_msg, 'error' );
 			return array(
 				'result'   => 'failure',
@@ -972,7 +972,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 					$wrong_scope = 0 === strpos( (string) $client->tokenization_key(), 'checkout_public_' );
 					if ( $wrong_scope ) {
 						$user_msg = __(
-							'We couldn\'t complete your card payment. The store\'s CARDZ3N Public Key is set to a "Collect Checkout" key (starts with checkout_public_), which cannot process on-site card transactions. Please contact the store — the operator needs to replace it with a Public API Key scoped "Tokenization" in the CARDZ3N settings.',
+							'We couldn\'t complete your card payment. The store\'s CARDZ3N Public Key is set to a "checkout-only" key (starts with checkout_public_), which cannot process on-site card transactions. Please contact the store — the operator needs to replace it with a Public API Key scoped "Tokenization" in the CARDZ3N settings.',
 							'cardz3n-gateway'
 						);
 					} else {
