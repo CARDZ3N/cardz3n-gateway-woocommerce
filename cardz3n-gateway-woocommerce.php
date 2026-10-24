@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: CARDZ3N Gateway for WooCommerce
+ * Plugin Name: CARDZ3N for WooCommerce
  * Plugin URI: https://cardz3n.com/woocommerce
  * Description: Embedded on-site checkout for WooCommerce powered by the CARDZ3N/NMI payment gateway. Cards, ACH, Apple Pay, Google Pay, saved methods, subscriptions, refunds, captures, voids, and automatic Level 2/3 commercial-card data in a single gateway UI.
  * Version: 1.0.43
@@ -92,7 +92,7 @@ function cardz3n_gw_bootstrap() {
 			'admin_notices',
 			function () {
 				echo '<div class="notice notice-error"><p>';
-				esc_html_e( 'CARDZ3N Gateway requires WooCommerce to be installed and active.', 'cardz3n-gateway' );
+				esc_html_e( 'CARDZ3N for WooCommerce requires WooCommerce to be installed and active.', 'cardz3n-gateway' );
 				echo '</p></div>';
 			}
 		);
@@ -348,7 +348,7 @@ function cardz3n_gw_version_mismatch_notice() {
 	echo '<div class="notice notice-warning"><p>';
 	printf(
 		/* translators: 1: version string on disk, 2: version string recorded on activation, 3: URL to plugins page */
-		esc_html__( 'CARDZ3N Gateway on disk is version %1$s but the last activated version was %2$s. Deactivate then reactivate the plugin from the %3$s screen to finish the upgrade.', 'cardz3n-gateway' ),
+		esc_html__( 'CARDZ3N for WooCommerce on disk is version %1$s but the last activated version was %2$s. Deactivate then reactivate the plugin from the %3$s screen to finish the upgrade.', 'cardz3n-gateway' ),
 		'<strong>' . esc_html( $disk ) . '</strong>',
 		'<strong>' . esc_html( $stored ) . '</strong>',
 		'<a href="' . esc_url( $plugins_url ) . '">' . esc_html__( 'Plugins', 'cardz3n-gateway' ) . '</a>'

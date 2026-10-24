@@ -1,4 +1,4 @@
-# CARDZ3N Gateway for WooCommerce — Installation & Setup Guide
+# CARDZ3N for WooCommerce — Installation & Setup Guide
 
 ## 1. Prerequisites
 
@@ -39,7 +39,7 @@ git clone https://github.com/your-org/cardz3n-gateway-woocommerce.git
 
 ## 4. Configure the gateway
 
-1. `WooCommerce → Settings → Payments → CARDZ3N Gateway → Manage`
+1. `WooCommerce → Settings → Payments → CARDZ3N for WooCommerce → Manage`
 2. Paste the Security Key and Tokenization Key into either **Sandbox** or **Live**
 3. Enable **Sandbox Mode** while testing
 4. Click **Save changes**, then click **Test Credentials** — you should see a green ✓

@@ -1,4 +1,4 @@
-# CARDZ3N Gateway for WooCommerce — QA Test Matrix
+# CARDZ3N for WooCommerce — QA Test Matrix
 
 Run this matrix before every production release. All tests require a sandbox
 CARDZ3N / NMI account with Collect.js enabled.

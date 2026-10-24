@@ -30,9 +30,9 @@ class Brand {
 			'cardz3n'      => array(
 				'id'                 => 'cardz3n',
 				'gateway_id'         => 'cardz3n_gateway',
-				'name'               => __( 'CARDZ3N Gateway', 'cardz3n-gateway' ),
+				'name'               => __( 'CARDZ3N for WooCommerce', 'cardz3n-gateway' ),
 				'short_name'         => __( 'CARDZ3N', 'cardz3n-gateway' ),
-				'method_title'       => __( 'CARDZ3N Gateway', 'cardz3n-gateway' ),
+				'method_title'       => __( 'CARDZ3N for WooCommerce', 'cardz3n-gateway' ),
 				'method_description' => __( 'Accept credit/debit cards, ACH, Apple Pay, Google Pay, subscriptions, and B2B Level 3 data in a single embedded WooCommerce checkout.', 'cardz3n-gateway' ),
 				'default_title'      => __( 'Credit Card, ACH, or Digital Wallet', 'cardz3n-gateway' ),
 				'default_descriptor' => 'CARDZ3N',
