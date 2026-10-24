@@ -70,14 +70,34 @@ class Blocks_Support extends AbstractPaymentMethodType {
 	 * available.
 	 *
 	 * We instead check the bare minimum required to decide enqueue-worthiness:
-	 * the "Enabled" toggle in the admin settings. The full availability
-	 * cascade (HTTPS, credentials, currency/country) is still enforced
-	 * client-side via `canMakePayment` and server-side at `process_payment()`
-	 * / `is_available()`, so nothing dangerous slips through.
+	 * the "Enabled" toggle, a configured tokenization key, and at least one
+	 * enabled native rail (cards or ACH — the only two this Blocks path
+	 * currently supports; see checkout.js's file header). All three of
+	 * these come straight from the settings array loaded in initialize(),
+	 * with no dependency on WC()->payment_gateways() being populated yet,
+	 * so they're safe to check this early. The full availability cascade
+	 * (HTTPS, currency/country) is still enforced client-side via
+	 * `canMakePayment` and server-side at `process_payment()` /
+	 * `is_available()`, so nothing dangerous slips through.
+	 *
+	 * Without the credentials/rail checks, a merchant with the gateway
+	 * enabled but no tokenization key configured (or both Cards and ACH
+	 * turned off) would still see a selectable "Pay with CARDZ3N" option
+	 * in the block checkout that could never actually tokenize a payment.
 	 */
 	public function is_active() {
 		$enabled = isset( $this->settings['enabled'] ) ? $this->settings['enabled'] : 'no';
-		return 'yes' === $enabled;
+		if ( 'yes' !== $enabled ) {
+			return false;
+		}
+
+		$client = new Api_Client( is_array( $this->settings ) ? $this->settings : array() );
+		if ( empty( $client->tokenization_key() ) ) {
+			return false;
+		}
+
+		// This release's native Blocks path supports card payments only.
+		return 'yes' === $this->get_setting( 'enable_cards', 'yes' );
 	}
 
 	/**
@@ -94,12 +114,83 @@ class Blocks_Support extends AbstractPaymentMethodType {
 			'version'      => CARDZ3N_GW_VERSION,
 		);
 
+		$pk = ( new Api_Client( is_array( $this->settings ) ? $this->settings : array() ) )->tokenization_key();
+
+		/*
+		 * Register the SAME shared bundle (assets/js/checkout.js) the
+		 * classic checkout uses for tab switching and Collect.js
+		 * hosted-field configuration (window.cardz3nGwMount / Unmount /
+		 * StartTokenization — see the "Blocks checkout bridge" section at
+		 * the bottom of that file), under the SAME handle
+		 * ('cardz3n-checkout') Gateway::enqueue_checkout_assets() uses --
+		 * this avoids loading the identical file twice under two handles.
+		 * wp_register_script() on an already-registered handle is a
+		 * harmless no-op either way.
+		 *
+		 * Blocks mode is deliberately NOT signalled by a flag on CARDZ3N_GW.
+		 * Both this method and Gateway::enqueue_checkout_
+		 * assets() call wp_localize_script() on this SAME handle, and
+		 * WordPress core does NOT merge two localize() calls for the same
+		 * handle -- it concatenates two separate `var CARDZ3N_GW = {...};`
+		 * statements, and whichever prints SECOND wins outright via plain
+		 * JS reassignment, silently discarding the other. Which one runs
+		 * second depends on WooCommerce Blocks' internal hook timing,
+		 * which isn't guaranteed across WooCommerce versions or themes --
+		 * so a flag riding on CARDZ3N_GW was fundamentally a coin flip,
+		 * and on this store's block/FSE theme it consistently lost.
+		 *
+		 * assets/js/checkout.js now instead checks
+		 * wc.wcSettings.getSetting('cardz3n_gateway_data') directly (see
+		 * isBlocksMode() there) -- WooCommerce Blocks' OWN namespaced
+		 * AssetDataRegistry channel, populated ONLY by this method's
+		 * get_payment_method_data() below, which classic checkout has no
+		 * way to touch or race against.
+		 */
+		$shared_handle = 'cardz3n-checkout';
+		wp_register_script(
+			$shared_handle,
+			CARDZ3N_GW_URL . 'assets/js/checkout.js',
+			array( 'jquery', 'cardz3n-collectjs' ),
+			CARDZ3N_GW_VERSION,
+			true
+		);
+		wp_localize_script(
+			$shared_handle,
+			'CARDZ3N_GW',
+			array(
+				'version'         => CARDZ3N_GW_VERSION,
+				'gatewayId'       => $this->name,
+				'tokenizationKey' => $pk,
+				'enableCards'     => 'yes' === $this->get_setting( 'enable_cards', 'yes' ),
+				'enableAch'       => false, // Not yet supported in the Blocks path.
+				'enableApplePay'  => false, // Not yet supported in the Blocks path.
+				'enableGooglePay' => false, // Not yet supported in the Blocks path.
+				'enableSaved'     => false, // Not yet supported in the Blocks path.
+				'allowedBrands'   => (array) $this->get_setting( 'allowed_card_brands', array() ),
+				'country'         => ( function_exists( 'WC' ) && WC()->customer && WC()->customer->get_billing_country() ) ? WC()->customer->get_billing_country() : 'US',
+				'currency'        => function_exists( 'get_woocommerce_currency' ) ? get_woocommerce_currency() : 'USD',
+				'i18n'            => array(
+					'cardTab'       => __( 'Card', 'cardz3n-gateway' ),
+					'achTab'        => __( 'Bank (ACH)', 'cardz3n-gateway' ),
+					'cardNumber'    => __( 'Card number', 'cardz3n-gateway' ),
+					'expiry'        => __( 'MM / YY', 'cardz3n-gateway' ),
+					'cvv'           => __( 'CVV', 'cardz3n-gateway' ),
+					'accountName'   => __( 'Name on account', 'cardz3n-gateway' ),
+					'routing'       => __( 'Routing number', 'cardz3n-gateway' ),
+					'account'       => __( 'Account number', 'cardz3n-gateway' ),
+					'invalidFields' => __( 'Please check your payment details and try again.', 'cardz3n-gateway' ),
+					'timeout'       => __( 'Tokenization timed out. Please try again.', 'cardz3n-gateway' ),
+					'initError'     => __( 'Unable to initialize secure payment form. Please refresh the page and try again.', 'cardz3n-gateway' ),
+				),
+			)
+		);
+
 		$handle = 'cardz3n-blocks-checkout';
 
 		wp_register_script(
 			$handle,
 			CARDZ3N_GW_URL . 'assets/js/blocks/checkout.js',
-			$asset['dependencies'],
+			array_merge( $asset['dependencies'], array( $shared_handle ) ),
 			$asset['version'],
 			true
 		);
@@ -119,9 +210,6 @@ class Blocks_Support extends AbstractPaymentMethodType {
 			null, // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion -- Vendor script, versioned by the gateway host.
 			true
 		);
-
-		$gateway = $this->get_gateway();
-		$pk      = $gateway ? ( new Api_Client( $gateway->settings ) )->tokenization_key() : '';
 
 		if ( ! empty( $pk ) ) {
 			add_filter(
@@ -157,7 +245,7 @@ class Blocks_Support extends AbstractPaymentMethodType {
 			wp_set_script_translations( $handle, 'cardz3n-gateway' );
 		}
 
-		return array( 'cardz3n-collectjs', $handle );
+		return array( 'cardz3n-collectjs', $shared_handle, $handle );
 	}
 
 	/**
@@ -198,10 +286,12 @@ class Blocks_Support extends AbstractPaymentMethodType {
 			'icons'           => $this->get_icon_urls(),
 			'tokenizationKey' => $client->tokenization_key(),
 			'enableCards'     => 'yes' === $opt( 'enable_cards', 'yes' ),
-			'enableAch'       => 'yes' === $opt( 'enable_ach', 'no' ),
-			'enableApplePay'  => 'yes' === $opt( 'enable_apple_pay', 'no' ),
-			'enableGooglePay' => 'yes' === $opt( 'enable_google_pay', 'no' ),
-			'enableSaved'     => 'yes' === $opt( 'enable_saved_methods', 'no' ),
+			// ACH, Apple Pay, Google Pay and saved methods are not yet part of the
+			// native Blocks path; they stay off here even when enabled in settings.
+			'enableAch'       => false,
+			'enableApplePay'  => false,
+			'enableGooglePay' => false,
+			'enableSaved'     => false,
 			'allowedBrands'   => (array) $opt( 'allowed_card_brands', array() ),
 			'country'         => ( function_exists( 'WC' ) && WC()->customer && WC()->customer->get_billing_country() ) ? WC()->customer->get_billing_country() : 'US',
 			'currency'        => function_exists( 'get_woocommerce_currency' ) ? get_woocommerce_currency() : 'USD',
@@ -233,36 +323,16 @@ class Blocks_Support extends AbstractPaymentMethodType {
 	 * @return string[]
 	 */
 	public function get_supported_features() {
-		$gateway = $this->get_gateway();
-		if ( ! $gateway ) {
-			// Sensible defaults when Woo Blocks asks for this before the gateway registry is populated.
-			return array( 'products', 'refunds' );
-		}
-
-		// Default feature set guaranteed by this gateway.
-		$features = array( 'products', 'refunds' );
-
-		// Optional features that depend on settings / companion plugins.
-		$supports_map = array(
-			'tokenization'                       => 'tokenization',
-			'subscriptions'                      => 'subscriptions',
-			'subscription_cancellation'          => 'subscriptions',
-			'subscription_suspension'            => 'subscriptions',
-			'subscription_reactivation'          => 'subscriptions',
-			'subscription_amount_changes'        => 'subscriptions',
-			'subscription_date_changes'          => 'subscriptions',
-			'subscription_payment_method_change' => 'subscriptions',
-			'multiple_subscriptions'             => 'subscriptions',
-			'pre-orders'                         => 'pre-orders',
-		);
-
-		foreach ( $supports_map as $wc_feature => $block_feature ) {
-			if ( $gateway->supports( $wc_feature ) && ! in_array( $block_feature, $features, true ) ) {
-				$features[] = $block_feature;
-			}
-		}
-
-		return $features;
+		/*
+		 * Deliberately NOT advertising 'subscriptions', 'pre-orders' or
+		 * 'tokenization' here yet: those need the buyer's card saved for later
+		 * charges, and saving a card is not implemented in the native Blocks
+		 * path in this release. Advertising them would let a subscription or
+		 * pre-order be bought in the block checkout without a vault token being
+		 * stored, so the renewal or later charge would fail. Carts that need
+		 * those features simply do not offer this method in the block checkout.
+		 */
+		return array( 'products', 'refunds' );
 	}
 
 	/**
