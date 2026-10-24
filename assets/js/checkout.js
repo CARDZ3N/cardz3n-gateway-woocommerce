@@ -122,6 +122,24 @@
 		return activePane === 'ach' ? 'ach' : 'card';
 	}
 
+	/*
+	 * Source type to send with a freshly minted token. Collect.js reports tokenType
+	 * 'inline' for BOTH the card fields and the bank (ACH) fields, so it cannot tell
+	 * them apart and the server then treated bank payments as card payments. The
+	 * wallets report their own type, which is kept. Otherwise use the pane the buyer
+	 * paid from (the Bank tab), or a response that carries a bank `check` object.
+	 */
+	function sourceForToken(response) {
+		var type = String((response && response.tokenType) || '').toLowerCase();
+		if (type.indexOf('apple') !== -1 || type.indexOf('google') !== -1 || type === 'check' || type === 'ach') {
+			return response.tokenType;
+		}
+		if ((response && response.check) || activePane === 'ach') {
+			return 'ach';
+		}
+		return 'card';
+	}
+
 	function setHidden(name, value) {
 		var $field = $ui().find('input[name="' + name + '"]');
 		if ($field.length) {
@@ -508,12 +526,12 @@
 		 * diagnostics without exposing the full value.
 		 */
 		if (window.console && console.debug) {
-			console.debug('[CARDZ3N] Collect.js minted token', (response.token || '').substring(0, 8) + '…', 'type=' + (response.tokenType || activeSource()));
+			console.debug('[CARDZ3N] Collect.js minted token', (response.token || '').substring(0, 8) + '…', 'type=' + (sourceForToken(response)));
 		}
 
 		setHidden('cardz3n_payment_token', response.token);
-		setHidden('cardz3n_token_type', response.tokenType || activeSource());
-		setHidden('cardz3n_payment_source', response.tokenType || activeSource());
+		setHidden('cardz3n_token_type', sourceForToken(response));
+		setHidden('cardz3n_payment_source', sourceForToken(response));
 		var cardBrand = (response.card && response.card.type) ? response.card.type : '';
 		setHidden('cardz3n_card_brand', cardBrand);
 
@@ -543,8 +561,8 @@
 			$form.append('<input type="hidden" class="cardz3n-mirror" name="' + name + '" value="' + $('<div>').text(val == null ? '' : val).html() + '" />');
 		};
 		mirror('cardz3n_payment_token', response.token);
-		mirror('cardz3n_token_type', response.tokenType || activeSource());
-		mirror('cardz3n_payment_source', response.tokenType || activeSource());
+		mirror('cardz3n_token_type', sourceForToken(response));
+		mirror('cardz3n_payment_source', sourceForToken(response));
 		mirror('cardz3n_card_brand', cardBrand);
 
 		// Trigger the real submission; WC's own handler will send to the server.
