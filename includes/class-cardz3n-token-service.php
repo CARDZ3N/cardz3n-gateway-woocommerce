@@ -102,13 +102,12 @@ class Token_Service {
 		$result = $client->delete_vault( $vault_id );
 
 		if ( $result['success'] ) {
-			Logger::info( 'Deleted remote vault', array( 'vault_id' => $vault_id ) );
+			Logger::info( 'Deleted remote vault' );
 		} else {
 			Logger::warning(
 				'Could not delete remote vault',
 				array(
-					'vault_id' => $vault_id,
-					'text'     => $result['text'],
+					'text' => $result['text'],
 				)
 			);
 		}

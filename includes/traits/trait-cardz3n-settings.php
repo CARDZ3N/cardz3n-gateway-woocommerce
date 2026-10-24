@@ -85,7 +85,7 @@ trait Settings_Trait {
 			'debug_mode'                => array(
 				'title'   => __( 'Debug Mode', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
-				'label'   => __( 'Log transaction diagnostics (no sensitive data) to WooCommerce → Status → Logs.', 'cardz3n-gateway' ),
+				'label'   => __( 'Log a short, non-sensitive summary of each gateway request (type, amount, currency, order ID, result) to WooCommerce → Status → Logs. Payment tokens, customer details and keys are never logged.', 'cardz3n-gateway' ),
 				'default' => 'no',
 			),
 			'enable_experimental_blocks_checkout' => array(

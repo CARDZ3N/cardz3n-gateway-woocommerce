@@ -892,19 +892,13 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			}
 
 			/*
-			 * 1.0.17 — log the first 8 chars of the Collect.js token plus the
-			 * first 4 chars of each key so support can verify at a glance
-			 * whether the Security Key and Tokenization Key belong to the
-			 * same merchant account. The full token and keys are never
-			 * logged; Logger::redact() scrubs them from transaction logs too.
+			 * Log only the token length and which key tier was used. No part of the
+			 * token or of either key is logged; Logger::redact() scrubs them too.
 			 */
 			Logger::info(
 				'Submitting Collect.js token to transact.php',
 				array(
-					'token_prefix'      => substr( (string) $collect_token, 0, 8 ) . '...',
 					'token_len'         => strlen( (string) $collect_token ),
-					'sec_key_prefix'    => substr( $client->security_key(), 0, 4 ) . '...',
-					'tok_key_prefix'    => substr( $client->tokenization_key(), 0, 4 ) . '...',
 					'credentials_tier'  => method_exists( $client, 'credentials_tier' ) ? $client->credentials_tier() : 'unknown',
 					'test_mode'         => $client->is_sandbox() ? 'yes' : 'no',
 					'normalized_source' => $normalized_source,
@@ -945,8 +939,6 @@ class Gateway extends \WC_Payment_Gateway_CC {
 					'Gateway rejected Collect.js token — check Security Key / Tokenization Key pair',
 					array(
 						'gateway_text'     => $response['text'],
-						'sec_key_prefix'   => substr( $client->security_key(), 0, 4 ) . '...',
-						'tok_key_prefix'   => substr( $client->tokenization_key(), 0, 4 ) . '...',
 						'credentials_tier' => method_exists( $client, 'credentials_tier' ) ? $client->credentials_tier() : 'unknown',
 						'test_mode'        => $client->is_sandbox() ? 'yes' : 'no',
 					)
