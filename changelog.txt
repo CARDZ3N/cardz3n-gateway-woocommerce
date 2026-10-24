@@ -1,0 +1,120 @@
+*** CARDZ3N for WooCommerce Changelog ***
+
+2026-10-22 - version 1.0.43
+* Add - Advisory PHP security patch-level check (PHP2Shell, CVE-2026-109618 / CVE-2026-109619): a Site Health test and a notice on the gateway settings screen when the server's PHP is older than the first fixed release. It never blocks checkout.
+* Dev - Code checks now run on PHP 7.4 through 8.5.
+
+2026-09-04 - version 1.0.41
+* Update - Declared "WC tested up to" raised from 9.5 to 11.1 (current WooCommerce major). No functional change.
+
+2026-09-04 - version 1.0.40
+* Fix - Two PHP 8.4 deprecation warnings (implicitly nullable `$settings` parameters in the API client and the Level 3 mapper).
+
+2026-09-04 - version 1.0.39
+* Fix - Level 3 merchant postal-origin field name: `ship_from_postal` renamed to `ship_from_postal_code`.
+
+2026-09-04 - version 1.0.38
+* Tweak - Neutral (non-branded) checkout title changed from "Credit Card" to "Check Out".
+
+2026-09-04 - version 1.0.37
+* Tweak - Checkout title defaults to a neutral title instead of "Powered by CARDZ3N"; a new, unchecked-by-default setting lets merchants opt in to CARDZ3N branding at checkout.
+* Fix - POST field names are sanitized before they reach diagnostic logs.
+
+2026-09-03 - version 1.0.36
+* Fix - Shortened the 1.0.18 Upgrade Notice entry, which Plugin Check flagged as too long.
+
+2026-09-03 - version 1.0.35
+* Fix - All WordPress.org Plugin Check findings from the 1.0.34 submission: missing direct-file-access guard, unescaped HTML in translatable strings, an externally-hosted script without an explicit version, and an oversized changelog entry.
+
+2026-09-03 - version 1.0.34
+* Tweak - Saved Payment Methods, Subscriptions and Pre-Orders now default off, with CARDZ3N account setup notes.
+* Fix - The same runtime default bug fixed in 1.0.33 for these three features; Apple Pay / Google Pay account wording.
+
+2026-09-03 - version 1.0.32
+* Tweak - The payment method shows the real card brand instead of the generic "Credit Card" label, on classic and block checkout, including saved cards.
+
+2026-09-02 - version 1.0.31
+* Tweak - Order screens, emails and admin show the actual payment method used; real logo option; Level 2/3 renamed Level 3/CEDP with new fields.
+* Fix - Credential fields no longer cross-filled by browser autofill.
+
+2026-08-30 - version 1.0.29
+* Fix - Native Apple Pay / Google Pay buttons restored (malformed Collect.js configuration).
+* Dev - Coding-standards cleanup.
+
+2026-04-23 - version 1.0.28
+* Fix - Card sales rejected with "Custom descriptors not allowed"; added an opt-in Dynamic Descriptor setting (off by default).
+
+2026-04-21 - version 1.0.27
+* Fix - Live-mode card failures caused by inverted public-key-scope guidance; labels now point to the Tokenization-scope key.
+
+2026-04-20 - version 1.0.21
+* Fix - ACH fields not accepting input because of overlapping iframes.
+* Tweak - Level 2/3 and PO fields default off.
+
+2026-04-20 - version 1.0.20
+* Fix - Card and ACH fields rejecting input because of an invalid wallet configuration.
+* Add - "Save this card / bank account" checkboxes and a version-mismatch banner.
+
+2026-04-20 - version 1.0.19
+* Fix - Saved-tab and ACH layout bugs.
+* Tweak - Separate Test and Live key pairs restored; Dynamic Descriptor blank by default.
+
+2026-04-19 - version 1.0.18
+* Tweak - Enable/Disable defaults to on; Checkout Title locked; 3D Secure renamed and off by default.
+* Add - Recurring Payments badge and refreshed logo.
+
+2026-04-19 - version 1.0.17
+* Fix - ACH input rejection, card-tab overflow, a confusing saved-token radio button and failed-token retries; clearer errors and logging.
+
+2026-04-19 - version 1.0.16
+* Fix - Critical hotfix for a PHP parse error in 1.0.15 that blocked activation.
+
+2026-04-19 - version 1.0.15
+* Fix - "Unable to initialize secure payment form".
+* Tweak - Four key fields merged into one Security Key and one Tokenization Key.
+* Add - Wallet icons.
+
+2026-04-19 - version 1.0.14
+* Fix - "No payment methods available" on the block checkout, by using WooCommerce's classic-shortcode compatibility layer.
+
+2026-04-19 - version 1.0.13
+* Fix - The block checkout "no payment methods available" error that 1.0.12 did not fix (availability check ran too early).
+
+2026-04-19 - version 1.0.12
+* Fix - Attempted fix for the block checkout "no payment methods available" error through a different registration route (superseded by 1.0.13).
+
+2026-04-19 - version 1.0.11
+* Add - Admin diagnostic explaining why the gateway is or is not appearing at checkout.
+
+2026-04-19 - version 1.0.10
+* Fix - Silenced a harmless wallet console error on browsers without wallet support.
+
+2026-04-19 - version 1.0.9
+* Fix - "No payment methods are available"; tokenization key now set correctly; live-mode HTTPS check now works behind proxies.
+
+2026-04-19 - version 1.0.8
+* Fix - The admin "Test Credentials" AJAX action was never registered, causing HTTP 400.
+
+2026-04-19 - version 1.0.7
+* Fix - The "Test Credentials" button returning HTTP 400; clearer error messages.
+
+2026-04-19 - version 1.0.6
+* Fix - Every gateway URL switched to the CARDZ3N host, fixing HTTP 400 errors.
+
+2026-04-18 - version 1.0.5
+* Add - WooCommerce Cart & Checkout Blocks compatibility.
+
+2026-04-18 - version 1.0.4
+* Dev - Documentation and compliance fixes for WordPress.org: dropped an unused header, hardened uninstall.php queries.
+
+2026-04-18 - version 1.0.3
+* Dev - uninstall.php coding-standards cleanup for WordPress.org compliance.
+
+2026-04-18 - version 1.0.2
+* Add - Privacy and License sections in the readme; uninstall.php cleanup.
+
+2026-04-18 - version 1.0.1
+* Dev - Minor WordPress.org compliance fixes. No merchant-facing changes.
+
+2026-04-18 - version 1.0.0
+* Add - Initial release. Embedded checkout with card, ACH, Apple Pay, Google Pay, saved methods, subscriptions and pre-orders, refunds, Level 2/3 data, 3D Secure and HPOS support.
