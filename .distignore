@@ -21,3 +21,8 @@
 /SECURITY.md
 /composer.lock
 /phpcs.xml.dist
+# Developer and AI-agent notes: repo-only, never shipped.
+/CLAUDE.md
+/AGENTS.md
+/HANDOFF*.md
+/_work
