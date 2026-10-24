@@ -991,6 +991,25 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				}
 			}
 
+			/*
+			 * A genuine decline (code '2') shows the shopper one clear sentence
+			 * instead of the processor's bare word ("DECLINE"). The raw response
+			 * stays in the order note above and in the log here. Other codes
+			 * (for example '3', a bad token or setup problem) keep their own
+			 * actionable messages.
+			 */
+			if ( '2' === (string) $response['code'] ) {
+				Logger::info(
+					'Payment declined by the gateway',
+					array(
+						'order_id' => $order_id,
+						'code'     => $response['code'],
+						'text'     => $response['text'],
+					)
+				);
+				$user_msg = __( 'Your card was declined. Please check your details or use a different card.', 'cardz3n-gateway' );
+			}
+
 			wc_add_notice( $user_msg, 'error' );
 			return array(
 				'result'   => 'failure',

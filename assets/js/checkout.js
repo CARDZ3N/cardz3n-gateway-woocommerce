@@ -727,15 +727,34 @@
 				return;
 			}
 			clearError();
-			window.CARDZ3N_GW_BLOCKS_RESOLVE = resolve;
 			if (typeof window.CollectJS === 'undefined' || typeof window.CollectJS.startPaymentRequest !== 'function') {
-				window.CARDZ3N_GW_BLOCKS_RESOLVE = null;
 				resolve({ token: null, error: cfg.i18n && cfg.i18n.invalidFields });
 				return;
 			}
+			/*
+			 * Watchdog: Collect.js has its own 12 s timeout, but if it never calls
+			 * back at all the checkout would wait forever. Give up after 20 s with
+			 * the same "try again" message. `settled` makes sure the promise
+			 * resolves only once (the first of: token, Collect.js timeout, watchdog).
+			 */
+			var settled = false;
+			var watchdog = setTimeout(function () {
+				if (settled) { return; }
+				settled = true;
+				window.CARDZ3N_GW_BLOCKS_RESOLVE = null;
+				resolve({ token: null, error: cfg.i18n && cfg.i18n.timeout });
+			}, 20000);
+			window.CARDZ3N_GW_BLOCKS_RESOLVE = function (result) {
+				if (settled) { return; }
+				settled = true;
+				clearTimeout(watchdog);
+				resolve(result);
+			};
 			try {
 				window.CollectJS.startPaymentRequest();
 			} catch (err) {
+				clearTimeout(watchdog);
+				settled = true;
 				window.CARDZ3N_GW_BLOCKS_RESOLVE = null;
 				resolve({ token: null, error: cfg.i18n && cfg.i18n.invalidFields });
 			}

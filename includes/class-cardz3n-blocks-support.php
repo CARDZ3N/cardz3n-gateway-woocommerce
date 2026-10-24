@@ -154,6 +154,17 @@ class Blocks_Support extends AbstractPaymentMethodType {
 			CARDZ3N_GW_VERSION,
 			true
 		);
+
+		/*
+		 * The shared script reads wc.wcSettings (see isBlocksMode() in checkout.js),
+		 * so it must declare wc-settings as a dependency. Added to the registered
+		 * script itself because the classic checkout may have registered the same
+		 * handle first, in which case the wp_register_script() above is a no-op.
+		 */
+		$shared_script = wp_scripts()->query( $shared_handle, 'registered' );
+		if ( $shared_script && wp_script_is( 'wc-settings', 'registered' ) && ! in_array( 'wc-settings', $shared_script->deps, true ) ) {
+			$shared_script->deps[] = 'wc-settings';
+		}
 		wp_localize_script(
 			$shared_handle,
 			'CARDZ3N_GW',
