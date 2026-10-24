@@ -1,0 +1,34 @@
+{
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "landingPage": "/",
+  "login": true,
+  "steps": [
+    {
+      "step": "mkdir",
+      "path": "/wordpress/wp-content/mu-plugins"
+    },
+    {
+      "step": "installPlugin",
+      "pluginData": {
+        "resource": "wordpress.org/plugins",
+        "slug": "woocommerce"
+      },
+      "options": {
+        "activate": true
+      }
+    },
+    {
+      "step": "activatePlugin",
+      "pluginPath": "cardz3n-gateway/cardz3n-gateway-woocommerce.php"
+    },
+    {
+      "step": "runPHP",
+      "code": "<?php\nrequire_once '/wordpress/wp-load.php';\nupdate_option( 'woocommerce_coming_soon', 'no' );\nupdate_option( 'woocommerce_currency', 'USD' );\nupdate_option( 'woocommerce_default_country', 'US:CA' );\n// Placeholder values only: the e2e test never talks to the real gateway (Collect.js and the checkout request are stubbed).\nupdate_option( 'woocommerce_cardz3n_gateway_settings', array( 'enabled' => 'yes', 'test_mode' => 'yes', 'enable_cards' => 'yes', 'enable_ach' => 'no', 'enable_apple_pay' => 'no', 'enable_google_pay' => 'no', 'enable_saved_methods' => 'no', 'live_security_key' => 'LIVE-SEC', 'live_tokenization_key' => 'LIVE-TOK' ) );\n$p = new WC_Product_Simple(); $p->set_name( 'E2E Test Item' ); $p->set_regular_price( '1.00' ); $p->set_status( 'publish' ); $pid = $p->save();\nupdate_option( 'cardz3n_e2e_product_id', $pid );\nwp_insert_post( array( 'post_title' => 'Checkout Classic', 'post_name' => 'checkout-classic', 'post_status' => 'publish', 'post_type' => 'page', 'post_content' => '[woocommerce_checkout]' ) );\necho 'E2E_SETUP_OK ' . $pid;\n"
+    },
+    {
+      "step": "writeFile",
+      "path": "/wordpress/wp-content/mu-plugins/e2e-probe.php",
+      "data": "<?php\n// E2E probe (test only): resolves keys for several settings shapes and records what an outgoing request would carry.\n// Uses obviously fake placeholder values; nothing leaves the machine (HTTP is short-circuited).\nadd_action( 'init', function () {\n\tif ( empty( $_GET['cardz3n_e2e_probe'] ) ) { return; }\n\t$live = array( 'live_security_key' => 'LIVE-SEC', 'live_tokenization_key' => 'LIVE-TOK' );\n\t$cases = array(\n\t\t'test_mode_live_keys_only'   => array_merge( array( 'test_mode' => 'yes' ), $live ),\n\t\t'test_mode_unified_only'     => array( 'test_mode' => 'yes', 'security_key' => 'LIVE-SEC', 'tokenization_key' => 'LIVE-TOK' ),\n\t\t'test_mode_live_and_test'    => array_merge( array( 'test_mode' => 'yes', 'test_security_key' => 'TEST-SEC', 'test_tokenization_key' => 'TEST-TOK' ), $live ),\n\t\t'live_mode_live_keys'        => array_merge( array( 'test_mode' => 'no' ), $live ),\n\t);\n\t$bodies = array();\n\tadd_filter( 'pre_http_request', function ( $pre, $args ) use ( &$bodies ) {\n\t\t$bodies[] = isset( $args['body'] ) ? (string) $args['body'] : '';\n\t\treturn array( 'headers' => array(), 'body' => 'response=3&responsetext=stub', 'response' => array( 'code' => 200, 'message' => 'OK' ), 'cookies' => array(), 'filename' => null );\n\t}, 10, 2 );\n\t$out = array();\n\tforeach ( $cases as $name => $settings ) {\n\t\t$bodies = array();\n\t\t$client = new \\Cardz3n_Gateway\\Api_Client( $settings );\n\t\t$client->validate_credentials();\n\t\t$joined = implode( '&', $bodies );\n\t\t$out[ $name ] = array(\n\t\t\t'security'      => $client->security_key(),\n\t\t\t'tokenization'  => $client->tokenization_key(),\n\t\t\t'has'           => $client->has_credentials(),\n\t\t\t'requests'      => count( $bodies ),\n\t\t\t'sent_live_key' => false !== strpos( $joined, 'LIVE-SEC' ),\n\t\t);\n\t}\n\theader( 'Content-Type: application/json' );\n\techo wp_json_encode( $out );\n\texit;\n}, 20 );\n"
+    }
+  ]
+}

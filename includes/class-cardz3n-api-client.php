@@ -106,8 +106,8 @@ class Api_Client {
 	 * Tier order for the current mode:
 	 *   1. test_* / live_*                    (1.0.19+ four-field UI)
 	 *   2. sandbox_*                           (pre-1.0.15 legacy, test only)
-	 *   3. security_key / tokenization_key     (1.0.15-1.0.18 unified UI)
-	 *   4. Opposite-mode tier                  (last-resort mismatch surfacing)
+	 *   3. security_key / tokenization_key     (1.0.15-1.0.18 unified UI, live mode only)
+	 *   4. Opposite-mode tier                  (live mode only; Test Mode never uses live keys)
 	 * ------------------------------------------------------------------
 	 */
 
@@ -128,11 +128,15 @@ class Api_Client {
 	 */
 	private function resolve_key_pair() {
 		if ( $this->sandbox ) {
+			/*
+			 * Test Mode only ever uses test keys. It must never fall back to the live
+			 * keys, or to the legacy unified pair (which holds a store's live keys), or a
+			 * store with only live keys would send real charges while Test Mode is on.
+			 * With no test keys the pair resolves to empty and the gateway is unavailable.
+			 */
 			$tiers = array(
-				'test_pair'     => array( 'test_security_key', 'test_tokenization_key' ),
-				'sandbox_pair'  => array( 'sandbox_security_key', 'sandbox_tokenization_key' ),
-				'unified_pair'  => array( 'security_key', 'tokenization_key' ),
-				'live_fallback' => array( 'live_security_key', 'live_tokenization_key' ),
+				'test_pair'    => array( 'test_security_key', 'test_tokenization_key' ),
+				'sandbox_pair' => array( 'sandbox_security_key', 'sandbox_tokenization_key' ),
 			);
 		} else {
 			$tiers = array(
@@ -268,6 +272,11 @@ class Api_Client {
 	 */
 	public function post( array $payload ) {
 		$payload['security_key'] = $this->security_key();
+
+		// Never send a request without a key for the active mode (for example Test Mode with no test keys saved).
+		if ( '' === $payload['security_key'] ) {
+			return $this->error_result( __( 'No API keys are saved for the active mode.', 'cardz3n-gateway' ) );
+		}
 
 		// Defensive: never let a tokenization key leak into a server-side transact.php payload.
 		unset( $payload['tokenization_key'], $payload['public_key'] );

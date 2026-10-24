@@ -633,7 +633,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	 * surface it in an admin notice without duplicating gate logic.
 	 *
 	 * @return string One of: 'available', 'disabled', 'https_required',
-	 *                'no_credentials', 'parent_unavailable'.
+	 *                'no_credentials', 'no_test_credentials', 'parent_unavailable'.
 	 */
 	private function availability_reason() {
 		if ( 'yes' !== $this->get_option( 'enabled' ) ) {
@@ -658,7 +658,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 
 		$client = new Api_Client( $this->settings );
 		if ( ! $client->has_credentials() ) {
-			return 'no_credentials';
+			// Test Mode never falls back to live keys, so a missing test key blocks checkout.
+			return $client->is_sandbox() ? 'no_test_credentials' : 'no_credentials';
 		}
 
 		if ( ! parent::is_available() ) {
