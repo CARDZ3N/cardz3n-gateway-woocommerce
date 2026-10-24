@@ -121,7 +121,7 @@ trait Settings_Trait {
 				'type'        => 'password',
 				'default'     => '',
 				'custom_attributes' => array( 'autocomplete' => 'off' ),
-				'description' => __( 'Test-merchant Private Security Key with <em>Cart</em> scope. The shared NMI demo Security Key is published on the <a href="https://z3n.transactiongateway.com/merchants/resources/integration/integration_portal.php#testing_information" target="_blank">Testing Information page</a>.', 'cardz3n-gateway' ),
+				'description' => __( 'Test-merchant Private Security Key with <em>Cart</em> scope. The shared demo Security Key is published on the <a href="https://z3n.transactiongateway.com/merchants/resources/integration/integration_portal.php#testing_information" target="_blank">Testing Information page</a>.', 'cardz3n-gateway' ),
 			),
 			'test_tokenization_key'     => array(
 				'title'       => __( 'Test Public Key (Tokenization)', 'cardz3n-gateway' ),
@@ -151,7 +151,7 @@ trait Settings_Trait {
 				'title'   => __( 'ACH / eCheck', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
 				'label'   => __( 'Enable ACH bank-account payments.', 'cardz3n-gateway' ),
-				'description' => __( 'Requires a separate ACH account with CARDZ3N/NMI in addition to your card-processing account. Contact CARDZ3N to enable ACH before turning this on.', 'cardz3n-gateway' ),
+				'description' => __( 'Requires a separate ACH account with CARDZ3N in addition to your card-processing account. Contact CARDZ3N to enable ACH before turning this on.', 'cardz3n-gateway' ),
 				'default'    => 'no',
 			),
 			'enable_ach_reuse'          => array(
@@ -233,7 +233,7 @@ trait Settings_Trait {
 				'title'       => __( 'Send Dynamic Descriptor', 'cardz3n-gateway' ),
 				'type'        => 'checkbox',
 				'label'       => __( 'Send a dynamic billing descriptor with every card transaction', 'cardz3n-gateway' ),
-				'description' => __( '<strong>Leave this off unless your processor explicitly supports merchant-supplied descriptors.</strong> Most CARDZ3N / NMI processors reject transactions that include a <code>descriptor</code> field with <em>"Custom descriptors are not allowed for this processor"</em>. To use this feature, first log in to the CARDZ3N Partner Portal, open your merchant account\'s <strong>Advanced Merchant Features</strong>, and enable <strong>Allow merchant to pass Dynamic Billing Descriptors</strong>. Then return here and check this box.', 'cardz3n-gateway' ),
+				'description' => __( '<strong>Leave this off unless your processor explicitly supports merchant-supplied descriptors.</strong> Most CARDZ3N processors reject transactions that include a <code>descriptor</code> field with <em>"Custom descriptors are not allowed for this processor"</em>. To use this feature, first log in to the CARDZ3N Partner Portal, open your merchant account\'s <strong>Advanced Merchant Features</strong>, and enable <strong>Allow merchant to pass Dynamic Billing Descriptors</strong>. Then return here and check this box.', 'cardz3n-gateway' ),
 				'default'     => 'no',
 			),
 			'descriptor'                => array(
