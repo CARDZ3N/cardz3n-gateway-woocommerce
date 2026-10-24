@@ -54,6 +54,9 @@ jobs:
         run: |
           npm init -y
           npm install --no-save eslint@^8 stylelint@^16 stylelint-config-standard@^36
+      - name: JavaScript syntax check
+        run: |
+          for f in $(find assets/js -name '*.js'); do node --check "$f"; done
       - name: ESLint
         run: npx eslint "assets/js/**/*.js" --no-eslintrc --env browser,jquery --parser-options=ecmaVersion:2019 || true
       - name: Stylelint
