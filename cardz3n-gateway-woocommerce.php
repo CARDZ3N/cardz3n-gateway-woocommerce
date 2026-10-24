@@ -116,24 +116,31 @@ add_action(
 add_action(
 	'woocommerce_blocks_loaded',
 	function () {
-		$cardz3n_gw_settings = get_option( cardz3n_gw_settings_option_key(), array() );
-		if ( ! isset( $cardz3n_gw_settings['enable_experimental_blocks_checkout'] ) || 'yes' !== $cardz3n_gw_settings['enable_experimental_blocks_checkout'] ) {
-			return;
-		}
-
-		if ( ! class_exists( '\\Automattic\\WooCommerce\\Blocks\\Payments\\Integrations\\AbstractPaymentMethodType' ) ) {
-			if ( class_exists( 'Cardz3n_Gateway\\Logger' ) ) {
-				Cardz3n_Gateway\Logger::info( 'Blocks checkout enabled in settings, but AbstractPaymentMethodType is unavailable — WooCommerce Blocks may not be loaded on this install.' );
-			}
-			return;
-		}
-
-		require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-blocks-support.php';
-
+		/*
+		 * Everything that needs the settings key (which builds the translated
+		 * brand profile) waits for the registration hook below. That hook fires
+		 * on or after init; reading the key here, on woocommerce_blocks_loaded,
+		 * translated strings before init and logged a "translation loaded too
+		 * early" notice on every page load, even with the setting off.
+		 */
 		add_action(
 			'woocommerce_blocks_payment_method_type_registration',
 			function ( $payment_method_registry ) {
-				if ( class_exists( 'Cardz3n_Gateway\\Logger' ) ) {
+				$cardz3n_gw_settings = get_option( cardz3n_gw_settings_option_key(), array() );
+				if ( ! isset( $cardz3n_gw_settings['enable_experimental_blocks_checkout'] ) || 'yes' !== $cardz3n_gw_settings['enable_experimental_blocks_checkout'] ) {
+					return;
+				}
+
+				if ( ! class_exists( '\Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType' ) ) {
+					if ( class_exists( 'Cardz3n_Gateway\Logger' ) ) {
+						Cardz3n_Gateway\Logger::info( 'Blocks checkout enabled in settings, but AbstractPaymentMethodType is unavailable — WooCommerce Blocks may not be loaded on this install.' );
+					}
+					return;
+				}
+
+				require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-blocks-support.php';
+
+				if ( class_exists( 'Cardz3n_Gateway\Logger' ) ) {
 					Cardz3n_Gateway\Logger::info( 'Registering native Blocks checkout payment method.' );
 				}
 				$payment_method_registry->register( new Cardz3n_Gateway\Blocks_Support() );
