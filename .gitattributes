@@ -1,0 +1,10 @@
+# Keep line endings consistent: LF in the repository, whatever the contributor's OS or core.autocrlf setting.
+* text=auto eol=lf
+
+# Binary files: never touch.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.zip binary
