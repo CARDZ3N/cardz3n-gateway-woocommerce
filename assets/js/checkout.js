@@ -127,14 +127,15 @@
 	 * 'inline' for BOTH the card fields and the bank (ACH) fields, so it cannot tell
 	 * them apart and the server then treated bank payments as card payments. The
 	 * wallets report their own type, which is kept. Otherwise use the pane the buyer
-	 * paid from (the Bank tab), or a response that carries a bank `check` object.
+	 * paid from. Do not look at a `check` object in the response: Collect.js includes
+	 * an empty one for card payments too.
 	 */
 	function sourceForToken(response) {
 		var type = String((response && response.tokenType) || '').toLowerCase();
 		if (type.indexOf('apple') !== -1 || type.indexOf('google') !== -1 || type === 'check' || type === 'ach') {
 			return response.tokenType;
 		}
-		if ((response && response.check) || activePane === 'ach') {
+		if (activePane === 'ach') {
 			return 'ach';
 		}
 		return 'card';

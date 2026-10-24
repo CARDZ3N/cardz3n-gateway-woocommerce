@@ -43,7 +43,7 @@ const STUB_COLLECT_JS = `
   var cfg = null;
   window.CollectJS = {
     configure: function (c) { cfg = c; if (typeof c.fieldsAvailableCallback === 'function') { setTimeout(c.fieldsAvailableCallback, 50); } },
-    startPaymentRequest: function () { setTimeout(function () { cfg.callback({ token: 'stub-token-123', tokenType: 'inline' }); }, 200); },
+    startPaymentRequest: function () { setTimeout(function () { cfg.callback({ token: 'stub-token-123', tokenType: 'inline', check: { name: '', account: '', hash: '', aba: '' } }); }, 200); },
     clearInputs: function () {}
   };
 })();`;
