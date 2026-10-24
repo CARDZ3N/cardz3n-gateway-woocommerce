@@ -278,6 +278,20 @@
 		return null;
 	}
 
+	/*
+	 * Can this browser use Apple Pay? ApplePaySession.canMakePayments() throws (for
+	 * example InvalidAccessError on a page that is not served over HTTPS), and a throw
+	 * here would stop the whole Collect.js setup, so the card and bank fields would
+	 * never mount. Treat any throw as 'not available'.
+	 */
+	function applePayAvailable() {
+		try {
+			return !!(window.ApplePaySession && window.ApplePaySession.canMakePayments && window.ApplePaySession.canMakePayments());
+		} catch (err) {
+			return false;
+		}
+	}
+
 	function configureCollect() {
 		if (configured || typeof window.CollectJS === 'undefined') {
 			return;
@@ -316,7 +330,7 @@
 		// passed to Collect.js at all.
 		// Wallets are not part of the native Blocks path yet (no button container
 		// is rendered there), so never pass them to Collect.js in Blocks mode.
-		if (!isBlocksMode() && cfg.enableApplePay && window.ApplePaySession && window.ApplePaySession.canMakePayments && window.ApplePaySession.canMakePayments()) {
+		if (!isBlocksMode() && cfg.enableApplePay && applePayAvailable()) {
 			fields.applePay = { selector: '.cardz3n-applepay-button', type: 'buy' };
 		}
 		if (!isBlocksMode() && cfg.enableGooglePay && window.google && window.google.payments && window.google.payments.api) {
