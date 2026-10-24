@@ -186,7 +186,7 @@ trait Settings_Trait {
 				'title'   => __( 'Saved Payment Methods', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
 				'label'   => __( 'Let logged-in buyers save cards/ACH for reuse.', 'cardz3n-gateway' ),
-				'description' => __( 'Checking this box only enables the option in checkout. Saved payment methods must also be activated in your CARDZ3N account (Customer Vault) for this to actually work.', 'cardz3n-gateway' ),
+				'description' => __( 'Checking this box only enables the option in checkout. Saved payment methods must also be activated in your CARDZ3N account for this to actually work.', 'cardz3n-gateway' ),
 				'default' => 'no',
 			),
 			'enable_subscriptions'      => array(

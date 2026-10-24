@@ -12,9 +12,9 @@ Embedded WooCommerce checkout via the CARDZ3N payment gateway. Card, ACH, Apple 
 
 == Description ==
 
-CARDZ3N for WooCommerce turns your WooCommerce store into a full-featured embedded checkout powered by the CARDZ3N payment gateway.
+CARDZ3N for WooCommerce turns your WooCommerce store into a full-featured embedded checkout using the CARDZ3N payment gateway.
 
-Buyers stay on your site — no visible redirect — and can choose between **credit/debit cards, ACH bank payments, Apple Pay, Google Pay, or a saved payment method** inside a single gateway UI. All sensitive payment data is tokenized in the browser by CARDZ3N's Collect.js library, so card numbers and bank account numbers never touch your WordPress server.
+Buyers stay on your site — no visible redirect — and can choose between **credit/debit cards, ACH bank payments, Apple Pay, Google Pay, or a saved payment method** inside a single gateway UI. All sensitive payment data is tokenized in the browser by Collect.js, loaded from the CARDZ3N gateway host, so card numbers and bank account numbers never touch your WordPress server.
 
 B2B merchants benefit from **automatic Level 2 and Level 3 commercial-card data** — freight, tax, line-item, UPC, commodity code, PO number, and destination fields are populated from WooCommerce order data on every transaction.
 
@@ -22,7 +22,7 @@ B2B merchants benefit from **automatic Level 2 and Level 3 commercial-card data*
 
 * Embedded, on-site checkout — no redirect
 * Credit / debit card, ACH / eCheck, and optional Apple Pay and Google Pay — all in one gateway UI
-* Saved payment methods (card + ACH) with CARDZ3N Customer Vault
+* Saved payment methods (card + ACH), stored in a secure vault
 * WooCommerce Subscriptions compatibility (if installed)
 * WooCommerce Pre-Orders compatibility (if installed)
 * Authorize-only + manual capture, void, full and partial refunds
@@ -41,18 +41,18 @@ This plugin processes payment data on behalf of the store owner. Here is exactly
 **Stored on your WordPress site (per order):**
 
 * Card last 4 digits, brand, and expiry month/year — used to display saved methods and receipts.
-* NMI Customer Vault ID — an opaque reference (not the actual card or account number) used to charge saved methods.
+* Vault ID — an opaque reference (not the actual card or account number) used to charge saved methods.
 * NMI transaction ID, auth code, and the AVS (address check) response result — used for refunds, reconciliation, and support. The CVV response result is not stored.
 * For ACH: bank name and last 4 digits of the account number (never the routing number or full account number).
 
 **Never stored on your WordPress site:**
 
-* Full Primary Account Number (PAN), full ACH account number, routing number, or CVV. These are tokenized by CARDZ3N Collect.js in the buyer's browser before the form is submitted. Your server never receives them.
+* Full Primary Account Number (PAN), full ACH account number, routing number, or CVV. These are tokenized by Collect.js (loaded from the CARDZ3N gateway host) in the buyer's browser before the form is submitted. Your server never receives them.
 * Your Security Key is stored only in WordPress options and is never sent to the browser.
 
 **What is sent to external services:**
 
-* To CARDZ3N Collect.js (browser-side): your public Tokenization Key, order total, buyer billing info as entered at checkout. Collect.js returns a one-time payment token.
+* To Collect.js, loaded from the CARDZ3N gateway host (browser-side): your public Tokenization Key, order total, buyer billing info as entered at checkout. Collect.js returns a one-time payment token.
 * The shopper's IP address and browser details are visible to the CARDZ3N gateway host as soon as Collect.js loads on a checkout, Add Payment Method or My Account page, before any payment is submitted.
 * To the gateway Transaction API (server-side): your Security Key, the payment token or vault ID, order amount, buyer billing/shipping address, line items, and Level 2/3 commercial-card fields when enabled.
 
@@ -64,7 +64,7 @@ Data retention on your WordPress site follows your WooCommerce order retention s
 
 This plugin connects to the CARDZ3N payment gateway, a white-labeled instance of the NMI payment platform, to take payments. Nothing is sent to it until the store owner enables the gateway and enters a Tokenization Key (used in the shopper's browser) and a Security Key (used by your server) in the plugin settings. After that, the services below are used as described.
 
-1. **CARDZ3N Collect.js** (https://z3n.transactiongateway.com/token/Collect.js) — a JavaScript library loaded in the shopper's browser from the CARDZ3N gateway host whenever a checkout, Add Payment Method or My Account page is opened while the gateway is enabled. Loading it means the shopper's browser contacts the gateway host, which receives the shopper's IP address and browser details. When the shopper types card, bank account or wallet details into the secure fields, they go directly to the gateway host (never to your WordPress server) and come back as a one-time `payment_token`; the store's public Tokenization Key, the order total and the billing details entered at checkout are sent with that request. Purpose: to tokenize payment details securely.
+1. **Collect.js, loaded from the CARDZ3N gateway host** (https://z3n.transactiongateway.com/token/Collect.js) — a JavaScript library loaded in the shopper's browser from the CARDZ3N gateway host whenever a checkout, Add Payment Method or My Account page is opened while the gateway is enabled. Loading it means the shopper's browser contacts the gateway host, which receives the shopper's IP address and browser details. When the shopper types card, bank account or wallet details into the secure fields, they go directly to the gateway host (never to your WordPress server) and come back as a one-time `payment_token`; the store's public Tokenization Key, the order total and the billing details entered at checkout are sent with that request. Purpose: to tokenize payment details securely.
 * NMI merchant terms: https://www.nmi.com/policy/terms-conditions-for-nmis-services-merchant-terms-and-conditions/
 * NMI privacy policy: https://www.nmi.com/policy/privacy/
 * CARDZ3N terms: https://cardz3n.com/merchant-services-terms-conditions
@@ -99,7 +99,7 @@ No "powered by" text or promotional link is shown by default. An optional "Power
 
 = Does this plugin store credit card numbers on my site? =
 
-No. Card, ACH, and wallet data are tokenized by CARDZ3N's Collect.js in the buyer's browser. Your WordPress server only receives a short-lived `payment_token` which is exchanged server-side for a charge. Your database stores only non-sensitive metadata (last 4 digits, expiry, brand) and the CARDZ3N Customer Vault ID for tokenized reuse.
+No. Card, ACH, and wallet data are tokenized by Collect.js, loaded from the CARDZ3N gateway host, in the buyer's browser. Your WordPress server only receives a short-lived `payment_token` which is exchanged server-side for a charge. Your database stores only non-sensitive metadata (last 4 digits, expiry, brand) and a vault ID for tokenized reuse.
 
 = Do I need a separate plugin for Apple Pay or Google Pay? =
 
@@ -107,7 +107,7 @@ No. Apple Pay and Google Pay are optional features of this plugin and appear in 
 
 = Does it support WooCommerce Subscriptions? =
 
-Yes, when the WooCommerce Subscriptions extension is installed. Renewals are charged server-side against the customer vault ID stored on the parent order.
+Yes, when the WooCommerce Subscriptions extension is installed. Renewals are charged server-side against the saved payment method (vault ID) stored on the parent order.
 
 = What is Level 3 data and why does it matter? =
 
@@ -121,7 +121,7 @@ Yes. HPOS compatibility is declared on plugin boot.
 
 CARDZ3N for WooCommerce is licensed under the GNU General Public License v2.0 or later (GPL-2.0-or-later). The full license text ships with the plugin as `LICENSE` and is also available at https://www.gnu.org/licenses/gpl-2.0.html.
 
-All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-party works authored by CARDZ3N and are released under the same GPLv2-or-later license. No third-party code or media libraries are redistributed inside the plugin package. The CARDZ3N Collect.js tokenization script is loaded at runtime from the CARDZ3N gateway host (see External services) and is not included in this distribution.
+All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-party works authored by CARDZ3N and are released under the same GPLv2-or-later license. No third-party code or media libraries are redistributed inside the plugin package. The Collect.js tokenization script is loaded at runtime from the CARDZ3N gateway host (see External services) and is not included in this distribution.
 
 == Screenshots ==
 
