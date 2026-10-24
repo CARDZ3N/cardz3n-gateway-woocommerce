@@ -141,6 +141,16 @@ class Admin {
 			return;
 		}
 
+		// Test Mode with no test keys blocks checkout; say so right away, not only after a checkout visit.
+		$cardz3n_gw_client = new Api_Client();
+		if ( $cardz3n_gw_client->is_sandbox() && ! $cardz3n_gw_client->has_credentials() ) {
+			printf(
+				'<div class="notice notice-error"><p><strong>CARDZ3N for WooCommerce</strong> — %s</p></div>',
+				esc_html__( 'Test Mode is on but no Test keys are saved, so checkout is blocked. Test Mode never uses your live keys. Enter the Test Security Key and Test Tokenization Key, or turn Test Mode off.', 'cardz3n-gateway' )
+			);
+			return;
+		}
+
 		$reason = get_transient( 'cardz3n_gw_last_avail_' . Brand::id() );
 		if ( empty( $reason ) ) {
 			$msg   = __( 'Status: This gateway has not yet been evaluated on a frontend page. Visit the checkout page once while logged in to populate the status here.', 'cardz3n-gateway' );
@@ -150,10 +160,11 @@ class Admin {
 			$class = 'notice-success';
 		} else {
 			$reasons = array(
-				'disabled'           => __( 'The "Enabled" toggle at the top of this page is off. Turn it on and Save changes.', 'cardz3n-gateway' ),
-				'https_required'     => __( 'Live mode requires HTTPS on the checkout page, but the checkout request did not appear to be HTTPS. This can happen on hosts that terminate TLS at a reverse proxy without forwarding X-Forwarded-Proto. Turn on Sandbox Mode to test, or fix the site HTTPS/proxy configuration.', 'cardz3n-gateway' ),
-				'no_credentials'     => __( 'No Security Key is saved for the currently active mode. If Sandbox Mode is ON, the Sandbox Security Key must be filled in. If Sandbox Mode is OFF, the Live Security Key must be filled in.', 'cardz3n-gateway' ),
-				'parent_unavailable' => __( 'WooCommerce itself is hiding this gateway. The most common cause is a currency/country restriction on the gateway, or the shopper\'s cart contents not matching the allowed product/category rules. Check WooCommerce → Settings → General for currency, and verify no filters are restricting this gateway.', 'cardz3n-gateway' ),
+				'disabled'            => __( 'The "Enabled" toggle at the top of this page is off. Turn it on and Save changes.', 'cardz3n-gateway' ),
+				'https_required'      => __( 'Live mode requires HTTPS on the checkout page, but the checkout request did not appear to be HTTPS. This can happen on hosts that terminate TLS at a reverse proxy without forwarding X-Forwarded-Proto. Turn on Sandbox Mode to test, or fix the site HTTPS/proxy configuration.', 'cardz3n-gateway' ),
+				'no_test_credentials' => __( 'Test Mode is on but no Test keys are saved, so checkout is blocked. Test Mode never uses your live keys. Enter the Test Security Key and Test Tokenization Key, or turn Test Mode off.', 'cardz3n-gateway' ),
+				'no_credentials'      => __( 'No Security Key is saved for the currently active mode. If Sandbox Mode is ON, the Sandbox Security Key must be filled in. If Sandbox Mode is OFF, the Live Security Key must be filled in.', 'cardz3n-gateway' ),
+				'parent_unavailable'  => __( 'WooCommerce itself is hiding this gateway. The most common cause is a currency/country restriction on the gateway, or the shopper\'s cart contents not matching the allowed product/category rules. Check WooCommerce → Settings → General for currency, and verify no filters are restricting this gateway.', 'cardz3n-gateway' ),
 			);
 			$msg     = isset( $reasons[ $reason ] )
 				? $reasons[ $reason ]
