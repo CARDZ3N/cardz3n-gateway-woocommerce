@@ -116,9 +116,14 @@ class Admin {
 		if ( ! check_ajax_referer( 'cardz3n_gw_nonce', 'nonce', false ) ) {
 			wp_send_json_error( array( 'msg' => __( 'Invalid session.', 'cardz3n-gateway' ) ), 400 );
 		}
+		// Signed-in shoppers only: a guest (user ID 0) must never match a token that has no owner.
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( array( 'msg' => __( 'Please sign in.', 'cardz3n-gateway' ) ), 403 );
+		}
 		$token_id = isset( $_POST['token_id'] ) ? absint( wp_unslash( $_POST['token_id'] ) ) : 0;
 		$token    = \WC_Payment_Tokens::get( $token_id );
-		if ( ! $token || $token->get_user_id() !== get_current_user_id() ) {
+		// Only the signed-in user's own tokens, and only this gateway's tokens (never another gateway's saved method).
+		if ( ! $token || (int) $token->get_user_id() !== get_current_user_id() || $token->get_gateway_id() !== Brand::id() ) {
 			wp_send_json_error( array( 'msg' => __( 'Invalid token.', 'cardz3n-gateway' ) ), 400 );
 		}
 		$token->delete();
