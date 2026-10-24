@@ -63,6 +63,7 @@ try {
     await page.waitForTimeout(8000);
     return page.evaluate(() => { try { return !!(window.wc && window.wc.wcSettings && window.wc.wcSettings.getSetting('cardz3n_gateway_data')); } catch (e) { return false; } });
   };
+  const blockDescription = () => page.evaluate(() => { try { return String(window.wc.wcSettings.getSetting('cardz3n_gateway_data').description || ''); } catch (e) { return ''; } });
 
   // Fresh install.
   const fresh = await probe('state');
@@ -70,6 +71,10 @@ try {
   check('Fresh install: cart_checkout_blocks is declared compatible', fresh.blocks.compatible && !fresh.blocks.incompatible, JSON.stringify(fresh.blocks));
   check('Fresh install: HPOS (custom_order_tables) is declared compatible', fresh.hpos.compatible && !fresh.hpos.incompatible, JSON.stringify(fresh.hpos));
   check('Fresh install: the default Checkout block page has the native method registered', (await blockData()) === true);
+
+  // The block checkout is card-only, so its description must not promise ACH or wallets (the page is still loaded from the check above).
+  const desc = await blockDescription();
+  check('Block checkout description is card-only (no ACH, Apple Pay or Google Pay promised)', desc.length > 0 && !/ACH|Apple|Google/i.test(desc), desc.slice(0, 80));
 
   // The setting stays visible, and is ticked by default.
   await page.goto(base + '/wp-login.php', { waitUntil: 'domcontentloaded' });

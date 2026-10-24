@@ -312,11 +312,21 @@ class Blocks_Support extends AbstractPaymentMethodType {
 
 		$client = new Api_Client( $settings );
 
+		/*
+		 * The block checkout is card-only, but the default method description also names ACH and the
+		 * wallets. Show card-only wording unless the merchant wrote their own description.
+		 */
+		$description         = (string) $opt( 'description', '' );
+		$default_description = __( 'Pay securely with a credit/debit card, ACH, Apple Pay, or Google Pay.', 'cardz3n-gateway' );
+		if ( '' === $description || $description === $default_description ) {
+			$description = __( 'Pay securely with a credit or debit card.', 'cardz3n-gateway' );
+		}
+
 		return array(
 			'name'            => $this->name,
 			'gatewayId'       => $this->name,
 			'title'           => $opt( 'title', Brand::profile()['default_title'] ),
-			'description'     => $opt( 'description', '' ),
+			'description'     => $description,
 			'icons'           => $this->get_icon_urls(),
 			'tokenizationKey' => $client->tokenization_key(),
 			'enableCards'     => 'yes' === $opt( 'enable_cards', 'yes' ),
