@@ -1,0 +1,34 @@
+{
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "landingPage": "/",
+  "login": true,
+  "steps": [
+    {
+      "step": "mkdir",
+      "path": "/wordpress/wp-content/mu-plugins"
+    },
+    {
+      "step": "installPlugin",
+      "pluginData": {
+        "resource": "wordpress.org/plugins",
+        "slug": "woocommerce"
+      },
+      "options": {
+        "activate": true
+      }
+    },
+    {
+      "step": "activatePlugin",
+      "pluginPath": "cardz3n-gateway/cardz3n-gateway-woocommerce.php"
+    },
+    {
+      "step": "runPHP",
+      "code": "<?php\nrequire_once '/wordpress/wp-load.php';\nupdate_option( 'woocommerce_coming_soon', 'no' );\nupdate_option( 'woocommerce_currency', 'USD' );\nupdate_option( 'woocommerce_default_country', 'US:CA' );\n// Placeholder values only: the e2e test never talks to the real gateway (Collect.js and the checkout request are stubbed).\nupdate_option( 'woocommerce_cardz3n_gateway_settings', array( 'enabled' => 'yes', 'test_mode' => 'yes', 'enable_cards' => 'yes', 'debug_mode' => 'yes', 'enable_ach' => 'no', 'enable_apple_pay' => 'no', 'enable_google_pay' => 'no', 'enable_saved_methods' => 'no', 'test_security_key' => 'e2e-placeholder-security-key', 'test_tokenization_key' => 'e2e-placeholder-tokenization-key' ) );\n$p = new WC_Product_Simple(); $p->set_name( 'E2E Test Item' ); $p->set_regular_price( '1.00' ); $p->set_status( 'publish' ); $pid = $p->save();\nupdate_option( 'cardz3n_e2e_product_id', $pid );\nwp_insert_post( array( 'post_title' => 'Checkout Classic', 'post_name' => 'checkout-classic', 'post_status' => 'publish', 'post_type' => 'page', 'post_content' => '[woocommerce_checkout]' ) );\necho 'E2E_SETUP_OK ' . $pid;\n"
+    },
+    {
+      "step": "writeFile",
+      "path": "/wordpress/wp-content/mu-plugins/e2e-log-probe.php",
+      "data": "<?php\n// E2E probe (test only): runs a gateway request and some log calls with sentinel customer/payment values,\n// then returns what ended up in the WooCommerce log file. HTTP is short-circuited; nothing leaves the machine.\nadd_action( 'init', function () {\n\tif ( empty( $_GET['cardz3n_e2e_probe'] ) ) { return; }\n\tadd_filter( 'pre_http_request', function () {\n\t\treturn array( 'headers' => array(), 'body' => 'response=1&responsetext=SUCCESS&transactionid=TXN-777&authcode=AUTH1&avsresponse=Y&cvvresponse=M&customer_vault_id=SENTINEL-VAULT-123&first_name=SentinelFirst&email=sentinel%40example.test', 'response' => array( 'code' => 200, 'message' => 'OK' ), 'cookies' => array(), 'filename' => null );\n\t} );\n\t$client = new \\Cardz3n_Gateway\\Api_Client();\n\t$client->post( array(\n\t\t'type'              => 'sale',\n\t\t'amount'            => '12.34',\n\t\t'currency'          => 'USD',\n\t\t'orderid'           => '7777',\n\t\t'payment'           => 'creditcard',\n\t\t'payment_token'     => 'SENTINEL-TOKEN-ABC',\n\t\t'customer_vault_id' => 'SENTINEL-VAULT-123',\n\t\t'first_name'        => 'SentinelFirst',\n\t\t'last_name'         => 'SentinelLast',\n\t\t'email'             => 'sentinel@example.test',\n\t\t'phone'             => '+1-555-0100',\n\t\t'address1'          => '99 Sentinel Road',\n\t\t'city'              => 'Sentinelville',\n\t\t'zip'               => '99999',\n\t) );\n\t// Other log paths that take free-form context.\n\t\\Cardz3n_Gateway\\Logger::info( 'probe context', array( 'payment_token' => 'SENTINEL-TOKEN-ABC', 'vault_id' => 'SENTINEL-VAULT-123', 'billing_email' => 'sentinel@example.test', 'billing_phone' => '+1-555-0100', 'billing_address_1' => '99 Sentinel Road', 'order_id' => 7777 ) );\n\t$log = '';\n\tforeach ( (array) glob( trailingslashit( WC_LOG_DIR ) . 'cardz3n-gateway*.log' ) as $f ) { $log .= (string) file_get_contents( $f ); }\n\theader( 'Content-Type: application/json' );\n\techo wp_json_encode( array( 'log' => $log, 'length' => strlen( $log ) ) );\n\texit;\n}, 20 );\n"
+    }
+  ]
+}

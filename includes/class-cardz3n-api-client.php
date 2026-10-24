@@ -281,8 +281,8 @@ class Api_Client {
 		// Defensive: never let a tokenization key leak into a server-side transact.php payload.
 		unset( $payload['tokenization_key'], $payload['public_key'] );
 
-		$loggable = Logger::redact( $payload );
-		Logger::debug( 'NMI transact.php POST', $loggable );
+		// Debug log: a whitelist of non-sensitive fields only (never tokens, vault IDs or customer details).
+		Logger::debug( 'transact.php POST', Logger::whitelist( $payload, Logger::request_log_fields() ) );
 
 		$response = wp_remote_post(
 			$this->endpoint(),
@@ -308,7 +308,7 @@ class Api_Client {
 		$body   = wp_remote_retrieve_body( $response );
 		$parsed = $this->parse_response( $body );
 
-		Logger::debug( 'NMI transact.php response', Logger::redact( $parsed['raw'] ) );
+		Logger::debug( 'transact.php response', Logger::whitelist( $parsed['raw'], Logger::response_log_fields() ) );
 
 		return $parsed;
 	}
