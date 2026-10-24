@@ -101,6 +101,19 @@ class Blocks_Support extends AbstractPaymentMethodType {
 	}
 
 	/**
+	 * Is the current request the classic [woocommerce_checkout] shortcode checkout?
+	 *
+	 * @return bool
+	 */
+	private function is_classic_shortcode_checkout() {
+		if ( ! function_exists( 'is_checkout' ) || ! is_checkout() ) {
+			return false;
+		}
+		$post = get_post();
+		return $post instanceof \WP_Post && has_shortcode( $post->post_content, 'woocommerce_checkout' );
+	}
+
+	/**
 	 * Register the JS bundle that renders the payment method inside the block.
 	 * Returns the handles that Woo Blocks should enqueue.
 	 *
@@ -165,36 +178,46 @@ class Blocks_Support extends AbstractPaymentMethodType {
 		if ( $shared_script && wp_script_is( 'wc-settings', 'registered' ) && ! in_array( 'wc-settings', $shared_script->deps, true ) ) {
 			$shared_script->deps[] = 'wc-settings';
 		}
-		wp_localize_script(
-			$shared_handle,
-			'CARDZ3N_GW',
-			array(
-				'version'         => CARDZ3N_GW_VERSION,
-				'gatewayId'       => $this->name,
-				'tokenizationKey' => $pk,
-				'enableCards'     => 'yes' === $this->get_setting( 'enable_cards', 'yes' ),
-				'enableAch'       => false, // Not yet supported in the Blocks path.
-				'enableApplePay'  => false, // Not yet supported in the Blocks path.
-				'enableGooglePay' => false, // Not yet supported in the Blocks path.
-				'enableSaved'     => false, // Not yet supported in the Blocks path.
-				'allowedBrands'   => (array) $this->get_setting( 'allowed_card_brands', array() ),
-				'country'         => ( function_exists( 'WC' ) && WC()->customer && WC()->customer->get_billing_country() ) ? WC()->customer->get_billing_country() : 'US',
-				'currency'        => function_exists( 'get_woocommerce_currency' ) ? get_woocommerce_currency() : 'USD',
-				'i18n'            => array(
-					'cardTab'       => __( 'Card', 'cardz3n-gateway' ),
-					'achTab'        => __( 'Bank (ACH)', 'cardz3n-gateway' ),
-					'cardNumber'    => __( 'Card number', 'cardz3n-gateway' ),
-					'expiry'        => __( 'MM / YY', 'cardz3n-gateway' ),
-					'cvv'           => __( 'CVV', 'cardz3n-gateway' ),
-					'accountName'   => __( 'Name on account', 'cardz3n-gateway' ),
-					'routing'       => __( 'Routing number', 'cardz3n-gateway' ),
-					'account'       => __( 'Account number', 'cardz3n-gateway' ),
-					'invalidFields' => __( 'Please check your payment details and try again.', 'cardz3n-gateway' ),
-					'timeout'       => __( 'Tokenization timed out. Please try again.', 'cardz3n-gateway' ),
-					'initError'     => __( 'Unable to initialize secure payment form. Please refresh the page and try again.', 'cardz3n-gateway' ),
-				),
-			)
-		);
+
+		/*
+		 * On a classic shortcode checkout page the Blocks bundle is never rendered, but
+		 * WooCommerce can still ask for these handles there. Localizing here would print
+		 * a second `var CARDZ3N_GW` and overwrite the classic payload (ACH, Apple Pay,
+		 * Google Pay and saved methods would read as off). Leave the classic payload alone.
+		 * A page that holds the [woocommerce_checkout] shortcode is never a Checkout block page.
+		 */
+		if ( ! $this->is_classic_shortcode_checkout() ) {
+			wp_localize_script(
+				$shared_handle,
+				'CARDZ3N_GW',
+				array(
+					'version'         => CARDZ3N_GW_VERSION,
+					'gatewayId'       => $this->name,
+					'tokenizationKey' => $pk,
+					'enableCards'     => 'yes' === $this->get_setting( 'enable_cards', 'yes' ),
+					'enableAch'       => false, // Not yet supported in the Blocks path.
+					'enableApplePay'  => false, // Not yet supported in the Blocks path.
+					'enableGooglePay' => false, // Not yet supported in the Blocks path.
+					'enableSaved'     => false, // Not yet supported in the Blocks path.
+					'allowedBrands'   => (array) $this->get_setting( 'allowed_card_brands', array() ),
+					'country'         => ( function_exists( 'WC' ) && WC()->customer && WC()->customer->get_billing_country() ) ? WC()->customer->get_billing_country() : 'US',
+					'currency'        => function_exists( 'get_woocommerce_currency' ) ? get_woocommerce_currency() : 'USD',
+					'i18n'            => array(
+						'cardTab'       => __( 'Card', 'cardz3n-gateway' ),
+						'achTab'        => __( 'Bank (ACH)', 'cardz3n-gateway' ),
+						'cardNumber'    => __( 'Card number', 'cardz3n-gateway' ),
+						'expiry'        => __( 'MM / YY', 'cardz3n-gateway' ),
+						'cvv'           => __( 'CVV', 'cardz3n-gateway' ),
+						'accountName'   => __( 'Name on account', 'cardz3n-gateway' ),
+						'routing'       => __( 'Routing number', 'cardz3n-gateway' ),
+						'account'       => __( 'Account number', 'cardz3n-gateway' ),
+						'invalidFields' => __( 'Please check your payment details and try again.', 'cardz3n-gateway' ),
+						'timeout'       => __( 'Tokenization timed out. Please try again.', 'cardz3n-gateway' ),
+						'initError'     => __( 'Unable to initialize secure payment form. Please refresh the page and try again.', 'cardz3n-gateway' ),
+					),
+				)
+			);
+		}
 
 		$handle = 'cardz3n-blocks-checkout';
 
