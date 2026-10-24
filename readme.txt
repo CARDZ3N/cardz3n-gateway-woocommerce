@@ -42,7 +42,7 @@ This plugin processes payment data on behalf of the store owner. Here is exactly
 
 * Card last 4 digits, brand, and expiry month/year — used to display saved methods and receipts.
 * NMI Customer Vault ID — an opaque reference (not the actual card or account number) used to charge saved methods.
-* NMI transaction ID, auth code, AVS/CVV response codes — used for refunds, reconciliation, and support.
+* NMI transaction ID, auth code, and the AVS (address check) response result — used for refunds, reconciliation, and support. The CVV response result is not stored.
 * For ACH: bank name and last 4 digits of the account number (never the routing number or full account number).
 
 **Never stored on your WordPress site:**
