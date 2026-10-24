@@ -246,6 +246,14 @@ class Admin {
 			wp_send_json_error( array( 'msg' => __( 'Order not found.', 'cardz3n-gateway' ) ), 404 );
 		}
 
+		// Only this gateway's orders, and only while they can still be captured.
+		if ( Brand::id() !== $order->get_payment_method() ) {
+			wp_send_json_error( array( 'msg' => __( 'This order was not paid with this gateway.', 'cardz3n-gateway' ) ), 400 );
+		}
+		if ( $order->is_paid() || (float) $order->get_meta( '_cardz3n_captured_amount' ) > 0 || $order->has_status( array( 'cancelled', 'refunded', 'failed' ) ) ) {
+			wp_send_json_error( array( 'msg' => __( 'This order has already been captured, or can no longer be captured.', 'cardz3n-gateway' ) ), 400 );
+		}
+
 		$txn        = (string) $order->get_meta( '_cardz3n_transaction_id' );
 		$authorized = (float) $order->get_meta( '_cardz3n_authorized_amount' );
 		if ( empty( $txn ) || $authorized <= 0 ) {
