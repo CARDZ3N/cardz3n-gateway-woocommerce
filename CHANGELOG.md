@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to CARDZ3N Gateway for WooCommerce will be documented here.
+All notable changes to CARDZ3N for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
 ## [1.0.68] - 2026-10-24

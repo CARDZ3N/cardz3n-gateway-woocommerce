@@ -87,7 +87,7 @@
 		if (/Invalid tokenization key format/i.test(msg)) {
 			notice = 'The Public Key configured for this site is not a valid Collect Checkout key. The store owner must open the CARDZ3N Merchant Portal → Settings → Security Keys → Public Security Keys and use a key scoped to "Collect Checkout" (not "Tokenization").';
 		} else if (/tokenization key must be provided/i.test(msg)) {
-			notice = 'The Public Key is missing from the CARDZ3N Gateway settings. The store owner must enter a Collect Checkout key.';
+			notice = 'The Public Key is missing from the CARDZ3N for WooCommerce settings. The store owner must enter a Collect Checkout key.';
 		} else {
 			notice = 'Secure payment form failed to initialize: ' + msg;
 		}
@@ -410,7 +410,7 @@
 					if ($root.find(expected[i] + ' iframe').length) { mounted++; }
 				}
 				if (mounted === 0) {
-					showError('The secure payment form did not load. The Public Key in the CARDZ3N Gateway settings may be scoped to "Tokenization" (Source API) instead of "Collect Checkout". Please notify the store owner.');
+					showError('The secure payment form did not load. The Public Key in the CARDZ3N for WooCommerce settings may be scoped to "Tokenization" (Source API) instead of "Collect Checkout". Please notify the store owner.');
 				}
 			}, 2500);
 

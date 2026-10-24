@@ -1,4 +1,4 @@
-=== CARDZ3N Gateway for WooCommerce ===
+=== CARDZ3N for WooCommerce ===
 Contributors: jbenedetti, cardz3n
 Tags: payment gateway, credit card, ach, apple pay, google pay
 Requires at least: 6.4
@@ -12,7 +12,7 @@ Embedded WooCommerce checkout via CARDZ3N. Card, ACH, Apple Pay, Google Pay, sav
 
 == Description ==
 
-CARDZ3N Gateway for WooCommerce turns your WooCommerce store into a full-featured embedded checkout powered by the CARDZ3N payment platform.
+CARDZ3N for WooCommerce turns your WooCommerce store into a full-featured embedded checkout powered by the CARDZ3N payment platform.
 
 Buyers stay on your site — no visible redirect — and can choose between **credit/debit cards, ACH bank payments, Apple Pay, Google Pay, or a saved payment method** inside a single gateway UI. All sensitive payment data is tokenized in the browser by CARDZ3N's Collect.js library, so card numbers and bank account numbers never touch your WordPress server.
 
@@ -77,7 +77,7 @@ Your private Security Key is stored in WooCommerce gateway settings and is only 
 
 1. Upload the plugin ZIP via **Plugins → Add New → Upload Plugin**, or extract into `wp-content/plugins/cardz3n-gateway`.
 2. Activate the plugin.
-3. Go to **WooCommerce → Settings → Payments** and click **CARDZ3N Gateway**.
+3. Go to **WooCommerce → Settings → Payments** and click **CARDZ3N for WooCommerce**.
 4. Enter your sandbox or live **Security Key** and **Tokenization Key** from your CARDZ3N Merchant Portal (Settings → Security Keys).
 5. Enable the payment methods you want — Cards, ACH, Apple Pay, Google Pay — and save.
 6. Click **Test Credentials** to confirm the gateway accepts your keys.
@@ -107,7 +107,7 @@ Yes. HPOS compatibility is declared on plugin boot.
 
 == License ==
 
-CARDZ3N Gateway for WooCommerce is licensed under the GNU General Public License v2.0 or later (GPL-2.0-or-later). The full license text ships with the plugin as `LICENSE` and is also available at https://www.gnu.org/licenses/gpl-2.0.html.
+CARDZ3N for WooCommerce is licensed under the GNU General Public License v2.0 or later (GPL-2.0-or-later). The full license text ships with the plugin as `LICENSE` and is also available at https://www.gnu.org/licenses/gpl-2.0.html.
 
 All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-party works authored by CARDZ3N and are released under the same GPLv2-or-later license. No third-party code or media libraries are redistributed inside the plugin package. The NMI Collect.js tokenization script is loaded at runtime from the payment processor's own servers and is not included in this distribution.
 

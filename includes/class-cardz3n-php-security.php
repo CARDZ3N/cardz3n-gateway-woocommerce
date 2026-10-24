@@ -182,7 +182,7 @@ class Php_Security {
 	public static function register_site_health_test( $tests ) {
 		if ( self::enabled() ) {
 			$tests['direct']['cardz3n_gw_php_security'] = array(
-				'label' => __( 'PHP security patch level (CARDZ3N Gateway)', 'cardz3n-gateway' ),
+				'label' => __( 'PHP security patch level (CARDZ3N for WooCommerce)', 'cardz3n-gateway' ),
 				'test'  => array( __CLASS__, 'site_health_test' ),
 			);
 		}
@@ -244,7 +244,7 @@ class Php_Security {
 
 		printf(
 			'<div class="notice notice-error"><p><strong>%1$s</strong> — %2$s</p></div>',
-			esc_html__( 'CARDZ3N Gateway security notice', 'cardz3n-gateway' ),
+			esc_html__( 'CARDZ3N for WooCommerce security notice', 'cardz3n-gateway' ),
 			esc_html( $warning )
 		);
 	}

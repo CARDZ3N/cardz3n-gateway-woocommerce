@@ -1,4 +1,4 @@
-# Contributing to CARDZ3N Gateway for WooCommerce
+# Contributing to CARDZ3N for WooCommerce
 
 Thanks for your interest in improving the plugin. This document covers the branching model, coding standards, commit conventions, and PR expectations.
 
