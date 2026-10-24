@@ -163,7 +163,7 @@ class Admin {
 		}
 
 		printf(
-			'<div class="notice %1$s is-dismissible"><p><strong>CARDZ3N Gateway</strong> — %2$s</p></div>',
+			'<div class="notice %1$s is-dismissible"><p><strong>CARDZ3N for WooCommerce</strong> — %2$s</p></div>',
 			esc_attr( $class ),
 			esc_html( $msg )
 		);

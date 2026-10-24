@@ -1,6 +1,6 @@
 # WordPress.org Plugin Submission Checklist
 
-Everything below must be green before submitting **CARDZ3N Gateway for WooCommerce** to [wordpress.org/plugins](https://wordpress.org/plugins/developers/add/).
+Everything below must be green before submitting **CARDZ3N for WooCommerce** to [wordpress.org/plugins](https://wordpress.org/plugins/developers/add/).
 
 ---
 
@@ -32,7 +32,7 @@ Everything below must be green before submitting **CARDZ3N Gateway for WooCommer
 
 ## 2. `readme.txt` (WP.org format)
 
-- [ ] Header: `=== CARDZ3N Gateway for WooCommerce ===`
+- [ ] Header: `=== CARDZ3N for WooCommerce ===`
 - [ ] `Contributors:` uses WordPress.org usernames (not emails)
 - [ ] `Tags:` ≤ 5, relevant (`woocommerce, payment gateway, nmi, ach, credit card`)
 - [ ] `Requires at least`, `Tested up to`, `Stable tag`, `Requires PHP`, `License` all present
