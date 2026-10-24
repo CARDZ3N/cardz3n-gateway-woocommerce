@@ -47,12 +47,12 @@ This plugin processes payment data on behalf of the store owner. Here is exactly
 
 **Never stored on your WordPress site:**
 
-* Full Primary Account Number (PAN), full ACH account number, routing number, or CVV. These are tokenized by NMI Collect.js in the buyer's browser before the form is submitted. Your server never receives them.
+* Full Primary Account Number (PAN), full ACH account number, routing number, or CVV. These are tokenized by CARDZ3N Collect.js in the buyer's browser before the form is submitted. Your server never receives them.
 * Your NMI Security Key is stored only in WordPress options and is never sent to the browser.
 
 **What is sent to external services:**
 
-* To NMI Collect.js (browser-side): your public Tokenization Key, order total, buyer billing info as entered at checkout. Collect.js returns a one-time payment token.
+* To CARDZ3N Collect.js (browser-side): your public Tokenization Key, order total, buyer billing info as entered at checkout. Collect.js returns a one-time payment token.
 * The shopper's IP address and browser details are visible to the CARDZ3N gateway host as soon as Collect.js loads on a checkout, Add Payment Method or My Account page, before any payment is submitted.
 * To the NMI Transaction API (server-side): your Security Key, the payment token or vault ID, order amount, buyer billing/shipping address, line items, and Level 2/3 commercial-card fields when enabled.
 
@@ -65,13 +65,13 @@ Data retention on your WordPress site follows your WooCommerce order retention s
 This plugin connects to the CARDZ3N payment gateway, a white-labeled instance of the NMI payment platform, to take payments. Nothing is sent to it until the store owner enables the gateway and enters a Tokenization Key (used in the shopper's browser) and a Security Key (used by your server) in the plugin settings. After that, the services below are used as described.
 
 1. **CARDZ3N Collect.js** (https://z3n.transactiongateway.com/token/Collect.js) — a JavaScript library loaded in the shopper's browser from the CARDZ3N gateway host whenever a checkout, Add Payment Method or My Account page is opened while the gateway is enabled. Loading it means the shopper's browser contacts the gateway host, which receives the shopper's IP address and browser details. When the shopper types card, bank account or wallet details into the secure fields, they go directly to the gateway host (never to your WordPress server) and come back as a one-time `payment_token`; the store's public Tokenization Key, the order total and the billing details entered at checkout are sent with that request. Purpose: to tokenize payment details securely.
-* NMI terms: https://www.nmi.com/policy/platform-terms-conditions/
+* NMI merchant terms: https://www.nmi.com/policy/terms-conditions-for-nmis-services-merchant-terms-and-conditions/
 * NMI privacy policy: https://www.nmi.com/policy/privacy/
 * CARDZ3N terms: https://cardz3n.com/merchant-services-terms-conditions
 * CARDZ3N privacy policy: https://cardz3n.com/privacy-policy
 
-2. **CARDZ3N Transaction API** (https://z3n.transactiongateway.com/api/transact.php) — called by your WordPress server only when a shopper submits a payment, when the store owner captures, voids or refunds a payment from the order screen, when a subscription or pre-order is charged, when a saved payment method is deleted, and when the store owner clicks Test Credentials. It sends your private Security Key, the payment token or vault ID, the order amount, the buyer's billing and shipping details, line items and, when enabled, Level 2/3 fields. Purpose: to charge, capture, void, refund and verify payments. This is the white-labeled CARDZ3N gateway host; the plugin never calls `secure.nmi.com`.
-* NMI terms: https://www.nmi.com/policy/platform-terms-conditions/
+2. **CARDZ3N Transaction API** (https://z3n.transactiongateway.com/api/transact.php) — called by your WordPress server only when a shopper submits a payment, when the store owner captures, voids or refunds a payment from the order screen, when a subscription or pre-order is charged, when a saved payment method is deleted, and when the store owner clicks Test Credentials. It sends your private Security Key, the payment token or vault ID, the order amount, the buyer's billing and shipping details, line items and, when enabled, Level 2/3 fields. Purpose: to charge, capture, void, refund and verify payments.
+* NMI merchant terms: https://www.nmi.com/policy/terms-conditions-for-nmis-services-merchant-terms-and-conditions/
 * NMI privacy policy: https://www.nmi.com/policy/privacy/
 * CARDZ3N terms: https://cardz3n.com/merchant-services-terms-conditions
 * CARDZ3N privacy policy: https://cardz3n.com/privacy-policy
