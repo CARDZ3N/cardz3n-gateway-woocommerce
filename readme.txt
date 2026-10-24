@@ -8,11 +8,11 @@ Stable tag: 1.0.68
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Embedded WooCommerce checkout via CARDZ3N. Card, ACH, Apple Pay, Google Pay, saved methods, subscriptions, refunds, and Level 2/3 data.
+Embedded WooCommerce checkout via the CARDZ3N payment gateway. Card, ACH, Apple Pay, Google Pay, saved methods, subscriptions, refunds, and Level 2/3 data.
 
 == Description ==
 
-CARDZ3N for WooCommerce turns your WooCommerce store into a full-featured embedded checkout powered by the CARDZ3N payment platform.
+CARDZ3N for WooCommerce turns your WooCommerce store into a full-featured embedded checkout powered by the CARDZ3N payment gateway.
 
 Buyers stay on your site — no visible redirect — and can choose between **credit/debit cards, ACH bank payments, Apple Pay, Google Pay, or a saved payment method** inside a single gateway UI. All sensitive payment data is tokenized in the browser by CARDZ3N's Collect.js library, so card numbers and bank account numbers never touch your WordPress server.
 
@@ -21,7 +21,7 @@ B2B merchants benefit from **automatic Level 2 and Level 3 commercial-card data*
 = Key features =
 
 * Embedded, on-site checkout — no redirect
-* Credit / debit card, ACH / eCheck, Apple Pay, Google Pay — all in one gateway UI
+* Credit / debit card, ACH / eCheck, and optional Apple Pay and Google Pay — all in one gateway UI
 * Saved payment methods (card + ACH) with CARDZ3N Customer Vault
 * WooCommerce Subscriptions compatibility (if installed)
 * WooCommerce Pre-Orders compatibility (if installed)
@@ -48,13 +48,13 @@ This plugin processes payment data on behalf of the store owner. Here is exactly
 **Never stored on your WordPress site:**
 
 * Full Primary Account Number (PAN), full ACH account number, routing number, or CVV. These are tokenized by CARDZ3N Collect.js in the buyer's browser before the form is submitted. Your server never receives them.
-* Your NMI Security Key is stored only in WordPress options and is never sent to the browser.
+* Your Security Key is stored only in WordPress options and is never sent to the browser.
 
 **What is sent to external services:**
 
 * To CARDZ3N Collect.js (browser-side): your public Tokenization Key, order total, buyer billing info as entered at checkout. Collect.js returns a one-time payment token.
 * The shopper's IP address and browser details are visible to the CARDZ3N gateway host as soon as Collect.js loads on a checkout, Add Payment Method or My Account page, before any payment is submitted.
-* To the NMI Transaction API (server-side): your Security Key, the payment token or vault ID, order amount, buyer billing/shipping address, line items, and Level 2/3 commercial-card fields when enabled.
+* To the gateway Transaction API (server-side): your Security Key, the payment token or vault ID, order amount, buyer billing/shipping address, line items, and Level 2/3 commercial-card fields when enabled.
 
 **Controller relationship:** The store owner is the data controller. Payment processing is provided through the NMI platform, using the CARDZ3N gateway. Buyers should be informed via the store's own privacy policy that card and ACH data is transmitted to the payment gateway for processing.
 
@@ -70,7 +70,7 @@ This plugin connects to the CARDZ3N payment gateway, a white-labeled instance of
 * CARDZ3N terms: https://cardz3n.com/merchant-services-terms-conditions
 * CARDZ3N privacy policy: https://cardz3n.com/privacy-policy
 
-2. **CARDZ3N Transaction API** (https://z3n.transactiongateway.com/api/transact.php) — called by your WordPress server only when a shopper submits a payment, when the store owner captures, voids or refunds a payment from the order screen, when a subscription or pre-order is charged, when a saved payment method is deleted, and when the store owner clicks Test Credentials. It sends your private Security Key, the payment token or vault ID, the order amount, the buyer's billing and shipping details, line items and, when enabled, Level 2/3 fields. Purpose: to charge, capture, void, refund and verify payments.
+2. **Gateway Transaction API** (https://z3n.transactiongateway.com/api/transact.php) — called by your WordPress server only when a shopper submits a payment, when the store owner captures, voids or refunds a payment from the order screen, when a subscription or pre-order is charged, when a saved payment method is deleted, and when the store owner clicks Test Credentials. It sends your private Security Key, the payment token or vault ID, the order amount, the buyer's billing and shipping details, line items and, when enabled, Level 2/3 fields. Purpose: to charge, capture, void, refund and verify payments.
 * NMI merchant terms: https://www.nmi.com/policy/terms-conditions-for-nmis-services-merchant-terms-and-conditions/
 * NMI privacy policy: https://www.nmi.com/policy/privacy/
 * CARDZ3N terms: https://cardz3n.com/merchant-services-terms-conditions
@@ -103,7 +103,7 @@ No. Card, ACH, and wallet data are tokenized by CARDZ3N's Collect.js in the buye
 
 = Do I need a separate plugin for Apple Pay or Google Pay? =
 
-No. Both wallets are included and ride on the same CARDZ3N gateway panel. Eligibility is auto-detected by device and browser.
+No. Apple Pay and Google Pay are optional features of this plugin and appear in the same gateway panel when you switch them on. They need HTTPS and domain registration, and only show on supported devices and browsers.
 
 = Does it support WooCommerce Subscriptions? =
 
@@ -111,7 +111,7 @@ Yes, when the WooCommerce Subscriptions extension is installed. Renewals are cha
 
 = What is Level 3 data and why does it matter? =
 
-Level 3 is the enhanced transaction data (line items, freight, tax, destination, commodity codes, UPC, PO number) that Visa and Mastercard commercial-card programs require for the lowest interchange rates. This plugin maps WooCommerce order data to the CARDZ3N Level 3 payload automatically on every transaction.
+Level 3 is the enhanced transaction data (line items, freight, tax, destination, commodity codes, UPC, PO number) that Visa and Mastercard commercial-card programs use. This plugin maps WooCommerce order data to the CARDZ3N Level 3 payload automatically on every transaction.
 
 = Does it work with HPOS (High-Performance Order Storage)? =
 
