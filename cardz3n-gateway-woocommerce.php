@@ -74,6 +74,21 @@ function cardz3n_gw_settings_option_key() {
 	return 'woocommerce_' . \Cardz3n_Gateway\Brand::id() . '_settings';
 }
 
+/**
+ * Is the native Cart & Checkout Blocks integration switched on?
+ *
+ * It is ON unless the store has it switched off: new installs have no saved value, so they get
+ * the default (on); stores that were installed before this default existed are pinned to their
+ * previous behaviour (off) by cardz3n_gw_maybe_migrate_settings().
+ *
+ * @return bool
+ */
+function cardz3n_gw_native_blocks_enabled() {
+	$settings = get_option( cardz3n_gw_settings_option_key(), array() );
+	$value    = ( is_array( $settings ) && isset( $settings['enable_experimental_blocks_checkout'] ) ) ? $settings['enable_experimental_blocks_checkout'] : 'yes';
+	return 'yes' === $value;
+}
+
 /*
  * --------------------------------------------------------------------------
  * HPOS compatibility declaration (WooCommerce 8+) and Blocks declaration
@@ -86,31 +101,28 @@ add_action(
 			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', CARDZ3N_GW_FILE, true );
 
 			/*
-			 * cart_checkout_blocks stays declared FALSE in this release.
+			 * cart_checkout_blocks is declared TRUE whenever the native Blocks payment
+			 * method is switched on ("Native Block Checkout", setting
+			 * enable_experimental_blocks_checkout), which is the default for new installs.
 			 *
-			 * An experimental native Blocks payment method can be switched on
-			 * per store ("Native Block Checkout (Experimental)", setting
-			 * enable_experimental_blocks_checkout, default OFF; see the
-			 * woocommerce_blocks_loaded hook below) so it can be tested live.
-			 * The declaration only flips to true, by default, in a later
-			 * release once that live test has passed.
-			 *
-			 * With the setting off (default) the block checkout renders this
-			 * gateway through WooCommerce's classic-shortcode compatibility
-			 * layer (payment_fields()/process_payment()), exactly as it has
-			 * since 1.0.14.
+			 * A store that has switched it off (or that was installed before it became
+			 * the default, see cardz3n_gw_maybe_migrate_settings()) renders this gateway in
+			 * the block checkout through WooCommerce's classic-shortcode compatibility
+			 * layer (payment_fields()/process_payment()), exactly as before, so for that
+			 * store the declaration stays FALSE rather than claiming something it is not
+			 * using.
 			 */
-			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', CARDZ3N_GW_FILE, false );
+			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', CARDZ3N_GW_FILE, cardz3n_gw_native_blocks_enabled() );
 		}
 	}
 );
 
 /*
  * --------------------------------------------------------------------------
- * Native Blocks Checkout registration (experimental, opt-in — see setting
- * above). Only wires up if the merchant has enabled it; otherwise this is a
- * no-op and the classic-shortcode compatibility layer handles the block
- * checkout exactly as it has since 1.0.14.
+ * Native Blocks Checkout registration (default on for new installs, can be
+ * switched off — see setting above). Only wires up while the setting is on;
+ * otherwise this is a no-op and the classic-shortcode compatibility layer
+ * handles the block checkout exactly as it has since 1.0.14.
  * --------------------------------------------------------------------------
  */
 add_action(
@@ -126,8 +138,7 @@ add_action(
 		add_action(
 			'woocommerce_blocks_payment_method_type_registration',
 			function ( $payment_method_registry ) {
-				$cardz3n_gw_settings = get_option( cardz3n_gw_settings_option_key(), array() );
-				if ( ! isset( $cardz3n_gw_settings['enable_experimental_blocks_checkout'] ) || 'yes' !== $cardz3n_gw_settings['enable_experimental_blocks_checkout'] ) {
+				if ( ! cardz3n_gw_native_blocks_enabled() ) {
 					return;
 				}
 
@@ -234,13 +245,12 @@ function cardz3n_gw_bootstrap() {
  * early-boot is_active() fallback) — the underlying cause was never
  * conclusively identified.
  *
- * As of 1.0.68, the integration is available behind a per-merchant opt-in
- * setting (enable_experimental_blocks_checkout, default off -- see the
- * `woocommerce_blocks_loaded` hook above), for card payments only.
- * Merchants can test it on their own store and roll it back instantly by
- * disabling the setting, without affecting other installs. It stays opt-in,
- * with cart_checkout_blocks declared false, until it has passed a live test
- * and gained ACH, wallet and saved-method support.
+ * The integration is on by default for new installs (setting
+ * enable_experimental_blocks_checkout, see the `woocommerce_blocks_loaded`
+ * hook above), for card payments only; stores installed earlier keep their
+ * previous behaviour until they switch it on. Merchants can roll it back
+ * instantly by turning the setting off. ACH, wallet and saved-method support
+ * in the block checkout is not part of it yet.
  */
 
 /**
@@ -372,6 +382,20 @@ function cardz3n_gw_maybe_migrate_settings() {
 	if ( ! isset( $s['test_mode'] ) && isset( $s['sandbox_mode'] ) ) {
 		$s['test_mode'] = $s['sandbox_mode'];
 		$changed        = true;
+	}
+
+	/*
+	 * 5) Native Block Checkout became the default for NEW installs. A store that already has saved
+	 * gateway settings but no value for it keeps its previous behaviour (off), so an update never
+	 * switches the block checkout over by itself. Done once; a fresh install (no saved settings yet)
+	 * only gets the flag and then uses the default (on).
+	 */
+	if ( ! get_option( 'cardz3n_gw_blocks_default_applied' ) ) {
+		if ( ! empty( $s ) && ! isset( $s['enable_experimental_blocks_checkout'] ) ) {
+			$s['enable_experimental_blocks_checkout'] = 'no';
+			$changed                                  = true;
+		}
+		update_option( 'cardz3n_gw_blocks_default_applied', 'yes' );
 	}
 
 	if ( $changed ) {
