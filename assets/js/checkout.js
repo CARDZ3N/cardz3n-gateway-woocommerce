@@ -548,7 +548,7 @@
 		mirror('cardz3n_card_brand', cardBrand);
 
 		// Trigger the real submission; WC's own handler will send to the server.
-		$form.off('submit.cardz3n').addClass('cardz3n-tokenized').trigger('submit');
+		$form.addClass('cardz3n-tokenized').trigger('submit');
 	}
 
 	/* ------------------------------------------------------------------
@@ -587,43 +587,47 @@
 		if (!$form.length) { return; }
 
 		/*
-		 * 1.0.22 — always detach any prior submit.cardz3n handler before
-		 * re-binding. `bindCheckoutForm()` runs on ready() AND on every
-		 * `updated_checkout` (line ~below). Prior to 1.0.22 that stacked
-		 * duplicate handlers; each one called preventDefault() + Collect.js
-		 * startPaymentRequest() on submit, and only the last token was written
-		 * to the hidden field — but the earlier handlers had already fired
-		 * preventDefault() and the internal `submitting` flag, so the native
-		 * form POST never reached PHP and process_payment() saw an empty
-		 * `cardz3n_payment_token`, yielding "Payment details could not be
-		 * tokenized. Please try again." for card submissions.
+		 * Hold WooCommerce's checkout request until the card has been tokenized.
+		 *
+		 * WooCommerce's own submit handler (assets/js/frontend/checkout.js)
+		 * triggers `checkout_place_order_<payment method>` on the form and only
+		 * sends the checkout AJAX request if no handler returns false. That hook
+		 * is the supported way for a gateway to stop the request. A separate
+		 * `submit` handler that returns false does NOT work: jQuery still runs
+		 * WooCommerce's handler on the same form, so the request used to leave
+		 * with an empty card token while tokenization had only just started.
+		 *
+		 * Flow: first pass (no token yet) -> start Collect.js and return false;
+		 * onTokenReceived() stores the token, marks the form `cardz3n-tokenized`
+		 * and submits again; second pass -> return true so the request carries
+		 * the token. Bound with a namespace and detached first, because this
+		 * runs on ready() and on every `updated_checkout`.
 		 */
-		$form.off('submit.cardz3n');
+		var hook = 'checkout_place_order_' + gatewayId + '.cardz3n';
+		$form.off(hook);
 
-		$form.on('submit.cardz3n', function (e) {
-			if (!isOurGatewaySelected()) { return; }
+		$form.on(hook, function () {
+			if (!isOurGatewaySelected()) { return true; }
 
 			// If the buyer is paying with a saved method, no tokenization needed.
 			var tokenChoice = $form.find('input[name="wc-' + gatewayId + '-payment-token"]:checked').val();
 			if (tokenChoice && tokenChoice !== 'new') {
 				setHidden('cardz3n_payment_source', 'saved');
-				return; // let WC submit
+				return true; // let WC send the request
 			}
 
-			// If this was already tokenized, let it through.
+			// Already tokenized: let WooCommerce send the request (it carries the token).
 			if ($form.hasClass('cardz3n-tokenized')) {
 				$form.removeClass('cardz3n-tokenized');
-				return;
+				return true;
 			}
 
-			// Duplicate-submit guard.
+			// Duplicate-submit guard: a tokenization is already in progress.
 			if (submitting) {
-				e.preventDefault();
 				return false;
 			}
 
 			// Request tokenization; Collect.js will call onTokenReceived.
-			e.preventDefault();
 			submitting = true;
 			clearError();
 			if (typeof window.CollectJS !== 'undefined' && typeof window.CollectJS.startPaymentRequest === 'function') {
@@ -637,7 +641,7 @@
 				submitting = false;
 				showError(cfg.i18n.invalidFields);
 			}
-			return false;
+			return false; // hold WooCommerce's request until the token arrives
 		});
 	}
 
