@@ -75,17 +75,41 @@ function cardz3n_gw_settings_option_key() {
 }
 
 /**
+ * Is WooCommerce Subscriptions or WooCommerce Pre-Orders active?
+ *
+ * The native block payment method cannot take subscription or pre-order carts yet (it does not save the
+ * card for later charges), so it is not switched on by default on a store that has either plugin.
+ *
+ * @return bool
+ */
+function cardz3n_gw_subscription_plugins_active() {
+	return class_exists( 'WC_Subscriptions' ) || class_exists( 'WC_Subscriptions_Core_Plugin' ) || class_exists( 'WC_Pre_Orders' );
+}
+
+/**
+ * Default value of the "Native Block Checkout" setting when the store has not saved one.
+ *
+ * ON for new installs, OFF when Subscriptions or Pre-Orders is active. A saved value always wins.
+ *
+ * @return string 'yes' or 'no'.
+ */
+function cardz3n_gw_blocks_default_value() {
+	return cardz3n_gw_subscription_plugins_active() ? 'no' : 'yes';
+}
+
+/**
  * Is the native Cart & Checkout Blocks integration switched on?
  *
- * It is ON unless the store has it switched off: new installs have no saved value, so they get
- * the default (on); stores that were installed before this default existed are pinned to their
- * previous behaviour (off) by cardz3n_gw_maybe_migrate_settings().
+ * A saved choice always wins. With no saved value (a new install) it follows
+ * cardz3n_gw_blocks_default_value(): on, unless Subscriptions or Pre-Orders is active. Stores that were
+ * installed before this default existed are pinned to their previous behaviour (off) by
+ * cardz3n_gw_maybe_migrate_settings().
  *
  * @return bool
  */
 function cardz3n_gw_native_blocks_enabled() {
 	$settings = get_option( cardz3n_gw_settings_option_key(), array() );
-	$value    = ( is_array( $settings ) && isset( $settings['enable_experimental_blocks_checkout'] ) ) ? $settings['enable_experimental_blocks_checkout'] : 'yes';
+	$value    = ( is_array( $settings ) && isset( $settings['enable_experimental_blocks_checkout'] ) ) ? $settings['enable_experimental_blocks_checkout'] : cardz3n_gw_blocks_default_value();
 	return 'yes' === $value;
 }
 
