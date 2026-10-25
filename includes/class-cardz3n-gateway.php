@@ -710,6 +710,17 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			);
 		}
 
+		/*
+		 * Already paid, or already authorized: a second submit (double click, replayed request) must not
+		 * charge again. Send the shopper on to the order-received page instead.
+		 */
+		if ( $order->is_paid() || ( $order->has_status( 'on-hold' ) && (float) $order->get_meta( '_cardz3n_authorized_amount' ) > 0 ) ) {
+			return array(
+				'result'   => 'success',
+				'redirect' => $this->get_return_url( $order ),
+			);
+		}
+
 		$client = new Api_Client( $this->settings );
 		if ( ! $client->has_credentials() ) {
 			$cardz3n_gw_error_msg = __( 'Payment gateway is not configured. Please contact the store.', 'cardz3n-gateway' );
