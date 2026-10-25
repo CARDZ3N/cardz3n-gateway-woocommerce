@@ -143,9 +143,7 @@ class Admin {
 		if ( empty( $_GET['section'] ) || Brand::id() !== $_GET['section'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			return;
 		}
-		$has_subscriptions = class_exists( 'WC_Subscriptions' ) || class_exists( 'WC_Subscriptions_Core_Plugin' );
-		$has_preorders     = class_exists( 'WC_Pre_Orders' );
-		if ( ! $has_subscriptions && ! $has_preorders ) {
+		if ( ! cardz3n_gw_subscription_plugins_active() ) {
 			return;
 		}
 		printf(
