@@ -677,10 +677,12 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	 * @param string $reason One of the tokens from availability_reason().
 	 */
 	private static function remember_availability_reason( $reason ) {
+		$previous = get_transient( 'cardz3n_gw_last_avail_' . Brand::id() );
 		if ( ! empty( $reason ) ) {
 			set_transient( 'cardz3n_gw_last_avail_' . Brand::id(), $reason, 5 * MINUTE_IN_SECONDS );
 		}
-		if ( 'available' !== $reason ) {
+		// Log only when the reason changes, so refreshing the page cannot grow the log.
+		if ( 'available' !== $reason && $previous !== $reason ) {
 			Logger::warning( 'Gateway hidden. Reason: ' . $reason );
 		}
 	}
@@ -705,6 +707,17 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				'result'   => 'failure',
 				'message'  => $cardz3n_gw_error_msg,
 				'redirect' => '',
+			);
+		}
+
+		/*
+		 * Already paid, or already authorized: a second submit (double click, replayed request) must not
+		 * charge again. Send the shopper on to the order-received page instead.
+		 */
+		if ( $order->is_paid() || ( $order->has_status( 'on-hold' ) && (float) $order->get_meta( '_cardz3n_authorized_amount' ) > 0 ) ) {
+			return array(
+				'result'   => 'success',
+				'redirect' => $this->get_return_url( $order ),
 			);
 		}
 
@@ -797,6 +810,33 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				'message'  => $cardz3n_gw_error_msg,
 				'redirect' => '',
 			);
+		}
+
+		/*
+		 * The browser says which kind of token this is (card, bank or wallet). Make sure that
+		 * method is switched on in the settings, so a method the store turned off cannot be used
+		 * by posting a different source.
+		 */
+		if ( ! $using_saved ) {
+			$method_setting = array(
+				'card'       => 'enable_cards',
+				'ach'        => 'enable_ach',
+				'apple_pay'  => 'enable_apple_pay',
+				'google_pay' => 'enable_google_pay',
+			);
+			$method_default = array( 'enable_cards' => 'yes' );
+			if ( isset( $method_setting[ $normalized_source ] ) ) {
+				$setting_key = $method_setting[ $normalized_source ];
+				if ( 'yes' !== $this->get_option( $setting_key, isset( $method_default[ $setting_key ] ) ? $method_default[ $setting_key ] : 'no' ) ) {
+					$cardz3n_gw_error_msg = __( 'This payment method is not available. Please choose another one.', 'cardz3n-gateway' );
+					wc_add_notice( $cardz3n_gw_error_msg, 'error' );
+					return array(
+						'result'   => 'failure',
+						'message'  => $cardz3n_gw_error_msg,
+						'redirect' => '',
+					);
+				}
+			}
 		}
 
 		// Determine NMI "payment" field.
@@ -1038,7 +1078,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 					$response['customer_vault_id'],
 					array(
 						'last4'        => substr( (string) ( $response['raw']['account_number'] ?? '' ), -4 ),
-						'account_type' => isset( $_POST['cardz3n_ach_account_type'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_ach_account_type'] ) ) : 'checking', // phpcs:ignore WordPress.Security.NonceVerification.Missing
+						'account_type' => ( isset( $_POST['cardz3n_ach_account_type'] ) && 'savings' === sanitize_text_field( wp_unslash( $_POST['cardz3n_ach_account_type'] ) ) ) ? 'savings' : 'checking', // phpcs:ignore WordPress.Security.NonceVerification.Missing
 					)
 				);
 			}

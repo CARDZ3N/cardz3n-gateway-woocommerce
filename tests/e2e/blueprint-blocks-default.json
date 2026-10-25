@@ -1,0 +1,34 @@
+{
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "landingPage": "/",
+  "login": true,
+  "steps": [
+    {
+      "step": "mkdir",
+      "path": "/wordpress/wp-content/mu-plugins"
+    },
+    {
+      "step": "installPlugin",
+      "pluginData": {
+        "resource": "wordpress.org/plugins",
+        "slug": "woocommerce"
+      },
+      "options": {
+        "activate": true
+      }
+    },
+    {
+      "step": "activatePlugin",
+      "pluginPath": "cardz3n-gateway/cardz3n-gateway-woocommerce.php"
+    },
+    {
+      "step": "runPHP",
+      "code": "<?php\nrequire_once '/wordpress/wp-load.php';\nupdate_option( 'woocommerce_coming_soon', 'no' );\nupdate_option( 'woocommerce_currency', 'USD' );\nupdate_option( 'woocommerce_default_country', 'US:CA' );\n// Placeholder values only: the e2e test never talks to the real gateway (Collect.js and the checkout request are stubbed).\nupdate_option( 'woocommerce_cardz3n_gateway_settings', array( 'enabled' => 'yes', 'test_mode' => 'yes', 'enable_cards' => 'yes', 'enable_ach' => 'no', 'enable_apple_pay' => 'no', 'enable_google_pay' => 'no', 'enable_saved_methods' => 'no', 'test_security_key' => 'e2e-placeholder-security-key', 'test_tokenization_key' => 'e2e-placeholder-tokenization-key' ) );\n$p = new WC_Product_Simple(); $p->set_name( 'E2E Test Item' ); $p->set_regular_price( '1.00' ); $p->set_status( 'publish' ); $pid = $p->save();\nupdate_option( 'cardz3n_e2e_product_id', $pid );\nwp_insert_post( array( 'post_title' => 'Checkout Classic', 'post_name' => 'checkout-classic', 'post_status' => 'publish', 'post_type' => 'page', 'post_content' => '[woocommerce_checkout]' ) );\necho 'E2E_SETUP_OK ' . $pid;\n"
+    },
+    {
+      "step": "writeFile",
+      "path": "/wordpress/wp-content/mu-plugins/e2e-blocks-probe.php",
+      "data": "<?php\n// E2E probe (test only): reports the Blocks default, the compatibility declarations and the one-time migration.\nadd_action( 'wp_loaded', function () {\n\tif ( empty( $_GET['cardz3n_e2e'] ) ) { return; }\n\t$mode = sanitize_key( $_GET['cardz3n_e2e'] );\n\theader( 'Content-Type: application/json' );\n\t$opt  = cardz3n_gw_settings_option_key();\n\t$base = 'cardz3n-gateway/cardz3n-gateway-woocommerce.php';\n\t$enabled = function () use ( $opt ) {\n\t\tif ( function_exists( 'cardz3n_gw_native_blocks_enabled' ) ) { return cardz3n_gw_native_blocks_enabled(); }\n\t\t$s = get_option( $opt, array() ); // Older code: on only when explicitly saved as yes.\n\t\treturn is_array( $s ) && isset( $s['enable_experimental_blocks_checkout'] ) && 'yes' === $s['enable_experimental_blocks_checkout'];\n\t};\n\t$migrate = function () { if ( function_exists( 'cardz3n_gw_maybe_migrate_settings' ) ) { cardz3n_gw_maybe_migrate_settings(); } };\n\t$compat = function ( $feature ) use ( $base ) {\n\t\t$r = \\Automattic\\WooCommerce\\Utilities\\FeaturesUtil::get_compatible_plugins_for_feature( $feature );\n\t\treturn array(\n\t\t\t'compatible'   => in_array( $base, (array) ( $r['compatible'] ?? array() ), true ),\n\t\t\t'incompatible' => in_array( $base, (array) ( $r['incompatible'] ?? array() ), true ),\n\t\t);\n\t};\n\tif ( 'state' === $mode ) {\n\t\t$s = get_option( $opt, array() );\n\t\techo wp_json_encode( array(\n\t\t\t'enabled'      => $enabled(),\n\t\t\t'saved_value'  => is_array( $s ) && isset( $s['enable_experimental_blocks_checkout'] ) ? $s['enable_experimental_blocks_checkout'] : null,\n\t\t\t'flag'         => (bool) get_option( 'cardz3n_gw_blocks_default_applied' ),\n\t\t\t'blocks'       => $compat( 'cart_checkout_blocks' ),\n\t\t\t'hpos'         => $compat( 'custom_order_tables' ),\n\t\t) );\n\t\texit;\n\t}\n\tif ( 'migrate_existing' === $mode ) {\n\t\t// An existing store: saved gateway settings, no value for the Blocks setting, migration not yet run.\n\t\tupdate_option( $opt, array( 'enabled' => 'yes', 'test_mode' => 'yes' ) );\n\t\tdelete_option( 'cardz3n_gw_blocks_default_applied' );\n\t\t$migrate();\n\t\t$s = get_option( $opt, array() );\n\t\techo wp_json_encode( array( 'saved_value' => $s['enable_experimental_blocks_checkout'] ?? null, 'enabled' => $enabled(), 'flag' => (bool) get_option( 'cardz3n_gw_blocks_default_applied' ) ) );\n\t\texit;\n\t}\n\tif ( 'migrate_fresh' === $mode ) {\n\t\t// A fresh install: nothing saved yet, migration not yet run.\n\t\tdelete_option( $opt );\n\t\tdelete_option( 'cardz3n_gw_blocks_default_applied' );\n\t\t$migrate();\n\t\t$s = get_option( $opt, array() );\n\t\techo wp_json_encode( array( 'saved_value' => is_array( $s ) && isset( $s['enable_experimental_blocks_checkout'] ) ? $s['enable_experimental_blocks_checkout'] : null, 'enabled' => $enabled(), 'flag' => (bool) get_option( 'cardz3n_gw_blocks_default_applied' ) ) );\n\t\texit;\n\t}\n\tif ( 'switch_off' === $mode ) {\n\t\t$s = get_option( $opt, array() );\n\t\t$s['enable_experimental_blocks_checkout'] = 'no';\n\t\tupdate_option( $opt, $s );\n\t\techo wp_json_encode( array( 'ok' => true ) );\n\t\texit;\n\t}\n\texit;\n}, 20 );\n"
+    }
+  ]
+}

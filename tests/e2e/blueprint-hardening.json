@@ -1,0 +1,34 @@
+{
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "landingPage": "/",
+  "login": true,
+  "steps": [
+    {
+      "step": "mkdir",
+      "path": "/wordpress/wp-content/mu-plugins"
+    },
+    {
+      "step": "installPlugin",
+      "pluginData": {
+        "resource": "wordpress.org/plugins",
+        "slug": "woocommerce"
+      },
+      "options": {
+        "activate": true
+      }
+    },
+    {
+      "step": "activatePlugin",
+      "pluginPath": "cardz3n-gateway/cardz3n-gateway-woocommerce.php"
+    },
+    {
+      "step": "runPHP",
+      "code": "<?php\nrequire_once '/wordpress/wp-load.php';\nupdate_option( 'woocommerce_coming_soon', 'no' );\nupdate_option( 'woocommerce_currency', 'USD' );\nupdate_option( 'woocommerce_default_country', 'US:CA' );\n// Placeholder values only: the e2e test never talks to the real gateway (Collect.js and the checkout request are stubbed).\nupdate_option( 'woocommerce_cardz3n_gateway_settings', array( 'enabled' => 'yes', 'test_mode' => 'yes', 'enable_cards' => 'yes', 'enable_ach' => 'no', 'enable_apple_pay' => 'no', 'enable_google_pay' => 'no', 'enable_saved_methods' => 'no', 'test_security_key' => 'e2e-placeholder-security-key', 'test_tokenization_key' => 'e2e-placeholder-tokenization-key' ) );\n$p = new WC_Product_Simple(); $p->set_name( 'E2E Test Item' ); $p->set_regular_price( '1.00' ); $p->set_status( 'publish' ); $pid = $p->save();\nupdate_option( 'cardz3n_e2e_product_id', $pid );\nwp_insert_post( array( 'post_title' => 'Checkout Classic', 'post_name' => 'checkout-classic', 'post_status' => 'publish', 'post_type' => 'page', 'post_content' => '[woocommerce_checkout]' ) );\necho 'E2E_SETUP_OK ' . $pid;\n"
+    },
+    {
+      "step": "writeFile",
+      "path": "/wordpress/wp-content/mu-plugins/e2e-hardening-probe.php",
+      "data": "<?php\n// E2E probe (test only). Short-circuits gateway HTTP (counting calls) and exposes helpers for the hardening test.\nadd_filter( 'pre_http_request', function ( $pre, $args, $url ) {\n\tif ( false === strpos( (string) $url, 'transactiongateway' ) ) { return $pre; }\n\tupdate_option( 'cardz3n_e2e_http_count', (int) get_option( 'cardz3n_e2e_http_count', 0 ) + 1 );\n\treturn array( 'headers' => array(), 'body' => 'response=1&responsetext=SUCCESS&transactionid=CAP1&authcode=A1', 'response' => array( 'code' => 200, 'message' => 'OK' ), 'cookies' => array(), 'filename' => null );\n}, 10, 3 );\nadd_action( 'wp_loaded', function () {\n\tif ( empty( $_GET['cardz3n_e2e'] ) ) { return; }\n\t$mode = sanitize_key( $_GET['cardz3n_e2e'] );\n\theader( 'Content-Type: application/json' );\n\t$gid = 'cardz3n_gateway';\n\t$make = function ( $method, $status, $captured ) use ( $gid ) {\n\t\t$o = wc_create_order();\n\t\t$o->set_payment_method( $method );\n\t\t$o->set_total( '10.00' );\n\t\t$o->update_meta_data( '_cardz3n_transaction_id', 'T-' . wp_rand( 1000, 9999 ) );\n\t\t$o->update_meta_data( '_cardz3n_authorized_amount', '10.00' );\n\t\tif ( $captured ) { $o->update_meta_data( '_cardz3n_captured_amount', '10.00' ); }\n\t\t$o->set_status( $status );\n\t\t$o->save();\n\t\treturn $o->get_id();\n\t};\n\tif ( 'count' === $mode ) {\n\t\techo wp_json_encode( array( 'count' => (int) get_option( 'cardz3n_e2e_http_count', 0 ) ) );\n\t\texit;\n\t}\n\tif ( 'orders' === $mode ) {\n\t\tif ( ! current_user_can( 'manage_woocommerce' ) ) { echo wp_json_encode( array( 'error' => 'login' ) ); exit; }\n\t\techo wp_json_encode( array(\n\t\t\t'nonce'     => wp_create_nonce( 'cardz3n_gw_nonce' ),\n\t\t\t'other'     => $make( 'bacs', 'on-hold', false ),\n\t\t\t'captured'  => $make( $gid, 'processing', true ),\n\t\t\t'cancelled' => $make( $gid, 'cancelled', false ),\n\t\t\t'ok'        => $make( $gid, 'on-hold', false ),\n\t\t) );\n\t\texit;\n\t}\n\tif ( 'hidden' === $mode ) {\n\t\t$gw = WC()->payment_gateways()->payment_gateways()[ $gid ];\n\t\t$gw->settings['enabled'] = 'no';\n\t\t$gw->enabled             = 'no';\n\t\t$count = function () {\n\t\t\t$n = 0;\n\t\t\tforeach ( (array) glob( trailingslashit( WC_LOG_DIR ) . 'cardz3n-gateway*.log' ) as $f ) { $n += substr_count( (string) file_get_contents( $f ), 'Gateway hidden. Reason: disabled' ); }\n\t\t\treturn $n;\n\t\t};\n\t\tdelete_transient( 'cardz3n_gw_last_avail_' . $gid );\n\t\t$before = $count();\n\t\tfor ( $i = 0; $i < 4; $i++ ) { $gw->is_available(); }\n\t\techo wp_json_encode( array( 'new_log_lines' => $count() - $before ) );\n\t\texit;\n\t}\n\tif ( 'pay' === $mode ) {\n\t\t$src = isset( $_GET['src'] ) ? sanitize_text_field( wp_unslash( $_GET['src'] ) ) : 'card';\n\t\tif ( function_exists( 'wc_load_cart' ) && null === WC()->session ) { wc_load_cart(); }\n\t\t$o = wc_create_order();\n\t\t$o->set_payment_method( $gid );\n\t\t$o->set_total( '5.00' );\n\t\t$o->set_billing_email( 'e2e@example.test' );\n\t\t$o->save();\n\t\t$_POST = array( 'cardz3n_payment_token' => 'tok-e2e', 'cardz3n_token_type' => $src, 'cardz3n_payment_source' => $src );\n\t\t$before = (int) get_option( 'cardz3n_e2e_http_count', 0 );\n\t\t$gw = WC()->payment_gateways()->payment_gateways()[ $gid ];\n\t\t$r  = $gw->process_payment( $o->get_id() );\n\t\techo wp_json_encode( array( 'result' => is_array( $r ) ? $r['result'] : 'none', 'http_calls' => (int) get_option( 'cardz3n_e2e_http_count', 0 ) - $before ) );\n\t\texit;\n\t}\n\texit;\n}, 20 );\n"
+    }
+  ]
+}
