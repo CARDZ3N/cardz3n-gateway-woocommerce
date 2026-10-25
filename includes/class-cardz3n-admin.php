@@ -42,6 +42,7 @@ class Admin {
 
 		// Surface availability reason on the gateway settings page.
 		add_action( 'admin_notices', array( $this, 'maybe_render_availability_notice' ) );
+		add_action( 'admin_notices', array( $this, 'maybe_render_subscriptions_blocks_notice' ) );
 
 		/*
 		 * Gateway AJAX endpoints are registered here — not in the Gateway class —
@@ -128,6 +129,29 @@ class Admin {
 		}
 		$token->delete();
 		wp_send_json_success();
+	}
+
+	/**
+	 * Warn, on the gateway settings page, that subscription and pre-order products cannot be paid with this
+	 * gateway on the block checkout yet. WooCommerce then shows shoppers its own "There are no payment methods
+	 * available" for those carts, which looks like a broken store; the classic checkout page works.
+	 */
+	public function maybe_render_subscriptions_blocks_notice() {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+		if ( empty( $_GET['section'] ) || Brand::id() !== $_GET['section'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			return;
+		}
+		$has_subscriptions = class_exists( 'WC_Subscriptions' ) || class_exists( 'WC_Subscriptions_Core_Plugin' );
+		$has_preorders     = class_exists( 'WC_Pre_Orders' );
+		if ( ! $has_subscriptions && ! $has_preorders ) {
+			return;
+		}
+		printf(
+			'<div class="notice notice-warning"><p><strong>CARDZ3N for WooCommerce</strong> — %s</p></div>',
+			esc_html__( 'WooCommerce Subscriptions or Pre-Orders is active. On the block-based Checkout, carts with subscription or pre-order products cannot be paid with this gateway yet, and shoppers see "There are no payment methods available". Use the classic checkout page (a page with the [woocommerce_checkout] shortcode) for stores that sell those products. The classic checkout supports them.', 'cardz3n-gateway' )
+		);
 	}
 
 	/**
