@@ -575,10 +575,86 @@
 		}
 	}
 
-	function onTokenReceived(response) {
+	/* ------------------------------------------------------------------
+	 * 3-D Secure (classic payment form, new cards only)
+	 *
+	 * After Collect.js returns a card token, Gateway.js authenticates the card (a hidden device check, and a challenge only if the
+	 * issuer asks). The authentication values are posted with the order and the server adds them to the sale. Option names of
+	 * createUI() and the event payload names are ASSUMPTION T7, taken from https://docs.nmi.com/docs/payer-authentication-3ds .
+	 * --------------------------------------------------------------- */
+
+	function threeDsApplies(response) {
+		return !!(cfg.threeDs && cfg.threeDs.enabled) && sourceForToken(response) === 'card' && !isBlocksMode();
+	}
+
+	function billingValue(name) {
+		return $.trim($('form.checkout [name="billing_' + name + '"]').val() || '');
+	}
+
+	function threeDsFailure(message) {
+		submitting = false;
+		setHidden('cardz3n_payment_token', '');
+		setHidden('cardz3n_token_type', '');
+		$('form.checkout').removeClass('cardz3n-tokenized').children('input.cardz3n-mirror[name^="cardz3n_3ds_"]').remove();
+		showError(message);
+	}
+
+	function runThreeDs(response) {
+		var finished = false;
+		var done = function (fn) { return function () { if (finished) { return; } finished = true; if (timer) { clearTimeout(timer); } fn.apply(null, arguments); }; };
+		var timer = setTimeout(done(function () { threeDsFailure(cfg.i18n.threeDsUnavailable); }), 90000);
+		if (!window.Gateway || typeof window.Gateway.create !== 'function') {
+			done(function () { threeDsFailure(cfg.i18n.threeDsUnavailable); })();
+			return;
+		}
+		try {
+			var gateway = window.Gateway.create(cfg.threeDs.publicKey);
+			var options = {
+				paymentToken: response.token,
+				currency: cfg.currency || 'USD',
+				amount: getCartTotal(),
+				firstName: billingValue('first_name'),
+				lastName: billingValue('last_name'),
+				email: billingValue('email'),
+				phone: billingValue('phone'),
+				address1: billingValue('address_1'),
+				city: billingValue('city'),
+				state: billingValue('state'),
+				country: billingValue('country'),
+				postalCode: billingValue('postcode')
+			};
+			var ui = gateway.get3DSecure().createUI(options);
+			ui.on('challenge', function () { $('#cardz3n-3ds-mount').addClass('is-challenge'); });
+			ui.on('complete', done(function (e) {
+				$('#cardz3n-3ds-mount').removeClass('is-challenge');
+				e = e || {};
+				onTokenReceived(response, {
+					status: 'complete',
+					cavv: e.cavv, xid: e.xid, eci: e.eci,
+					cardholder_auth: e.cardHolderAuth || e.cardholder_auth,
+					version: e.threeDsVersion || e.three_ds_version,
+					directory_server_id: e.directoryServerId || e.directory_server_id
+				});
+			}));
+			ui.on('failure', done(function () { threeDsFailure(cfg.i18n.threeDsFailed); }));
+			if (typeof gateway.on === 'function') {
+				gateway.on('error', done(function () { threeDsFailure(cfg.i18n.threeDsUnavailable); }));
+			}
+			ui.start('#cardz3n-3ds-mount');
+		} catch (err) {
+			if (window.console && console.warn) { console.warn('[CARDZ3N] 3-D Secure could not start:', err && err.message ? err.message : err); }
+			done(function () { threeDsFailure(cfg.i18n.threeDsUnavailable); })();
+		}
+	}
+
+	function onTokenReceived(response, authentication) {
 		if (!response || !response.token) {
 			submitting = false;
 			showError(cfg.i18n.invalidFields);
+			return;
+		}
+		if (!authentication && threeDsApplies(response)) {
+			runThreeDs(response);
 			return;
 		}
 
@@ -629,6 +705,15 @@
 		mirror('cardz3n_token_type', sourceForToken(response));
 		mirror('cardz3n_payment_source', sourceForToken(response));
 		mirror('cardz3n_card_brand', cardBrand);
+		if (authentication) {
+			mirror('cardz3n_3ds_status', authentication.status);
+			mirror('cardz3n_3ds_cavv', authentication.cavv);
+			mirror('cardz3n_3ds_xid', authentication.xid);
+			mirror('cardz3n_3ds_eci', authentication.eci);
+			mirror('cardz3n_3ds_cardholder_auth', authentication.cardholder_auth);
+			mirror('cardz3n_3ds_version', authentication.version);
+			mirror('cardz3n_3ds_directory_server_id', authentication.directory_server_id);
+		}
 
 		// Trigger the real submission; WC's own handler will send to the server.
 		$form.addClass('cardz3n-tokenized').trigger('submit');
@@ -649,6 +734,8 @@
 		$(document).on('checkout_error', function () {
 			setHidden('cardz3n_payment_token', '');
 			setHidden('cardz3n_token_type', '');
+			// 3-D Secure values belong to the token that was just used: never carry them to the next attempt.
+			$('form.checkout').children('input.cardz3n-mirror[name^="cardz3n_3ds_"]').remove();
 			submitting = false;
 			// 1.0.22 — also strip the cardz3n-tokenized marker so bindCheckoutForm's
 			// fast-path (line ~below) doesn't let a retry through WITHOUT a fresh

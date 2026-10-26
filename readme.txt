@@ -81,6 +81,10 @@ This plugin connects to the CARDZ3N payment gateway, a white-labeled instance of
 * Google privacy policy: https://policies.google.com/privacy
 * Google Pay terms: https://payments.developers.google.com/terms/sellertos
 
+4. **Gateway.js, loaded from the CARDZ3N gateway host** (3-D Secure; optional, off by default) — only if the store owner turns on "3D Secure 2.0" in the plugin settings. A JavaScript library loaded in the shopper's browser from the CARDZ3N gateway host on checkout pages, which authenticates a new card with the card's issuer before it is charged. The shopper's browser contacts the gateway host and the card issuer's authentication service; the shopper's IP address, browser details and the card and billing details needed for the check are shared with them. Purpose: to authenticate the card before payment.
+* NMI privacy policy: https://www.nmi.com/policy/privacy/
+* CARDZ3N privacy policy: https://cardz3n.com/privacy-policy
+
 Your private Security Key is stored in WooCommerce gateway settings and is only used server-to-server. Your public Tokenization Key is exposed to the browser, as the Collect.js service requires, to drive Collect.js.
 
 No "powered by" text or promotional link is shown by default. An optional "Powered by CARDZ3N" checkout title can be switched on by the store owner in the plugin settings.

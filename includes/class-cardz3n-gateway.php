@@ -261,11 +261,22 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			2
 		);
 
+		/*
+		 * 3-D Secure: Gateway.js is loaded from the gateway host only when the setting is on (ASSUMPTION T1, see Three_DS).
+		 * The checkout bundle waits for it, so the authentication step can run as soon as a card token exists.
+		 */
+		$three_ds_on   = Three_DS::enabled( $this->settings ) && 'yes' === $this->get_option( 'enable_cards', 'yes' );
+		$checkout_deps = array( 'jquery', 'cardz3n-collectjs' );
+		if ( $three_ds_on ) {
+			wp_enqueue_script( 'cardz3n-gatewayjs', Three_DS::script_url(), array(), CARDZ3N_GW_VERSION, true );
+			$checkout_deps[] = 'cardz3n-gatewayjs';
+		}
+
 		// Our static checkout bundle (no inline JS, no synchronous AJAX).
 		wp_enqueue_script(
 			'cardz3n-checkout',
 			CARDZ3N_GW_URL . 'assets/js/checkout.js',
-			array( 'jquery', 'cardz3n-collectjs' ),
+			$checkout_deps,
 			CARDZ3N_GW_VERSION,
 			true
 		);
@@ -291,6 +302,10 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				'googlePayScript' => 'yes' === $this->get_option( 'enable_google_pay', 'no' ) ? self::GOOGLE_PAY_SCRIPT : '',
 				'googlePayOptions' => $this->google_pay_options(),
 				'enableSaved'     => 'yes' === $this->get_option( 'enable_saved_methods', 'no' ),
+				'threeDs'         => array(
+					'enabled'   => $three_ds_on,
+					'publicKey' => $three_ds_on ? Three_DS::public_key( $pk ) : '',
+				),
 				'allowedBrands'   => (array) $this->get_option( 'allowed_card_brands', array() ),
 				'country'         => ( WC()->customer && WC()->customer->get_billing_country() ) ? WC()->customer->get_billing_country() : 'US',
 				'currency'        => get_woocommerce_currency(),
@@ -312,6 +327,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 					'invalidFields' => __( 'Please check your payment details and try again.', 'cardz3n-gateway' ),
 					'timeout'       => __( 'Tokenization timed out. Please try again.', 'cardz3n-gateway' ),
 					'initError'     => __( 'Unable to initialize secure payment form. Please refresh the page and try again.', 'cardz3n-gateway' ),
+					'threeDsFailed' => __( 'Your card could not be verified. Please check your details or use a different card.', 'cardz3n-gateway' ),
+					'threeDsUnavailable' => __( 'Card verification is not available right now. Please try again, or use a different payment method.', 'cardz3n-gateway' ),
 				),
 			)
 		);
@@ -475,6 +492,9 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			<input type="hidden" name="cardz3n_payment_token" value="" />
 			<input type="hidden" name="cardz3n_token_type" value="" />
 			<input type="hidden" name="cardz3n_card_brand" value="" />
+			<?php if ( Three_DS::enabled( $this->settings ) ) : ?>
+			<div id="cardz3n-3ds-mount" class="cardz3n-3ds-mount"></div>
+			<?php endif; ?>
 
 			<div class="cardz3n-panes">
 
@@ -978,6 +998,26 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		$should_vault_card = ( $save_card && ! $using_saved && in_array( $normalized_source, array( 'card', 'apple_pay', 'google_pay' ), true ) );
 		$should_vault_ach  = ( $save_ach && ! $using_saved && 'ach' === $normalized_source && ACH_Service::reuse_allowed() );
 
+		/*
+		 * 3-D Secure (only when switched on, only for a new card on this sale/authorization path; see Three_DS, ASSUMPTIONS T3 to T6).
+		 * A new card that was not authenticated by the browser is refused before anything is sent to the gateway.
+		 */
+		$three_ds_fields = array();
+		if ( Three_DS::applies( $this->settings, $normalized_source, $using_saved ) ) {
+			$posted_auth = Three_DS::fields_from_request();
+			if ( null === $posted_auth ) {
+				$cardz3n_gw_error_msg = __( 'Your card could not be verified. Please check your details or use a different card.', 'cardz3n-gateway' );
+				$order->add_order_note( __( '3-D Secure: the card was not authenticated in the browser, so the payment was not sent to the gateway.', 'cardz3n-gateway' ) );
+				wc_add_notice( $cardz3n_gw_error_msg, 'error' );
+				return array(
+					'result'   => 'failure',
+					'message'  => $cardz3n_gw_error_msg,
+					'redirect' => '',
+				);
+			}
+			$three_ds_fields = $posted_auth;
+		}
+
 		$args = array(
 			'type'              => $txn_type,
 			'amount'            => $order->get_total(),
@@ -997,6 +1037,11 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		if ( $needs_stored ) {
 			$should_vault_card = ! $using_saved;
 			$args['extra']     = array_merge( $args['extra'], Recurring::first_payment_fields( $using_saved ) );
+		}
+
+		if ( ! empty( $three_ds_fields ) ) {
+			$args['extra'] = array_merge( $args['extra'], $three_ds_fields );
+			$order->add_order_note( Three_DS::order_note( $three_ds_fields ) );
 		}
 
 		if ( $using_saved ) {
