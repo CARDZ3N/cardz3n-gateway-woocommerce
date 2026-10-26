@@ -56,21 +56,21 @@ try {
 
   // M1: the void fails
   const vf = r.void_fails;
-  check('Void fails: the sale and the void were both attempted', j(vf.first_types) === j(['sale', 'void']), j(vf.first_types));
+  check('Void fails: the sale and the void were both attempted', j((vf.first_types || [])) === j(['sale', 'void']), j(vf.first_types));
   check('Void fails: the order is held on-hold (not pending, not failed) and the checkout returns a failure', vf.result === 'failure' && vf.status === 'on-hold' && vf.paid === false, j({ r: vf.result, s: vf.status }));
-  check('Void fails: an order note names the transaction ID and says the customer was charged', vf.notes.some((n) => /TX-1\b/.test(n) && /charged/i.test(n) && /void/i.test(n)) && vf.txn === 'TX-1', j(vf.notes));
+  check('Void fails: an order note names the transaction ID and says the customer was charged', (vf.notes || []).some((n) => /TX-1\b/.test(n) && /charged/i.test(n) && /void/i.test(n)) && vf.txn === 'TX-1', j(vf.notes));
   check('Void fails: the shopper is told to contact the store, never "not charged"', /contact the store/i.test(vf.message) && !/not charged/i.test(vf.message), vf.message);
   check('Void fails: a second attempt on the same order sends no request and fails', vf.second_result === 'failure' && (vf.second_requests || []).length === 0, j(vf.second_requests));
 
   // M1: the void works (unchanged)
   const vo = r.void_ok;
-  check('Void works: unchanged, "not charged" message, voided note, order not held', vo.result === 'failure' && /not charged/i.test(vo.message) && vo.status !== 'on-hold' && vo.notes.some((n) => /payment was voided/i.test(n)), j({ s: vo.status, m: vo.message }));
+  check('Void works: unchanged, "not charged" message, voided note, order not held', vo.result === 'failure' && /not charged/i.test(vo.message) && vo.status !== 'on-hold' && (vo.notes || []).some((n) => /payment was voided/i.test(n)), j({ s: vo.status, m: vo.message }));
 
   // M2: timeout
   const to = r.release_timeout;
   check('Release, gateway timeout: one sale was sent', j(to.first_types) === j(['sale']), j(to.first_types));
   check('Release, gateway timeout: the guard is NOT cleared (a pending placeholder stays), the order is not failed', /^pending:\d+$/.test(to.guard) && to.status !== 'failed', j({ g: to.guard, s: to.status }));
-  check('Release, gateway timeout: the order is noted "result unknown, check the gateway"', to.notes.some((n) => /unknown/i.test(n) && /check the gateway/i.test(n)), j(to.notes));
+  check('Release, gateway timeout: the order is noted "result unknown, check the gateway"', (to.notes || []).some((n) => /unknown/i.test(n) && /check the gateway/i.test(n)), j(to.notes));
   check('Release, gateway timeout: a second release sends no second sale', (to.second_requests || []).length === 0, j(to.second_requests));
 
   // M2: decline then retry
@@ -81,12 +81,12 @@ try {
   // M2: exception after a successful charge
   const th = r.release_throw_after_charge;
   check('Release, error thrown after a successful charge: one sale, the guard holds the real transaction ID', j(th.first_types) === j(['sale']) && /^TX-/.test(th.guard), j({ t: th.first_types, g: th.guard }));
-  check('Release, error thrown after a successful charge: the order is not set to failed and the error is noted', th.status !== 'failed' && th.notes.some((n) => /stopped by an error/i.test(n)), j({ s: th.status, n: th.notes }));
+  check('Release, error thrown after a successful charge: the order is not set to failed and the error is noted', th.status !== 'failed' && (th.notes || []).some((n) => /stopped by an error/i.test(n)), j({ s: th.status, n: th.notes }));
   check('Release, error thrown after a successful charge: a second release sends no second sale', (th.second_requests || []).length === 0, j(th.second_requests));
 
   // M2: stale pending
   const sp = r.release_stale_pending;
-  check('Release with an old pending guard: nothing is charged and the merchant gets a note', (sp.requests || []).length === 0 && sp.notes.some((n) => /unknown result/i.test(n)), j(sp.notes));
+  check('Release with an old pending guard: nothing is charged and the merchant gets a note', (sp.requests || []).length === 0 && (sp.notes || []).some((n) => /unknown result/i.test(n)), j(sp.notes));
 
   // normal release
   const nr = r.release_normal;
