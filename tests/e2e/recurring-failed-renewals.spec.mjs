@@ -61,7 +61,7 @@ try {
 
   // 2b) unexpected error
   const ue = r.unexpected_error;
-  check('An unexpected error inside a renewal fails that renewal cleanly (note, status failed, nothing thrown to the scheduler)', ue.threw === false && ue.status === 'failed' && ue.notes.some((n) => /boom-from-test/.test(n)), j({ threw: ue.threw, status: ue.status }));
+  check('An unexpected error inside a renewal fails that renewal cleanly (plain note without the error text, status failed, nothing thrown to the scheduler)', ue.threw === false && ue.status === 'failed' && ue.notes.some((n) => /unexpected error/i.test(n)) && !ue.notes.some((n) => /boom-from-test/.test(n)), j({ threw: ue.threw, status: ue.status }));
 
   // 3) the gateway no longer knows the saved card
   const iv = r.invalid_vault;
