@@ -54,6 +54,59 @@ class Recurring {
 	}
 
 	/**
+	 * Recurring features the native Blocks payment method advertises, mirroring the classic gateway's supports list.
+	 *
+	 * Advertised only when the matching store switch ("Subscriptions Support" / "Pre-Orders Support") is on AND the plugin is
+	 * active; never more than the settings allow. 'tokenization' is added with them because the card is saved for the later
+	 * payments (Gateway::process_payment() forces that for these orders).
+	 *
+	 * @param array $settings The gateway settings.
+	 * @return string[]
+	 */
+	public static function block_checkout_features( $settings ) {
+		$features = array();
+		if ( 'yes' === ( $settings['enable_subscriptions'] ?? 'no' ) && class_exists( 'WC_Subscriptions' ) ) {
+			$features = array(
+				'subscriptions',
+				'subscription_cancellation',
+				'subscription_suspension',
+				'subscription_reactivation',
+				'subscription_amount_changes',
+				'subscription_date_changes',
+				'subscription_payment_method_change',
+				'subscription_payment_method_change_customer',
+				'subscription_payment_method_change_admin',
+				'multiple_subscriptions',
+			);
+		}
+		if ( 'yes' === ( $settings['enable_preorders'] ?? 'no' ) && self::preorders_active() ) {
+			$features[] = 'pre-orders';
+		}
+		if ( $features ) {
+			$features[] = 'tokenization';
+		}
+		return $features;
+	}
+
+	/**
+	 * Which of the two plugins are active but NOT offered on the block checkout (switch off, or not advertised).
+	 *
+	 * @param array $settings The gateway settings.
+	 * @return string[] Any of 'subscriptions', 'pre-orders'.
+	 */
+	public static function block_checkout_gaps( $settings ) {
+		$features = self::block_checkout_features( $settings );
+		$gaps     = array();
+		if ( self::subscriptions_active() && ! in_array( 'subscriptions', $features, true ) ) {
+			$gaps[] = 'subscriptions';
+		}
+		if ( self::preorders_active() && ! in_array( 'pre-orders', $features, true ) ) {
+			$gaps[] = 'pre-orders';
+		}
+		return $gaps;
+	}
+
+	/**
 	 * Does this order need a stored payment method (it contains a subscription, or a pre-order charged on release)?
 	 *
 	 * @param \WC_Order $order Order being paid.

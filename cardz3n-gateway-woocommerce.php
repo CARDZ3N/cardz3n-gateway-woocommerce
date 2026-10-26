@@ -91,6 +91,10 @@ function cardz3n_gw_subscription_plugins_active() {
  *
  * ON for new installs, OFF when Subscriptions or Pre-Orders is active. A saved value always wins.
  *
+ * NOTE: the native block checkout now supports subscription and pre-order carts (card only, when the matching store
+ * switch is on), but this default is deliberately NOT changed yet. Restore it for subscription stores only after the
+ * real WooCommerce Subscriptions / Pre-Orders plugins have been verified on the demo store (Josh's decision).
+ *
  * @return string 'yes' or 'no'.
  */
 function cardz3n_gw_blocks_default_value() {
