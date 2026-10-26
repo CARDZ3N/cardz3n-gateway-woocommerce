@@ -1120,7 +1120,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 						'redirect' => '',
 					);
 				}
-				$order->add_order_note( __( 'The payment was voided:the gateway did not return a saved payment method, so the subscription or pre-order could not be renewed later.', 'cardz3n-gateway' ) );
+				$order->add_order_note( __( 'The payment was voided: the gateway did not return a saved payment method, so the subscription or pre-order could not be renewed later.', 'cardz3n-gateway' ) );
 				$cardz3n_gw_error_msg = __( 'We could not save your payment method for the later payments, so your card was not charged. Please try again.', 'cardz3n-gateway' );
 				wc_add_notice( $cardz3n_gw_error_msg, 'error' );
 				return array(
