@@ -94,6 +94,32 @@
 	 * includes/class-cardz3n-gateway.php).
 	 * --------------------------------------------------------------- */
 
+	/**
+	 * Short line shown only for subscription and pre-order carts: the card is saved for the later payments.
+	 * ASSUMPTION: the Checkout block's cart store exposes the payment requirements as
+	 * wp.data.select( 'wc/store/cart' ).getCartData().paymentRequirements (the list the Store API sends, which
+	 * WooCommerce Subscriptions / Pre-Orders extend with 'subscriptions' / 'pre-orders'). If it is missing, nothing is shown;
+	 * the card is still saved because the server forces it for those orders.
+	 */
+	function SavedNote() {
+		var requirements = wp.data.useSelect( function ( select ) {
+			try {
+				var data = select( 'wc/store/cart' ).getCartData();
+				return ( data && data.paymentRequirements ) || [];
+			} catch ( e ) {
+				return [];
+			}
+		}, [] );
+		if ( requirements.indexOf( 'subscriptions' ) === -1 && requirements.indexOf( 'pre-orders' ) === -1 ) {
+			return null;
+		}
+		return el(
+			'p',
+			{ className: 'cardz3n-block-card-saved', style: { margin: '12px 0 0' } },
+			( cfg.i18n && cfg.i18n.cardSaved ) || 'Your card will be saved and used for the later payments of this order.'
+		);
+	}
+
 	function Content( props ) {
 		var eventRegistration = props && props.eventRegistration;
 		var emitResponse      = props && props.emitResponse;
@@ -176,6 +202,7 @@
 				el( 'div', { id: 'cardz3n-ccexp',    className: 'cardz3n-field' } ),
 				el( 'div', { id: 'cardz3n-cvv',      className: 'cardz3n-field' } )
 			),
+			wp.data && wp.data.useSelect ? el( SavedNote, {} ) : null,
 			el( 'div', { className: 'cardz3n-errors', style: { display: 'none' } } )
 		);
 	}
@@ -210,8 +237,19 @@
 		paymentMethodId: cfg.gatewayId,
 		supports: {
 			features: cfg.supports || [ 'products' ],
-			showSavedCards      : false, // Not yet supported in the Blocks path -- see file header.
-			showSaveOption      : false  // Not yet supported in the Blocks path -- see file header.
+			/*
+			 * Both stay false on purpose. showSaveOption would show WooCommerce's "save payment information" checkbox, whose
+			 * value is what asks a gateway to save the card on a normal order. Subscription and pre-order orders do not need
+			 * it: the server always saves the card for them (Gateway::process_payment(), no checkbox). The 'tokenization'
+			 * feature (advertised for recurring carts, see Recurring::block_checkout_features()) is only what lets the
+			 * Checkout block offer the method for those carts; it adds no checkbox.
+			 *
+			 * Observed on WooCommerce 11.2.1: the Checkout block lists a signed-in customer's saved cards for this gateway even
+			 * with showSavedCards false (tests/e2e/recurring-blocks.spec.mjs). Choosing one posts
+			 * wc-<gateway>-payment-token and no new card; process_payment() already handles that (the card stays stored).
+			 */
+			showSavedCards      : false,
+			showSaveOption      : false
 		}
 	} );
 } )( window.wp, window.wc, window.wc_cardz3n_params || null );
