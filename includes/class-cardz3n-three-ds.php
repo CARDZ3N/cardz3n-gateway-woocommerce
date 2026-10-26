@@ -86,9 +86,9 @@ class Three_DS {
 	/**
 	 * Does 3-D Secure apply to this payment? Only a new card, on the sale or authorization path (see T4 to T6).
 	 *
-	 * @param array $settings    The gateway settings.
-	 * @param string $source     Normalized payment source (card, ach, apple_pay, google_pay).
-	 * @param bool   $using_saved True when the customer chose a saved card.
+	 * @param array  $settings     The gateway settings.
+	 * @param string $source       Normalized payment source (card, ach, apple_pay, google_pay).
+	 * @param bool   $using_saved  True when the customer chose a saved card.
 	 * @return bool
 	 */
 	public static function applies( $settings, $source, $using_saved ) {
