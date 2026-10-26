@@ -74,6 +74,30 @@ class Subscriptions_Service {
 			return;
 		}
 
+		// An unexpected error must fail this renewal cleanly (Subscriptions then applies its retry rules), never stop the scheduler.
+		try {
+			$this->charge_renewal( $amount, $renewal_order );
+		} catch ( \Throwable $e ) {
+			Logger::error( 'Subscription renewal error: ' . $e->getMessage() );
+			$renewal_order->add_order_note(
+				sprintf(
+					/* translators: %s: error message */
+					__( 'Subscription renewal failed with an unexpected error: %s', 'cardz3n-gateway' ),
+					$e->getMessage()
+				)
+			);
+			$renewal_order->update_status( 'failed' );
+		}
+	}
+
+	/**
+	 * The renewal charge itself (see process_renewal()).
+	 *
+	 * @param float     $amount        Amount to capture for this renewal.
+	 * @param \WC_Order $renewal_order The renewal order being paid.
+	 */
+	private function charge_renewal( $amount, $renewal_order ) {
+
 		// Never charge the same renewal twice (for example when the scheduled action runs again).
 		if ( $renewal_order->is_paid() ) {
 			return;
@@ -131,6 +155,10 @@ class Subscriptions_Service {
 			$renewal_order->add_order_note( Order_Service::success_note( $response, $extra ) );
 		} else {
 			$renewal_order->add_order_note( Order_Service::failure_note( $response, $extra ) );
+			// ASSUMPTION: the gateway's text mentions the vault when the saved card no longer exists there.
+			if ( false !== stripos( (string) $response['text'], 'vault' ) ) {
+				$renewal_order->add_order_note( __( 'The saved card is no longer valid at the gateway. The customer needs to use "Change payment method" on the subscription.', 'cardz3n-gateway' ) );
+			}
 			$renewal_order->update_status( 'failed' );
 		}
 	}
