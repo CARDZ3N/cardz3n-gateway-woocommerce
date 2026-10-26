@@ -43,6 +43,7 @@ class Admin {
 		// Surface availability reason on the gateway settings page.
 		add_action( 'admin_notices', array( $this, 'maybe_render_availability_notice' ) );
 		add_action( 'admin_notices', array( $this, 'maybe_render_subscriptions_blocks_notice' ) );
+		add_action( 'admin_notices', array( $this, 'maybe_render_recurring_not_supported_notice' ) );
 
 		/*
 		 * Gateway AJAX endpoints are registered here — not in the Gateway class —
@@ -165,6 +166,29 @@ class Admin {
 					implode( ' / ', $switches )
 				)
 			)
+		);
+	}
+
+	/**
+	 * Warn, on the gateway settings page, when WooCommerce Subscriptions (or Pre-Orders) is active and this
+	 * gateway's matching support switch is on: renewal and pre-order release payments are not verified yet.
+	 */
+	public function maybe_render_recurring_not_supported_notice() {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+		if ( empty( $_GET['section'] ) || Brand::id() !== $_GET['section'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			return;
+		}
+		$settings         = get_option( 'woocommerce_' . Brand::id() . '_settings', array() );
+		$subscriptions_on = ( class_exists( 'WC_Subscriptions' ) || class_exists( 'WC_Subscriptions_Core_Plugin' ) ) && isset( $settings['enable_subscriptions'] ) && 'yes' === $settings['enable_subscriptions'];
+		$preorders_on     = class_exists( 'WC_Pre_Orders' ) && isset( $settings['enable_preorders'] ) && 'yes' === $settings['enable_preorders'];
+		if ( ! $subscriptions_on && ! $preorders_on ) {
+			return;
+		}
+		printf(
+			'<div class="notice notice-error"><p><strong>CARDZ3N for WooCommerce</strong> — %s</p></div>',
+			esc_html__( 'Subscriptions or Pre-Orders support is switched on, but renewal and pre-order release payments with this gateway have not been verified yet and may fail. Do not use this gateway to sell subscriptions or pre-orders yet: switch the setting off, or offer another payment method for those products.', 'cardz3n-gateway' )
 		);
 	}
 
