@@ -78,6 +78,24 @@ class Recurring {
 	}
 
 	/**
+	 * Is this a pre-order that is charged when it is released (so nothing may be charged at checkout)?
+	 *
+	 * ASSUMPTION P3: Pre-Orders' `order_requires_payment_tokenization()` is true exactly for pre-orders charged upon
+	 * release. Pre-Orders normally shows a $0.00 total at checkout for them; this also covers a total above zero.
+	 *
+	 * @param \WC_Order $order Order being paid.
+	 * @return bool
+	 */
+	public static function order_charged_on_release( $order ) {
+		if ( function_exists( 'wcs_order_contains_subscription' ) && wcs_order_contains_subscription( $order ) ) {
+			return false;
+		}
+		return class_exists( 'WC_Pre_Orders_Order' )
+			&& method_exists( 'WC_Pre_Orders_Order', 'order_requires_payment_tokenization' )
+			&& (bool) \WC_Pre_Orders_Order::order_requires_payment_tokenization( $order );
+	}
+
+	/**
 	 * Subscriptions created for an order (parent, resubscribe or switch).
 	 *
 	 * @param \WC_Order $order Order.
@@ -190,22 +208,7 @@ class Recurring {
 		}
 
 		if ( '' === $found['vault_id'] ) {
-			$user_id = (int) $renewal_order->get_customer_id();
-			if ( $user_id > 0 && class_exists( '\WC_Payment_Tokens' ) ) {
-				foreach ( \WC_Payment_Tokens::get_customer_tokens( $user_id, Brand::id() ) as $token ) {
-					$v = ( '' !== (string) $token->get_meta( 'cardz3n_vault_id' ) ) ? (string) $token->get_meta( 'cardz3n_vault_id' ) : (string) $token->get_token();
-					if ( '' !== $v && ! ( $token instanceof \WC_Payment_Token_ECheck ) ) {
-						$found = array(
-							'vault_id'    => $v,
-							'initial_txn' => (string) $token->get_meta( 'cardz3n_initial_txn_id' ),
-							'via'         => "customer's saved method",
-						);
-						if ( $token->is_default() ) {
-							break;
-						}
-					}
-				}
-			}
+			$found = self::find_in_customer_methods( (int) $renewal_order->get_customer_id() );
 		}
 
 		// Heal: write what was found back to the subscriptions so the next renewal finds it directly.
@@ -222,6 +225,58 @@ class Recurring {
 		}
 
 		return $found;
+	}
+
+	/**
+	 * The default (or last) card saved for a customer under this gateway.
+	 *
+	 * @param int $user_id Customer ID (0 for a guest).
+	 * @return array{vault_id:string,initial_txn:string,via:string}
+	 */
+	private static function find_in_customer_methods( $user_id ) {
+		$found = array(
+			'vault_id'    => '',
+			'initial_txn' => '',
+			'via'         => '',
+		);
+		if ( $user_id < 1 || ! class_exists( '\WC_Payment_Tokens' ) ) {
+			return $found;
+		}
+		foreach ( \WC_Payment_Tokens::get_customer_tokens( $user_id, Brand::id() ) as $token ) {
+			$v = ( '' !== (string) $token->get_meta( 'cardz3n_vault_id' ) ) ? (string) $token->get_meta( 'cardz3n_vault_id' ) : (string) $token->get_token();
+			if ( '' !== $v && ! ( $token instanceof \WC_Payment_Token_ECheck ) ) {
+				$found = array(
+					'vault_id'    => $v,
+					'initial_txn' => (string) $token->get_meta( 'cardz3n_initial_txn_id' ),
+					'via'         => "customer's saved method",
+				);
+				if ( $token->is_default() ) {
+					break;
+				}
+			}
+		}
+		return $found;
+	}
+
+	/**
+	 * Find the saved card to charge for a single order that is paid later (a pre-order released by the shop owner).
+	 *
+	 * Looks at the order's own saved card first (stored at checkout), then the customer's saved methods.
+	 *
+	 * @param \WC_Order $order The order.
+	 * @return array{vault_id:string,initial_txn:string,via:string}
+	 */
+	public static function find_for_order( $order ) {
+		$vault = (string) $order->get_meta( self::META_VAULT );
+		if ( '' !== $vault ) {
+			$initial = (string) $order->get_meta( self::META_INITIAL_TXN );
+			return array(
+				'vault_id'    => $vault,
+				'initial_txn' => ( '' !== $initial ) ? $initial : (string) $order->get_meta( '_cardz3n_transaction_id' ),
+				'via'         => 'order',
+			);
+		}
+		return self::find_in_customer_methods( (int) $order->get_customer_id() );
 	}
 
 	/**

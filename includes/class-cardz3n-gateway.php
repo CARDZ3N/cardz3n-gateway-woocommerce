@@ -893,7 +893,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		);
 
 		// Nothing is due today (a free trial, or a pre-order charged on release): save the card without charging it.
-		if ( $needs_stored && (float) $order->get_total() <= 0 ) {
+		if ( $needs_stored && ( (float) $order->get_total() <= 0 || Recurring::order_charged_on_release( $order ) ) ) {
 			return $this->process_card_verification( $order, $client, $using_saved, $vault_id, $saved_initial_txn, $collect_token, $normalized_source, $billing, $client_brand );
 		}
 
