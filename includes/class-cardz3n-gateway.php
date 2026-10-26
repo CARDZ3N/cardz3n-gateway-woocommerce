@@ -757,6 +757,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		// Resolve payment mechanism.
 		$using_saved       = false;
 		$vault_id          = '';
+		$saved_initial_txn = '';
 		$vault_brand      = '';
 		$normalized_source = Wallet_Service::normalize_source( ( '' !== $token_type ) ? $token_type : $source );
 
@@ -893,6 +894,11 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			'zip'        => $order->get_shipping_postcode(),
 			'country'    => $order->get_shipping_country(),
 		);
+
+		// Nothing is due today (a free trial, or a pre-order charged on release): save the card without charging it.
+		if ( $needs_stored && (float) $order->get_total() <= 0 ) {
+			return $this->process_card_verification( $order, $client, $using_saved, $vault_id, $saved_initial_txn, $collect_token, $normalized_source, $billing, $client_brand );
+		}
 
 		// Level 3 payload.
 		$mapper = new Level3_Mapper( $this->settings );
@@ -1146,6 +1152,105 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		}
 
 		// Clear the cart and redirect.
+		WC()->cart->empty_cart();
+
+		return array(
+			'result'   => 'success',
+			'redirect' => $this->get_return_url( $order ),
+		);
+	}
+
+	/**
+	 * Save the customer's card for later charges when nothing is due today (a subscription free trial, or a pre-order
+	 * charged on release). The card is verified and added to the vault with a $0.00 verification request, never a $0.00
+	 * sale. ASSUMPTIONS A1 to A3 (see Recurring): `type=validate` with amount 0.00 and `customer_vault=add_customer` is
+	 * allowed, returns a transaction ID and a vault ID, and works on the TEST account.
+	 *
+	 * @param \WC_Order  $order              The order (total 0).
+	 * @param Api_Client $client             Gateway client.
+	 * @param bool       $using_saved        True when the customer picked a saved card.
+	 * @param string     $vault_id           Vault ID of the picked saved card.
+	 * @param string     $saved_initial_txn  First transaction ID stored on that saved card.
+	 * @param string     $collect_token      Collect.js token for a new card.
+	 * @param string     $normalized_source  card, apple_pay, google_pay.
+	 * @param array      $billing            Billing fields.
+	 * @param string     $client_brand       Card brand reported by the browser.
+	 * @return array{result:string,redirect:string,message?:string}
+	 */
+	private function process_card_verification( $order, $client, $using_saved, $vault_id, $saved_initial_txn, $collect_token, $normalized_source, array $billing, $client_brand ) {
+		if ( $using_saved ) {
+			Recurring::store( $order, $vault_id, $saved_initial_txn );
+			$order->add_order_note( __( 'Nothing is due today. The customer\'s saved card will be used for the later payments.', 'cardz3n-gateway' ) );
+			$order->payment_complete();
+			WC()->cart->empty_cart();
+			return array(
+				'result'   => 'success',
+				'redirect' => $this->get_return_url( $order ),
+			);
+		}
+
+		$response = $client->transaction(
+			array(
+				'type'              => 'validate',
+				'amount'            => '0.00',
+				'order_id'          => $order->get_id(),
+				'order_description' => sprintf( /* translators: order id */ __( 'Order #%s', 'cardz3n-gateway' ), $order->get_order_number() ),
+				'currency'          => $order->get_currency(),
+				'payment_token'     => $collect_token,
+				'vault'             => 'add_customer',
+				'billing'           => $billing,
+				'extra'             => array_merge(
+					array( 'merchant_defined_field_10' => $normalized_source ),
+					Recurring::first_payment_fields( false )
+				),
+			)
+		);
+
+		$extra = array(
+			'payment_source_type' => $normalized_source,
+			'transaction_type'    => 'validate',
+		);
+
+		if ( ! $response['success'] || '' === (string) $response['customer_vault_id'] ) {
+			$order->add_order_note( Order_Service::failure_note( $response, $extra ) );
+			$message = $response['success']
+				? __( 'We could not save your payment method for the later payments. Please try again.', 'cardz3n-gateway' )
+				: __( 'Your card could not be verified. Please check your details or use a different card.', 'cardz3n-gateway' );
+			wc_add_notice( $message, 'error' );
+			return array(
+				'result'   => 'failure',
+				'message'  => $message,
+				'redirect' => '',
+			);
+		}
+
+		Order_Service::stamp( $order, $response, $extra );
+		Order_Service::apply_payment_method_title( $order, $normalized_source, $response, '', $client_brand );
+		Recurring::store( $order, $response['customer_vault_id'], $response['transaction_id'] );
+		$order->add_order_note(
+			sprintf(
+				/* translators: %s: gateway transaction ID */
+				__( 'Card verified and saved for the later payments. Nothing was charged today. Transaction ID: %s.', 'cardz3n-gateway' ),
+				$response['transaction_id']
+			)
+		);
+
+		if ( is_user_logged_in() ) {
+			Token_Service::save_card_token(
+				get_current_user_id(),
+				$this->id,
+				$response['customer_vault_id'],
+				array(
+					'initial_txn_id' => (string) $response['transaction_id'],
+					'last4'          => substr( (string) ( $response['raw']['cc_number'] ?? '' ), -4 ),
+					'brand'          => \Cardz3n_Gateway\brand_slug( '' !== $client_brand ? $client_brand : ( $response['raw']['cc_type'] ?? $response['raw']['card_type'] ?? '' ) ),
+					'exp_month'      => \Cardz3n_Gateway\parse_ccexp( $response['raw']['cc_exp'] ?? $response['raw']['ccexp'] ?? '' )['month'],
+					'exp_year'       => \Cardz3n_Gateway\parse_ccexp( $response['raw']['cc_exp'] ?? $response['raw']['ccexp'] ?? '' )['year'],
+				)
+			);
+		}
+
+		$order->payment_complete( $response['transaction_id'] );
 		WC()->cart->empty_cart();
 
 		return array(
