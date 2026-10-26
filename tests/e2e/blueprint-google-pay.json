@@ -1,0 +1,34 @@
+{
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "landingPage": "/",
+  "login": true,
+  "steps": [
+    {
+      "step": "mkdir",
+      "path": "/wordpress/wp-content/mu-plugins"
+    },
+    {
+      "step": "installPlugin",
+      "pluginData": {
+        "resource": "wordpress.org/plugins",
+        "slug": "woocommerce"
+      },
+      "options": {
+        "activate": true
+      }
+    },
+    {
+      "step": "activatePlugin",
+      "pluginPath": "cardz3n-gateway/cardz3n-gateway-woocommerce.php"
+    },
+    {
+      "step": "runPHP",
+      "code": "<?php\nrequire_once '/wordpress/wp-load.php';\nupdate_option( 'woocommerce_coming_soon', 'no' );\nupdate_option( 'woocommerce_currency', 'USD' );\nupdate_option( 'woocommerce_default_country', 'US:CA' );\n// Placeholder values only: the e2e test never talks to the real gateway (Collect.js and the checkout request are stubbed).\nupdate_option( 'woocommerce_cardz3n_gateway_settings', array( 'enabled' => 'yes', 'test_mode' => 'yes', 'enable_cards' => 'yes', 'enable_ach' => 'yes', 'enable_apple_pay' => 'yes', 'enable_google_pay' => 'yes', 'enable_saved_methods' => 'yes', 'enable_experimental_blocks_checkout' => 'yes', 'test_security_key' => 'e2e-placeholder-security-key', 'test_tokenization_key' => 'e2e-placeholder-tokenization-key' ) );\n$p = new WC_Product_Simple(); $p->set_name( 'E2E Test Item' ); $p->set_regular_price( '1.00' ); $p->set_status( 'publish' ); $pid = $p->save();\nupdate_option( 'cardz3n_e2e_product_id', $pid );\nwp_insert_post( array( 'post_title' => 'Checkout Classic', 'post_name' => 'checkout-classic', 'post_status' => 'publish', 'post_type' => 'page', 'post_content' => '[woocommerce_checkout]' ) );\necho 'E2E_SETUP_OK ' . $pid;\n"
+    },
+    {
+      "step": "writeFile",
+      "path": "/wordpress/wp-content/mu-plugins/e2e-google-pay-probe.php",
+      "data": "<?php\n// E2E probe (test only): switches Google Pay on or off, and the optional Google Pay options filter on or off, between page loads.\nadd_action( 'wp_loaded', function () {\n\tif ( empty( $_GET['cardz3n_e2e'] ) || 'set' !== $_GET['cardz3n_e2e'] ) { return; }\n\theader( 'Content-Type: application/json' );\n\t$s = get_option( 'woocommerce_cardz3n_gateway_settings', array() );\n\tif ( isset( $_GET['gp'] ) ) { $s['enable_google_pay'] = 'yes' === $_GET['gp'] ? 'yes' : 'no'; update_option( 'woocommerce_cardz3n_gateway_settings', $s ); }\n\tif ( isset( $_GET['env'] ) ) { update_option( 'cz_e2e_gp_env', '1' === $_GET['env'] ? '1' : '0' ); }\n\techo wp_json_encode( array( 'gp' => $s['enable_google_pay'] ?? null, 'env' => get_option( 'cz_e2e_gp_env', '0' ) ) );\n\texit;\n} );\n// The documented way to pass an extra Google Pay option, if the gateway ever says it is needed (ASSUMPTION GP1).\nadd_filter( 'cardz3n_gw_google_pay_options', function ( $o, $test_mode ) {\n\tif ( '1' === get_option( 'cz_e2e_gp_env', '0' ) ) { $o['environment'] = $test_mode ? 'TEST' : 'PRODUCTION'; $o['bad'] = array( 'not', 'scalar' ); }\n\treturn $o;\n}, 10, 2 );\n"
+    }
+  ]
+}

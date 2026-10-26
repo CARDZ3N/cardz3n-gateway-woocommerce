@@ -31,6 +31,40 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	use Compatibility_Trait;
 
 	/**
+	 * Google's own Google Pay script. Collect.js builds the Google Pay button with it, so it is loaded in the shopper's browser
+	 * (only when the store switched Google Pay on) before Collect.js is configured with the Google Pay field. Disclosed in the
+	 * readme under External services.
+	 */
+	const GOOGLE_PAY_SCRIPT = 'https://pay.google.com/gp/p/js/pay.js';
+
+	/**
+	 * Extra Google Pay options for Collect.js, empty by default.
+	 *
+	 * ASSUMPTION GP1: Collect.js chooses Google's TEST or PRODUCTION environment itself (from the key), so the plugin passes
+	 * nothing. If CARDZ3N / the gateway says the store must set it, add it with this filter, for example
+	 * `array( 'environment' => $test_mode ? 'TEST' : 'PRODUCTION' )`. Do not add anything Collect.js does not document: its
+	 * validator rejects unknown keys and would stop the whole payment form from loading. Only plain string, number and boolean
+	 * values are passed to the browser.
+	 *
+	 * @return array<string,string|int|float|bool>
+	 */
+	private function google_pay_options() {
+		if ( 'yes' !== $this->get_option( 'enable_google_pay', 'no' ) ) {
+			return array();
+		}
+		$options = apply_filters( 'cardz3n_gw_google_pay_options', array(), 'yes' === $this->get_option( 'test_mode' ) );
+		$clean   = array();
+		if ( is_array( $options ) ) {
+			foreach ( $options as $key => $value ) {
+				if ( is_string( $key ) && '' !== $key && is_scalar( $value ) ) {
+					$clean[ $key ] = $value;
+				}
+			}
+		}
+		return $clean;
+	}
+
+	/**
 	 * Configure the gateway's identity, settings fields, and hooks.
 	 */
 	public function __construct() {
@@ -254,6 +288,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				'enableAch'       => 'yes' === $this->get_option( 'enable_ach', 'no' ),
 				'enableApplePay'  => 'yes' === $this->get_option( 'enable_apple_pay', 'no' ),
 				'enableGooglePay' => 'yes' === $this->get_option( 'enable_google_pay', 'no' ),
+				'googlePayScript' => 'yes' === $this->get_option( 'enable_google_pay', 'no' ) ? self::GOOGLE_PAY_SCRIPT : '',
+				'googlePayOptions' => $this->google_pay_options(),
 				'enableSaved'     => 'yes' === $this->get_option( 'enable_saved_methods', 'no' ),
 				'allowedBrands'   => (array) $this->get_option( 'allowed_card_brands', array() ),
 				'country'         => ( WC()->customer && WC()->customer->get_billing_country() ) ? WC()->customer->get_billing_country() : 'US',

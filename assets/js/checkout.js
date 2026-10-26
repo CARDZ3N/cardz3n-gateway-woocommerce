@@ -311,6 +311,41 @@
 		}
 	}
 
+	/*
+	 * Google Pay: Collect.js builds the button with Google's own library, so that library has to be on the page BEFORE
+	 * Collect.js is configured with fields.googlePay (otherwise Collect.js has nothing to build the button with and the
+	 * wallet never appears). The script is loaded only when the store switched Google Pay on and the page offers wallets
+	 * (cfg.googlePayScript is set by the server only then). If it fails to load or is too slow, Google Pay is simply left
+	 * out: the card and bank fields still mount, and the shopper sees no error.
+	 * States: idle -> loading -> ready | failed.
+	 */
+	var googleState = 'idle';
+	function googlePayLibReady() {
+		return !!(window.google && window.google.payments && window.google.payments.api && window.google.payments.api.PaymentsClient);
+	}
+	function loadGooglePayScript(done) {
+		var finished = false;
+		var finish = function (ok) {
+			if (finished) { return; }
+			finished = true;
+			googleState = (ok && googlePayLibReady()) ? 'ready' : 'failed';
+			done();
+		};
+		if (googlePayLibReady()) { googleState = 'ready'; done(); return; }
+		googleState = 'loading';
+		try {
+			var s = document.createElement('script');
+			s.src = cfg.googlePayScript;
+			s.async = true;
+			s.onload = function () { finish(true); };
+			s.onerror = function () { finish(false); };
+			document.head.appendChild(s);
+			setTimeout(function () { finish(false); }, 6000);
+		} catch (err) {
+			finish(false);
+		}
+	}
+
 	function configureCollect() {
 		if (configured || typeof window.CollectJS === 'undefined') {
 			return;
@@ -318,6 +353,14 @@
 
 		var pane = activeCollectPane();
 		if (!pane) { return; } // Saved-only — no hosted fields needed.
+
+		if (!isBlocksMode() && cfg.enableGooglePay && cfg.googlePayScript) {
+			if ('idle' === googleState) {
+				loadGooglePayScript(function () { setTimeout(configureCollect, 0); });
+				return;
+			}
+			if ('loading' === googleState) { return; }
+		}
 
 		var fields = {};
 
@@ -352,8 +395,15 @@
 		if (!isBlocksMode() && cfg.enableApplePay && applePayAvailable()) {
 			fields.applePay = { selector: '.cardz3n-applepay-button', type: 'buy' };
 		}
-		if (!isBlocksMode() && cfg.enableGooglePay && window.google && window.google.payments && window.google.payments.api) {
+		if (!isBlocksMode() && cfg.enableGooglePay && 'ready' === googleState && googlePayLibReady()) {
 			fields.googlePay = { selector: '.cardz3n-googlepay-button' };
+			// ASSUMPTION GP1 (see the gateway class): off by default. Only options the store adds through the
+			// cardz3n_gw_google_pay_options filter are passed; Collect.js rejects keys it does not know.
+			if (cfg.googlePayOptions && 'object' === typeof cfg.googlePayOptions) {
+				for (var gk in cfg.googlePayOptions) {
+					if (Object.prototype.hasOwnProperty.call(cfg.googlePayOptions, gk)) { fields.googlePay[gk] = cfg.googlePayOptions[gk]; }
+				}
+			}
 		}
 
 		var collectConfig = {
