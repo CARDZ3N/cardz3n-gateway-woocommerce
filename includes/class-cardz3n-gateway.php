@@ -714,7 +714,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		 * Already paid, or already authorized: a second submit (double click, replayed request) must not
 		 * charge again. Send the shopper on to the order-received page instead.
 		 */
-		if ( $order->is_paid() || ( $order->has_status( 'on-hold' ) && (float) $order->get_meta( '_cardz3n_authorized_amount' ) > 0 ) ) {
+		$is_subscription = function_exists( 'wcs_is_subscription' ) && wcs_is_subscription( $order );
+		if ( ! $is_subscription && ( $order->is_paid() || ( $order->has_status( 'on-hold' ) && (float) $order->get_meta( '_cardz3n_authorized_amount' ) > 0 ) ) ) {
 			return array(
 				'result'   => 'success',
 				'redirect' => $this->get_return_url( $order ),
@@ -841,6 +842,14 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			}
 		}
 
+		/*
+		 * "Change payment method" on a subscription: Subscriptions hands us the SUBSCRIPTION as the order. It must never be
+		 * charged: verify the new card for $0.00 (or take the chosen saved card) and store it on that subscription only.
+		 */
+		if ( $is_subscription ) {
+			return $this->change_subscription_payment_method( $order, $client, $using_saved, $vault_id, $saved_initial_txn, $collect_token, $normalized_source, $client_brand );
+		}
+
 		// Determine NMI "payment" field.
 		$payment_kind = in_array( $normalized_source, array( 'ach', 'ach_vault' ), true ) ? 'check' : 'creditcard';
 
@@ -870,19 +879,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		}
 
 		// Collect billing / shipping from the order.
-		$billing  = array(
-			'first_name' => $order->get_billing_first_name(),
-			'last_name'  => $order->get_billing_last_name(),
-			'company'    => $order->get_billing_company(),
-			'email'      => $order->get_billing_email(),
-			'phone'      => $order->get_billing_phone(),
-			'address1'   => $order->get_billing_address_1(),
-			'address2'   => $order->get_billing_address_2(),
-			'city'       => $order->get_billing_city(),
-			'state'      => $order->get_billing_state(),
-			'zip'        => $order->get_billing_postcode(),
-			'country'    => $order->get_billing_country(),
-		);
+		$billing  = $this->order_billing( $order );
 		$shipping = array(
 			'first_name' => $order->get_shipping_first_name(),
 			'last_name'  => $order->get_shipping_last_name(),
@@ -1189,22 +1186,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			);
 		}
 
-		$response = $client->transaction(
-			array(
-				'type'              => 'validate',
-				'amount'            => '0.00',
-				'order_id'          => $order->get_id(),
-				'order_description' => sprintf( /* translators: order id */ __( 'Order #%s', 'cardz3n-gateway' ), $order->get_order_number() ),
-				'currency'          => $order->get_currency(),
-				'payment_token'     => $collect_token,
-				'vault'             => 'add_customer',
-				'billing'           => $billing,
-				'extra'             => array_merge(
-					array( 'merchant_defined_field_10' => $normalized_source ),
-					Recurring::first_payment_fields( false )
-				),
-			)
-		);
+		$response = $this->verify_and_vault_card( $client, $order, $collect_token, $normalized_source, $billing );
 
 		$extra = array(
 			'payment_source_type' => $normalized_source,
@@ -1235,20 +1217,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			)
 		);
 
-		if ( is_user_logged_in() ) {
-			Token_Service::save_card_token(
-				get_current_user_id(),
-				$this->id,
-				$response['customer_vault_id'],
-				array(
-					'initial_txn_id' => (string) $response['transaction_id'],
-					'last4'          => substr( (string) ( $response['raw']['cc_number'] ?? '' ), -4 ),
-					'brand'          => \Cardz3n_Gateway\brand_slug( '' !== $client_brand ? $client_brand : ( $response['raw']['cc_type'] ?? $response['raw']['card_type'] ?? '' ) ),
-					'exp_month'      => \Cardz3n_Gateway\parse_ccexp( $response['raw']['cc_exp'] ?? $response['raw']['ccexp'] ?? '' )['month'],
-					'exp_year'       => \Cardz3n_Gateway\parse_ccexp( $response['raw']['cc_exp'] ?? $response['raw']['ccexp'] ?? '' )['year'],
-				)
-			);
-		}
+		$this->save_verified_card( $response, $client_brand );
 
 		$order->payment_complete( $response['transaction_id'] );
 		WC()->cart->empty_cart();
@@ -1256,6 +1225,184 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		return array(
 			'result'   => 'success',
 			'redirect' => $this->get_return_url( $order ),
+		);
+	}
+
+	/**
+	 * Billing fields of an order, in the shape the gateway client expects.
+	 *
+	 * @param \WC_Order $order Order or subscription.
+	 * @return array<string,string>
+	 */
+	private function order_billing( $order ) {
+		return array(
+			'first_name' => $order->get_billing_first_name(),
+			'last_name'  => $order->get_billing_last_name(),
+			'company'    => $order->get_billing_company(),
+			'email'      => $order->get_billing_email(),
+			'phone'      => $order->get_billing_phone(),
+			'address1'   => $order->get_billing_address_1(),
+			'address2'   => $order->get_billing_address_2(),
+			'city'       => $order->get_billing_city(),
+			'state'      => $order->get_billing_state(),
+			'zip'        => $order->get_billing_postcode(),
+			'country'    => $order->get_billing_country(),
+		);
+	}
+
+	/**
+	 * Verify a new card for $0.00 and add it to the vault (never a sale). ASSUMPTIONS A1 to A5, see Recurring.
+	 *
+	 * @param Api_Client     $client            Gateway client.
+	 * @param \WC_Order|null $order             Order or subscription the card is for, or null (My Account > Add payment method).
+	 * @param string         $collect_token     Collect.js token of the new card.
+	 * @param string         $normalized_source card.
+	 * @param array          $billing           Billing fields.
+	 * @return array Gateway response (see Api_Client::transaction()).
+	 */
+	private function verify_and_vault_card( $client, $order, $collect_token, $normalized_source, array $billing ) {
+		$args = array(
+			'type'          => 'validate',
+			'amount'        => '0.00',
+			'payment_token' => $collect_token,
+			'vault'         => 'add_customer',
+			'billing'       => $billing,
+			'extra'         => array_merge(
+				array( 'merchant_defined_field_10' => $normalized_source ),
+				Recurring::first_payment_fields( false )
+			),
+		);
+		if ( $order ) {
+			$args['order_id']          = $order->get_id();
+			$args['order_description'] = sprintf( /* translators: order id */ __( 'Order #%s', 'cardz3n-gateway' ), $order->get_order_number() );
+			$args['currency']          = $order->get_currency();
+		}
+		return $client->transaction( $args );
+	}
+
+	/**
+	 * Keep a verified card as a WooCommerce saved method of the signed-in customer.
+	 *
+	 * @param array  $response     Gateway response of the verification.
+	 * @param string $client_brand Card brand reported by the browser.
+	 * @return int|false Saved method ID.
+	 */
+	private function save_verified_card( $response, $client_brand ) {
+		if ( ! is_user_logged_in() ) {
+			return false;
+		}
+		return Token_Service::save_card_token(
+			get_current_user_id(),
+			$this->id,
+			$response['customer_vault_id'],
+			array(
+				'initial_txn_id' => (string) $response['transaction_id'],
+				'last4'          => substr( (string) ( $response['raw']['cc_number'] ?? '' ), -4 ),
+				'brand'          => \Cardz3n_Gateway\brand_slug( '' !== $client_brand ? $client_brand : ( $response['raw']['cc_type'] ?? $response['raw']['card_type'] ?? '' ) ),
+				'exp_month'      => \Cardz3n_Gateway\parse_ccexp( $response['raw']['cc_exp'] ?? $response['raw']['ccexp'] ?? '' )['month'],
+				'exp_year'       => \Cardz3n_Gateway\parse_ccexp( $response['raw']['cc_exp'] ?? $response['raw']['ccexp'] ?? '' )['year'],
+			)
+		);
+	}
+
+	/**
+	 * Failure result with a notice.
+	 *
+	 * @param string $message Shopper-facing message.
+	 * @return array{result:string,message:string,redirect:string}
+	 */
+	private function failure( $message ) {
+		wc_add_notice( $message, 'error' );
+		return array(
+			'result'   => 'failure',
+			'message'  => $message,
+			'redirect' => '',
+		);
+	}
+
+	/**
+	 * Customer changes the payment method of a subscription (My Account > Subscription > Change payment method).
+	 *
+	 * Nothing is charged: a new card is verified for $0.00 and added to the vault (ASSUMPTIONS A1 to A5), or a saved card
+	 * is taken as it is. The new vault ID and first transaction ID are stored on THIS subscription only. A declined
+	 * verification leaves the old card in place. Card only: bank (ACH) and wallets are refused for now.
+	 *
+	 * @param \WC_Order  $subscription      The subscription (a WC_Subscription, which extends WC_Order).
+	 * @param Api_Client $client            Gateway client.
+	 * @param bool       $using_saved       True when the customer picked a saved card.
+	 * @param string     $vault_id          Vault ID of the picked saved card.
+	 * @param string     $saved_initial_txn First transaction ID stored on that saved card.
+	 * @param string     $collect_token     Collect.js token for a new card.
+	 * @param string     $normalized_source card, card_vault, ach, ach_vault, apple_pay, google_pay.
+	 * @param string     $client_brand      Card brand reported by the browser.
+	 * @return array{result:string,redirect:string,message?:string}
+	 */
+	private function change_subscription_payment_method( $subscription, $client, $using_saved, $vault_id, $saved_initial_txn, $collect_token, $normalized_source, $client_brand ) {
+		if ( ! in_array( $normalized_source, array( 'card', 'card_vault' ), true ) ) {
+			return $this->failure( __( 'Bank payments are not available for subscriptions or pre-orders yet. Please pay with a card.', 'cardz3n-gateway' ) );
+		}
+		// Subscriptions checks this too; the gateway does not rely on it.
+		if ( get_current_user_id() < 1 || (int) $subscription->get_customer_id() !== get_current_user_id() ) {
+			return $this->failure( __( 'You cannot change the payment method of this subscription.', 'cardz3n-gateway' ) );
+		}
+
+		if ( $using_saved ) {
+			$new_vault   = $vault_id;
+			$initial_txn = $saved_initial_txn;
+		} else {
+			$response = $this->verify_and_vault_card( $client, $subscription, $collect_token, $normalized_source, $this->order_billing( $subscription ) );
+			if ( ! $response['success'] || '' === (string) $response['customer_vault_id'] ) {
+				$subscription->add_order_note( Order_Service::failure_note( $response, array( 'transaction_type' => 'validate' ) ) );
+				return $this->failure(
+					$response['success']
+						? __( 'We could not save your payment method. Your previous payment method has not been changed.', 'cardz3n-gateway' )
+						: __( 'Your card could not be verified, so your previous payment method has not been changed. Please check your details or use a different card.', 'cardz3n-gateway' )
+				);
+			}
+			$new_vault   = (string) $response['customer_vault_id'];
+			$initial_txn = (string) $response['transaction_id'];
+			$this->save_verified_card( $response, $client_brand );
+		}
+
+		Recurring::replace( $subscription, $new_vault, $initial_txn );
+		$subscription->add_order_note( __( 'The customer changed the payment method. The new card was saved without a charge.', 'cardz3n-gateway' ) );
+
+		$redirect = method_exists( $subscription, 'get_view_order_url' ) ? $subscription->get_view_order_url() : wc_get_page_permalink( 'myaccount' );
+		return array(
+			'result'   => 'success',
+			'redirect' => $redirect,
+		);
+	}
+
+	/**
+	 * My Account > Payment methods > Add payment method: verify the card for $0.00 and save it. Nothing is charged.
+	 *
+	 * @return array{result:string,redirect:string,message?:string}
+	 */
+	public function add_payment_method() {
+		$client = new Api_Client( $this->settings );
+		if ( ! is_user_logged_in() || ! $client->has_credentials() ) {
+			return $this->failure( __( 'Payment gateway is not configured. Please contact the store.', 'cardz3n-gateway' ) );
+		}
+		$collect_token = isset( $_POST['cardz3n_payment_token'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_payment_token'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- WooCommerce checks the nonce before calling this.
+		$token_type    = isset( $_POST['cardz3n_token_type'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_token_type'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$client_brand  = isset( $_POST['cardz3n_card_brand'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_card_brand'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$source        = Wallet_Service::normalize_source( '' !== $token_type ? $token_type : 'card' );
+		if ( '' === $collect_token ) {
+			return $this->failure( __( 'Payment details could not be tokenized. Please check your card details and try again.', 'cardz3n-gateway' ) );
+		}
+		if ( 'card' !== $source || 'yes' !== $this->get_option( 'enable_cards', 'yes' ) ) {
+			return $this->failure( __( 'Only a card can be saved here. Please enter a card.', 'cardz3n-gateway' ) );
+		}
+
+		$response = $this->verify_and_vault_card( $client, null, $collect_token, $source, array() );
+		if ( ! $response['success'] || '' === (string) $response['customer_vault_id'] || ! $this->save_verified_card( $response, $client_brand ) ) {
+			return $this->failure( __( 'Your card could not be verified and saved. Please check your details or use a different card.', 'cardz3n-gateway' ) );
+		}
+
+		return array(
+			'result'   => 'success',
+			'redirect' => wc_get_endpoint_url( 'payment-methods' ),
 		);
 	}
 

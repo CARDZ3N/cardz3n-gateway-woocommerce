@@ -51,9 +51,80 @@ class Subscriptions_Service {
 			'init',
 			function () {
 				add_action( 'woocommerce_scheduled_subscription_payment_' . Brand::id(), array( $this, 'process_renewal' ), 10, 2 );
+
+				/*
+				 * Change payment method. ASSUMPTIONS (from the Subscriptions gateway documentation; not testable without the real plugin):
+				 *   A9.  `woocommerce_subscription_payment_meta` ( $payment_meta, $subscription ) lists the editable stored values.
+				 *   A10. `woocommerce_subscription_validate_payment_meta_<gateway id>` ( $payment_meta, $subscription ) is an action
+				 *        that stops the save when it throws an Exception; $payment_meta holds this gateway's rows as posted.
+				 *   A11. `woocommerce_subscription_failing_payment_method_updated_<gateway id>` passes the subscription and the
+				 *        failed renewal order (this code finds which is which, so the order of the two does not matter).
+				 */
+				add_filter( 'woocommerce_subscription_payment_meta', array( $this, 'payment_meta' ), 10, 2 );
+				add_action( 'woocommerce_subscription_validate_payment_meta_' . Brand::id(), array( $this, 'validate_payment_meta' ) );
+				add_action( 'woocommerce_subscription_failing_payment_method_updated_' . Brand::id(), array( $this, 'copy_method_to_failed_renewal' ), 10, 2 );
 			},
 			5
 		);
+	}
+
+	/**
+	 * Show the stored card reference of a subscription so an administrator can read or correct it.
+	 *
+	 * @param array     $payment_meta Rows of all gateways, keyed by gateway ID.
+	 * @param \WC_Order $subscription The subscription.
+	 * @return array
+	 */
+	public function payment_meta( $payment_meta, $subscription ) {
+		$payment_meta[ Brand::id() ] = array(
+			'post_meta' => array(
+				Recurring::META_VAULT       => array(
+					'value' => (string) $subscription->get_meta( Recurring::META_VAULT ),
+					'label' => __( 'Saved card ID (vault ID)', 'cardz3n-gateway' ),
+				),
+				Recurring::META_INITIAL_TXN => array(
+					'value' => (string) $subscription->get_meta( Recurring::META_INITIAL_TXN ),
+					'label' => __( 'First transaction ID of the saved card', 'cardz3n-gateway' ),
+				),
+			),
+		);
+		return $payment_meta;
+	}
+
+	/**
+	 * Refuse an empty or odd-looking saved card ID before it is stored on a subscription.
+	 *
+	 * @param array $payment_meta This gateway's rows as posted.
+	 * @throws \Exception When the saved card ID is empty or has unexpected characters.
+	 */
+	public function validate_payment_meta( $payment_meta ) {
+		$vault   = isset( $payment_meta['post_meta'][ Recurring::META_VAULT ]['value'] ) ? trim( (string) $payment_meta['post_meta'][ Recurring::META_VAULT ]['value'] ) : '';
+		$initial = isset( $payment_meta['post_meta'][ Recurring::META_INITIAL_TXN ]['value'] ) ? trim( (string) $payment_meta['post_meta'][ Recurring::META_INITIAL_TXN ]['value'] ) : '';
+		if ( ! preg_match( '/^[A-Za-z0-9_-]{1,64}$/', $vault ) ) {
+			throw new \Exception( esc_html__( 'Enter the saved card ID (vault ID): letters, numbers, dashes and underscores only.', 'cardz3n-gateway' ) );
+		}
+		if ( '' !== $initial && ! preg_match( '/^[A-Za-z0-9_-]{1,64}$/', $initial ) ) {
+			throw new \Exception( esc_html__( 'The first transaction ID may only contain letters, numbers, dashes and underscores.', 'cardz3n-gateway' ) );
+		}
+	}
+
+	/**
+	 * After a customer fixes a failing renewal by changing the payment method, give that renewal order the new card.
+	 *
+	 * @param \WC_Order $first  The subscription or the failed renewal order.
+	 * @param \WC_Order $second The other one.
+	 */
+	public function copy_method_to_failed_renewal( $first, $second ) {
+		if ( ! $first instanceof \WC_Order || ! $second instanceof \WC_Order ) {
+			return;
+		}
+		$first_is_sub = function_exists( 'wcs_is_subscription' ) && wcs_is_subscription( $first );
+		$subscription = $first_is_sub ? $first : $second;
+		$renewal      = $first_is_sub ? $second : $first;
+		$vault        = (string) $subscription->get_meta( Recurring::META_VAULT );
+		if ( '' !== $vault ) {
+			Recurring::replace( $renewal, $vault, (string) $subscription->get_meta( Recurring::META_INITIAL_TXN ) );
+		}
 	}
 
 	/**
