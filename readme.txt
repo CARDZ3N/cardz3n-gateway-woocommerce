@@ -14,14 +14,14 @@ Embedded WooCommerce checkout via the CARDZ3N payment gateway. Card and ACH paym
 
 CARDZ3N for WooCommerce turns your WooCommerce store into a full-featured embedded checkout using the CARDZ3N payment gateway.
 
-Buyers stay on your site — no visible redirect — and can choose between **credit/debit cards, ACH bank payments, or a saved payment method** (and, once set up with CARDZ3N, Apple Pay or Google Pay) inside a single gateway UI. All sensitive payment data is tokenized in the browser by Collect.js, loaded from the CARDZ3N gateway host, so card numbers and bank account numbers never touch your WordPress server.
+Buyers stay on your site — no visible redirect — and can choose between **credit/debit cards, ACH bank payments, or a saved payment method** inside a single gateway UI. All sensitive payment data is tokenized in the browser by Collect.js, loaded from the CARDZ3N gateway host, so card numbers and bank account numbers never touch your WordPress server.
 
 B2B merchants benefit from **automatic Level 2 and Level 3 commercial-card data** — freight, tax, line-item, UPC, commodity code, PO number, and destination fields are populated from WooCommerce order data on every transaction.
 
 = Key features =
 
 * Embedded, on-site checkout — no redirect
-* Credit / debit card, ACH / eCheck, and optional Apple Pay and Google Pay — all in one gateway UI
+* Credit / debit card, ACH / eCheck and saved payment methods, all in one gateway UI
 * Saved payment methods (card + ACH), stored in a secure vault
 * WooCommerce Subscriptions, card payments only: the card is saved at sign-up, renewals are charged from it, free trials save the card without charging it, customers can change their payment method
 * Authorize-only + manual capture, void, full and partial refunds
@@ -89,7 +89,7 @@ No "powered by" text or promotional link is shown by default. An optional "Power
 2. Activate the plugin.
 3. Go to **WooCommerce → Settings → Payments** and click **CARDZ3N for WooCommerce**.
 4. Enter your sandbox or live **Security Key** and **Tokenization Key** from your CARDZ3N Merchant Portal (Settings → Security Keys).
-5. Enable the payment methods you want — Cards, ACH, and (optional) Apple Pay and Google Pay — and save.
+5. Enable the payment methods you want (Cards, ACH) and save.
 6. Click **Test Credentials** to confirm the gateway accepts your keys.
 7. Run a sandbox transaction end-to-end before going live.
 
@@ -101,7 +101,7 @@ No. Card, ACH, and wallet data are tokenized by Collect.js, loaded from the CARD
 
 = Do I need a separate plugin for Apple Pay or Google Pay? =
 
-No. Apple Pay and Google Pay are optional features of this plugin and appear in the same gateway panel when you switch them on. They need HTTPS and domain registration, and only show on supported devices and browsers.
+The plugin has Apple Pay and Google Pay settings. They are off by default, need HTTPS and domain registration set up with CARDZ3N, and have not yet been verified on real devices, so leave them off unless CARDZ3N has confirmed they are ready for your store.
 
 = Does it support WooCommerce Subscriptions? =
 
@@ -123,9 +123,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Screenshots ==
 
-1. Embedded checkout — Card, ACH, Apple Pay, Google Pay, and saved methods in one gateway panel.
+1. Embedded checkout — Card, ACH and saved methods in one gateway panel.
 2. ACH / eCheck tab — routing + account number fields tokenized by Collect.js.
-3. Mobile checkout — Apple Pay and Google Pay wallet buttons above the card form.
+3. Mobile checkout.
 4. Saved payment methods — returning customers pick a stored card or bank account.
 5. Gateway settings — Security Key, Tokenization Key, environment, and Test Credentials button.
 6. Commercial data settings — Level 2/3 defaults for UOM, commodity code, tax, and freight.

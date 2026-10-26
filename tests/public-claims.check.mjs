@@ -2,7 +2,7 @@
 //
 // Claims that are NOT yet proven stay out of the public text (see the register kept by the maintainers):
 //   - WooCommerce Pre-Orders at release (only "not yet verified" may appear),
-//   - Apple Pay / Google Pay working (they may appear only as OPTIONAL, set-up features),
+//   - Apple Pay / Google Pay working (they may appear only in the FAQ, as off-by-default settings not yet verified on real devices),
 //   - 3-D Secure (no code behind it),
 //   - the gateway using card-on-file / stored-credential fields (internal detail, never a public claim).
 import { readFileSync } from 'node:fs';
@@ -26,8 +26,8 @@ b = bad(/3-?D Secure|3DS|SCA\b/i);
 b.length ? fail('readme.txt claims 3-D Secure: ' + b[0].slice(0, 90)) : ok('readme.txt: no 3-D Secure claim');
 b = bad(/card-on-file|stored[- ]credential|initiated_by|initial_transaction/i);
 b.length ? fail('readme.txt shows an internal card-on-file detail: ' + b[0].slice(0, 90)) : ok('readme.txt: no card-on-file claim');
-b = bad(/apple pay|google pay/i, /^= .* =$|optional|once set up|set up|HTTPS|switch them on|off by default/i); // a FAQ question heading is not a claim
-b.length ? fail('readme.txt mentions a wallet without saying it is optional / needs setup: ' + b[0].slice(0, 90)) : ok('readme.txt: every Apple Pay / Google Pay mention says optional or needs setup');
+b = bad(/apple pay|google pay/i, /^= Do I need a separate plugin for Apple Pay or Google Pay\? =$|^The plugin has Apple Pay and Google Pay settings\. .*have not yet been verified on real devices/); // only the FAQ may name wallets, and only with the caveat
+b.length ? fail('readme.txt names a wallet outside the FAQ caveat: ' + b[0].slice(0, 90)) : ok('readme.txt: Apple Pay / Google Pay appear only in the FAQ, with the "not yet verified on real devices" caveat');
 
 // Short description and header: no wallet or pre-order claim.
 const short = (readme.match(/^Embedded WooCommerce checkout[^\n]*/m) || [''])[0];
