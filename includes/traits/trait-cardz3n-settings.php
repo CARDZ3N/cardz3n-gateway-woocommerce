@@ -182,6 +182,18 @@ trait Settings_Trait {
 				'description' => __( 'Checking this box only enables the button in checkout. You must also finish Google Pay setup in your CARDZ3N merchant account for it to actually work: <a href="https://z3n.transactiongateway.com/merchants/resources/integration/integration_portal.php?tid=24d698c53e47b00cec19bfba8b20e997#googlepay_variables" target="_blank" rel="noopener noreferrer">Google Pay setup</a> and <a href="https://z3n.transactiongateway.com/merchants/resources/integration/integration_portal.php?tid=24d698c53e47b00cec19bfba8b20e997&rand=75522#cjs_googlePay" target="_blank" rel="noopener noreferrer">Google Pay Collect.js setup</a>.', 'cardz3n-gateway' ),
 				'default' => 'no',
 			),
+			'apple_pay_guide'           => array(
+				'title'       => __( 'Apple Pay and Google Pay setup', 'cardz3n-gateway' ),
+				'type'        => 'title',
+				'description' => Apple_Pay_Service::guide_html(),
+			),
+			'apple_pay_verification_file' => array(
+				'title'       => __( 'Apple Pay domain verification file', 'cardz3n-gateway' ),
+				'type'        => 'textarea',
+				'css'         => 'width:400px;height:110px;font-family:monospace;',
+				'description' => __( 'Paste the whole text of the Domain Verification File downloaded from the CARDZ3N Merchant Portal. The plugin then serves it at /.well-known/apple-developer-merchantid-domain-association on this store. Leave empty if you upload the file to your web server yourself.', 'cardz3n-gateway' ),
+				'default'     => '',
+			),
 			'enable_saved_methods'      => array(
 				'title'   => __( 'Saved Payment Methods', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
@@ -385,6 +397,18 @@ trait Settings_Trait {
 				'default' => 'no',
 			),
 		);
+	}
+
+	/**
+	 * Clean the pasted Apple Pay verification file text (plain text only, length limited).
+	 *
+	 * @param string $key   Form-field key.
+	 * @param mixed  $value Posted value.
+	 * @return string
+	 * @throws \Exception When the text is too long (WooCommerce shows the message and keeps the old value).
+	 */
+	public function validate_apple_pay_verification_file_field( $key, $value ) {
+		return Apple_Pay_Service::sanitize_file_text( null === $value ? '' : (string) $value );
 	}
 
 	/**
