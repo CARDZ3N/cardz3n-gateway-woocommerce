@@ -60,7 +60,7 @@ trait Settings_Trait {
 				'title'       => __( 'Checkout Description', 'cardz3n-gateway' ),
 				'type'        => 'textarea',
 				'description' => __( 'Short explanation shown beneath the payment option at checkout.', 'cardz3n-gateway' ),
-				'default'     => __( 'Pay securely with a credit/debit card, ACH, Apple Pay, or Google Pay.', 'cardz3n-gateway' ),
+				'default'     => __( 'Pay securely with a credit or debit card.', 'cardz3n-gateway' ), // The old default also named ACH and the wallets, which are optional and not verified on real devices.
 			),
 			'thankyou_instructions'     => array(
 				'title'       => __( 'Thank-you Instructions', 'cardz3n-gateway' ),

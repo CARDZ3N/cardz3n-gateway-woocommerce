@@ -55,6 +55,11 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			? __( 'Powered by CARDZ3N', 'cardz3n-gateway' )
 			: __( 'Check Out', 'cardz3n-gateway' );
 		$this->description = $this->get_option( 'description' );
+		// The old default text named ACH, Apple Pay and Google Pay, which are optional and not verified on real devices, so shoppers must not
+		// be told they are offered. A description the merchant wrote is left as it is; only the old default is replaced.
+		if ( __( 'Pay securely with a credit/debit card, ACH, Apple Pay, or Google Pay.', 'cardz3n-gateway' ) === $this->description ) {
+			$this->description = __( 'Pay securely with a credit or debit card.', 'cardz3n-gateway' );
+		}
 
 		$this->supports = $this->build_supports_array();
 
