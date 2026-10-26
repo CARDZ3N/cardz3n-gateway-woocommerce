@@ -1,6 +1,7 @@
 *** CARDZ3N for WooCommerce Changelog ***
 
 2026-10-25 - version 1.1.0
+* Add - WooCommerce Subscriptions with card payments: the card is saved at sign-up (no box to tick), renewals are charged from it, free trials save the card with a $0.00 verification instead of a $0.00 sale, customers can change their payment method, failed renewals fail cleanly and can be retried. Bank (ACH) payments are not available for subscriptions.
 * Add - Native Cart & Checkout Blocks payment method for card payments. On by default for new installs (setting "Native Block Checkout", still visible and switchable); stores installed earlier keep their previous behaviour until they switch it on. `cart_checkout_blocks` is declared compatible whenever it is on.
 * Add - A declined card or failed payment on the block checkout now shows a clear message, and the card form releases the Place Order button if tokenization never answers.
 * Add - Clear admin error on the gateway settings page, and the gateway is hidden at checkout, when Test Mode is on but no test keys are saved.
@@ -12,7 +13,7 @@
 * Fix - Debug Mode now logs a short whitelist of non-sensitive fields only; payment tokens, vault IDs and customer details are never written to the log, and no part of a key or token is logged.
 * Fix - A fatal error when a card token was missing (wrong logger class name), and `process_payment()` returning nothing on error paths in the block checkout.
 * Fix - Payment sources that are switched off in the settings are refused on the server; Capture only works on this gateway's orders that are not yet captured; a repeated submit of a paid order no longer charges twice; the delete-saved-method action only touches this gateway's methods.
-* Add - Warning on the gateway settings page when WooCommerce Subscriptions or Pre-Orders is active: carts with those products cannot be paid with this gateway on the block checkout yet; use the classic checkout page.
+* Add - Warning on the gateway settings page when WooCommerce Subscriptions or Pre-Orders is active but its support switch is off: carts with those products cannot be paid on the block checkout until it is switched on.
 * Tweak - Native Block Checkout is off by default for new installs that have WooCommerce Subscriptions or Pre-Orders active (a saved choice always wins).
 * Tweak - Product name is now "CARDZ3N for WooCommerce". Merchant-facing text refers to the "CARDZ3N payment gateway"; readme Privacy and External services sections rewritten to be accurate about what leaves your server and when.
 * Tweak - Key-type messages say "checkout-only key" instead of naming a vendor product.

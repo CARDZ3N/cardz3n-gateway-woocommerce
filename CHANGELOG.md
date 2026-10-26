@@ -5,10 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [1.1.0] - 2026-10-25
 ### Added
+- WooCommerce Subscriptions with card payments (`Recurring` helper): the card is saved for every subscription order (no checkbox), stored on the first order, every subscription and the customer's saved method; renewals are charged from it with the order currency and never twice; free trials verify and save the card with a $0.00 `validate` request instead of a $0.00 sale; change payment method (customer, admin, My Account add method) without any charge; failed renewals fail cleanly and can be retried; the block checkout offers subscription carts. Bank (ACH) is not available for subscriptions. Card-on-file request fields (`initiated_by`, `stored_credential_indicator`, `initial_transaction_id`, `billing_method`) are based on the gateway's published API and adjustable through the `cardz3n_gw_recurring_fields` filter.
 - Native Cart & Checkout Blocks payment method for CARD payments, **on by default for new installs** (setting `enable_experimental_blocks_checkout`, "Native Block Checkout", still visible and switchable). Stores that already had saved settings are pinned to their previous behaviour (off) once, by `cardz3n_gw_maybe_migrate_settings()`. `cart_checkout_blocks` is declared compatible whenever the integration is on (HPOS stays compatible).
 - Friendly decline message and a 20 s tokenization watchdog on the block checkout.
 - Test Mode with no test keys: clear error on the gateway settings page and the gateway is hidden at checkout (`no_test_credentials`).
-- Warning on the gateway settings page when WooCommerce Subscriptions or Pre-Orders is active (carts with those products cannot be paid with this gateway on the block checkout yet; use the classic checkout page).
+- Warning on the gateway settings page when WooCommerce Subscriptions or Pre-Orders is active but its support switch is off (carts with those products cannot be paid on the block checkout until it is switched on).
 - Playwright end-to-end tests under `tests/e2e/` (excluded from the package); `.gitattributes` (LF line endings).
 
 ### Fixed
