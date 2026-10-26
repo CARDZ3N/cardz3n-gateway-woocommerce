@@ -115,6 +115,29 @@ class Recurring {
 	}
 
 	/**
+	 * Replace the saved card of ONE subscription (or renewal order) with another one.
+	 *
+	 * Unlike store(), this never touches the first order or other subscriptions, and it clears the first transaction ID
+	 * when the new card has none (an old card's ID must never be sent for a different card).
+	 *
+	 * @param \WC_Order $target      The subscription (or renewal order) to update.
+	 * @param string    $vault_id    Gateway vault ID of the new card.
+	 * @param string    $initial_txn First transaction ID of the new card, or an empty string.
+	 */
+	public static function replace( $target, $vault_id, $initial_txn ) {
+		if ( '' === (string) $vault_id ) {
+			return;
+		}
+		$target->update_meta_data( self::META_VAULT, (string) $vault_id );
+		if ( '' !== (string) $initial_txn ) {
+			$target->update_meta_data( self::META_INITIAL_TXN, (string) $initial_txn );
+		} else {
+			$target->delete_meta_data( self::META_INITIAL_TXN );
+		}
+		$target->save();
+	}
+
+	/**
 	 * Find the saved card to charge for a renewal (or any later charge).
 	 *
 	 * Looks, in this order: the subscription(s) of the renewal, then the first (parent) order of each subscription,
