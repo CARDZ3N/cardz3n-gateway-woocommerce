@@ -1,0 +1,34 @@
+{
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "landingPage": "/",
+  "login": true,
+  "steps": [
+    {
+      "step": "mkdir",
+      "path": "/wordpress/wp-content/mu-plugins"
+    },
+    {
+      "step": "installPlugin",
+      "pluginData": {
+        "resource": "wordpress.org/plugins",
+        "slug": "woocommerce"
+      },
+      "options": {
+        "activate": true
+      }
+    },
+    {
+      "step": "activatePlugin",
+      "pluginPath": "cardz3n-gateway/cardz3n-gateway-woocommerce.php"
+    },
+    {
+      "step": "runPHP",
+      "code": "<?php\nrequire_once '/wordpress/wp-load.php';\nupdate_option( 'woocommerce_coming_soon', 'no' );\nupdate_option( 'woocommerce_currency', 'USD' );\nupdate_option( 'woocommerce_default_country', 'US:CA' );\n// Placeholder values only: the e2e test never talks to the real gateway (Collect.js and the checkout request are stubbed).\nupdate_option( 'woocommerce_cardz3n_gateway_settings', array( 'enabled' => 'yes', 'test_mode' => 'yes', 'enable_cards' => 'yes', 'enable_ach' => 'yes', 'enable_apple_pay' => 'yes', 'enable_google_pay' => 'yes', 'enable_saved_methods' => 'yes', 'enable_experimental_blocks_checkout' => 'yes', 'test_security_key' => 'e2e-placeholder-security-key', 'test_tokenization_key' => 'e2e-placeholder-tokenization-key' ) );\n$p = new WC_Product_Simple(); $p->set_name( 'E2E Test Item' ); $p->set_regular_price( '1.00' ); $p->set_status( 'publish' ); $pid = $p->save();\nupdate_option( 'cardz3n_e2e_product_id', $pid );\nwp_insert_post( array( 'post_title' => 'Checkout Classic', 'post_name' => 'checkout-classic', 'post_status' => 'publish', 'post_type' => 'page', 'post_content' => '[woocommerce_checkout]' ) );\necho 'E2E_SETUP_OK ' . $pid;\n"
+    },
+    {
+      "step": "writeFile",
+      "path": "/wordpress/wp-content/mu-plugins/e2e-apple-probe.php",
+      "data": "<?php\n// E2E probe (test only): lets the test see the stored gateway settings, pretend the store address is HTTPS for one page view,\n// and put a real file where the verification file would be.\nadd_action( 'init', function () {\n\tif ( isset( $_GET['cz_https'] ) ) {\n\t\tadd_filter( 'home_url', function ( $u ) { return preg_replace( '#^http:#', 'https:', $u ); } );\n\t}\n}, 0 );\nadd_action( 'wp_loaded', function () {\n\t$m = $_GET['cardz3n_e2e'] ?? '';\n\tif ( 'opt' === $m ) {\n\t\theader( 'Content-Type: application/json' );\n\t\t$s = get_option( 'woocommerce_cardz3n_gateway_settings', array() );\n\t\techo wp_json_encode( array( 'file' => $s['apple_pay_verification_file'] ?? null, 'test_mode' => $s['test_mode'] ?? null, 'enable_apple_pay' => $s['enable_apple_pay'] ?? null, 'enable_google_pay' => $s['enable_google_pay'] ?? null ) );\n\t\texit;\n\t}\n\tif ( 'makefile' === $m ) {\n\t\t@mkdir( ABSPATH . '.well-known', 0755, true );\n\t\tfile_put_contents( ABSPATH . '.well-known/apple-developer-merchantid-domain-association', 'REAL-FILE-ON-DISK' );\n\t\techo 'made';\n\t\texit;\n\t}\n} );\n"
+    }
+  ]
+}

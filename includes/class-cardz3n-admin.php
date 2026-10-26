@@ -43,6 +43,7 @@ class Admin {
 		// Surface availability reason on the gateway settings page.
 		add_action( 'admin_notices', array( $this, 'maybe_render_availability_notice' ) );
 		add_action( 'admin_notices', array( $this, 'maybe_render_subscriptions_blocks_notice' ) );
+		add_action( 'admin_notices', array( $this, 'maybe_render_apple_pay_notice' ) );
 
 		/*
 		 * Gateway AJAX endpoints are registered here — not in the Gateway class —
@@ -165,6 +166,27 @@ class Admin {
 					implode( ' / ', $switches )
 				)
 			)
+		);
+	}
+
+	/**
+	 * Warn, on the gateway settings page, when Apple Pay is switched on but the store address is not HTTPS: Apple Pay cannot
+	 * work there. Shown to the merchant only; shoppers never see an error, the wallet simply does not appear.
+	 */
+	public function maybe_render_apple_pay_notice() {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+		if ( empty( $_GET['section'] ) || Brand::id() !== $_GET['section'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			return;
+		}
+		$settings = get_option( cardz3n_gw_settings_option_key(), array() );
+		if ( ! is_array( $settings ) || empty( $settings['enable_apple_pay'] ) || 'yes' !== $settings['enable_apple_pay'] || Apple_Pay_Service::is_https() ) {
+			return;
+		}
+		printf(
+			'<div class="notice notice-warning"><p><strong>CARDZ3N for WooCommerce</strong> — %s</p></div>',
+			esc_html__( 'Apple Pay is switched on, but the address of this store does not start with https://, so Apple Pay cannot appear at checkout. Move the store to HTTPS first (shoppers see no error, the Apple Pay button is simply not shown).', 'cardz3n-gateway' )
 		);
 	}
 
