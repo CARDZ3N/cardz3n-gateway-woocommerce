@@ -722,6 +722,17 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			);
 		}
 
+		// A charge that could not be voided is waiting for the merchant: never take a second payment on this order.
+		if ( '' !== (string) $order->get_meta( '_cardz3n_unvoided_txn' ) ) {
+			$cardz3n_gw_error_msg = __( 'There is a problem with this order. Please contact the store; do not try to pay again.', 'cardz3n-gateway' );
+			wc_add_notice( $cardz3n_gw_error_msg, 'error' );
+			return array(
+				'result'   => 'failure',
+				'message'  => $cardz3n_gw_error_msg,
+				'redirect' => '',
+			);
+		}
+
 		$client = new Api_Client( $this->settings );
 		if ( ! $client->has_credentials() ) {
 			$cardz3n_gw_error_msg = __( 'Payment gateway is not configured. Please contact the store.', 'cardz3n-gateway' );
@@ -1086,8 +1097,30 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		if ( $needs_stored ) {
 			$stored_vault = $using_saved ? $vault_id : (string) $response['customer_vault_id'];
 			if ( '' === $stored_vault ) {
-				$client->void( $response['transaction_id'] );
-				$order->add_order_note( __( 'The payment was voided: the gateway did not return a saved payment method, so the subscription or pre-order could not be renewed later.', 'cardz3n-gateway' ) );
+				$void = $client->void( $response['transaction_id'] );
+				if ( empty( $void['success'] ) ) {
+					// The charge stands. Hold the order, keep it from being paid again, and tell the merchant how to void it.
+					$order->update_meta_data( '_cardz3n_unvoided_txn', (string) $response['transaction_id'] );
+					$order->set_transaction_id( (string) $response['transaction_id'] );
+					$order->save();
+					$order->update_status(
+						'on-hold',
+						sprintf(
+							/* translators: 1: transaction ID, 2: gateway message */
+							__( 'ACTION NEEDED: the customer WAS CHARGED (transaction %1$s) but the gateway did not return a saved payment method, and the automatic void failed (%2$s). Void or refund this transaction at the gateway by hand.', 'cardz3n-gateway' ),
+							$response['transaction_id'],
+							$void['text']
+						)
+					);
+					$cardz3n_gw_error_msg = __( 'There was a problem finishing your order. Please contact the store before trying again.', 'cardz3n-gateway' );
+					wc_add_notice( $cardz3n_gw_error_msg, 'error' );
+					return array(
+						'result'   => 'failure',
+						'message'  => $cardz3n_gw_error_msg,
+						'redirect' => '',
+					);
+				}
+				$order->add_order_note( __( 'The payment was voided:the gateway did not return a saved payment method, so the subscription or pre-order could not be renewed later.', 'cardz3n-gateway' ) );
 				$cardz3n_gw_error_msg = __( 'We could not save your payment method for the later payments, so your card was not charged. Please try again.', 'cardz3n-gateway' );
 				wc_add_notice( $cardz3n_gw_error_msg, 'error' );
 				return array(
