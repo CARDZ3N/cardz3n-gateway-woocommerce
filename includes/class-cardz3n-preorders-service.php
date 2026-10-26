@@ -23,6 +23,12 @@ class Preorders_Service {
 	const META_RELEASE_TXN = '_cardz3n_preorder_release_txn';
 
 	/**
+	 * Placeholder written to the guard before the charge is sent ("pending:<unix time>"), and how long it counts as in progress.
+	 */
+	const PENDING_PREFIX      = 'pending:';
+	const PENDING_STALE_AFTER = 900;
+
+	/**
 	 * Singleton instance.
 	 *
 	 * @var Preorders_Service|null
@@ -71,7 +77,20 @@ class Preorders_Service {
 		}
 
 		// Never charge the same pre-order twice (the release action can run again, or the order may already be paid).
-		if ( $order->is_paid() || '' !== (string) $order->get_meta( self::META_RELEASE_TXN ) ) {
+		if ( $order->is_paid() ) {
+			return;
+		}
+		$guard = (string) $order->get_meta( self::META_RELEASE_TXN );
+		if ( '' !== $guard ) {
+			// A "pending:<time>" guard means an attempt was started and its result is not known: leave it for the merchant.
+			if ( 0 === strpos( $guard, self::PENDING_PREFIX ) ) {
+				$stale = ( time() - (int) substr( $guard, strlen( self::PENDING_PREFIX ) ) ) > self::PENDING_STALE_AFTER;
+				$order->add_order_note(
+					$stale
+						? __( 'Pre-order release not retried: an earlier charge attempt has an unknown result. Check the gateway for a charge on this order; if there is none, delete the custom field _cardz3n_preorder_release_txn to allow a new release.', 'cardz3n-gateway' )
+						: __( 'Pre-order release skipped: a charge attempt on this order is still in progress.', 'cardz3n-gateway' )
+				);
+			}
 			return;
 		}
 
@@ -86,6 +105,34 @@ class Preorders_Service {
 			return;
 		}
 
+		// Write the guard BEFORE the charge, so a crash or a timeout can never lead to a second charge.
+		$order->update_meta_data( self::META_RELEASE_TXN, self::PENDING_PREFIX . time() );
+		$order->save();
+
+		try {
+			$this->charge_release( $order, $vault_id, $initial_txn );
+		} catch ( \Throwable $e ) {
+			// The guard stays: a thrown error after a charge must never fail the order or allow another charge.
+			Logger::error( 'Pre-order release error: ' . $e->getMessage() );
+			$order->add_order_note(
+				sprintf(
+					/* translators: %s: error message */
+					__( 'Pre-order release stopped by an error (%s). The result of the charge may be unknown: check the gateway before releasing again.', 'cardz3n-gateway' ),
+					$e->getMessage()
+				)
+			);
+		}
+	}
+
+	/**
+	 * Send the release charge and record the outcome. The guard meta is already set to a pending placeholder.
+	 *
+	 * @param \WC_Order $order       The order.
+	 * @param string    $vault_id    Saved card.
+	 * @param string    $initial_txn First transaction ID.
+	 * @return bool Whether the gateway approved the charge.
+	 */
+	private function charge_release( $order, $vault_id, $initial_txn ) {
 		$client = new Api_Client();
 		$mapper = new Level3_Mapper();
 		$level3 = $mapper->build( $order );
@@ -122,14 +169,27 @@ class Preorders_Service {
 		);
 
 		if ( $response['success'] ) {
-			Order_Service::stamp( $order, $response, $extra );
+			// Replace the placeholder with the real transaction ID first, before anything else can throw.
 			$order->update_meta_data( self::META_RELEASE_TXN, (string) $response['transaction_id'] );
 			$order->save();
+			Order_Service::stamp( $order, $response, $extra );
 			$order->payment_complete( $response['transaction_id'] );
 			$order->add_order_note( Order_Service::success_note( $response, $extra ) );
-		} else {
-			$order->add_order_note( Order_Service::failure_note( $response, $extra ) );
-			$order->update_status( 'failed' );
+			return true;
 		}
+
+		$order->add_order_note( Order_Service::failure_note( $response, $extra ) );
+		// ASSUMPTION P3: a decline (response 2), or a gateway error with its own text (response 3, no transport error), means no charge was made.
+		$definite = '2' === (string) $response['code'] || ( '3' === (string) $response['code'] && '' === (string) $response['error'] && '' !== (string) $response['text'] );
+		if ( $definite ) {
+			$order->delete_meta_data( self::META_RELEASE_TXN );
+			$order->save();
+			$order->update_status( 'failed' );
+		} else {
+			// Transport error or timeout: the gateway may have charged. Keep the guard and ask the merchant to check.
+			$order->add_order_note( __( 'Pre-order release: the result of the charge is unknown (no clear answer from the gateway). Check the gateway before releasing again.', 'cardz3n-gateway' ) );
+			$order->update_status( 'on-hold' );
+		}
+		return false;
 	}
 }
