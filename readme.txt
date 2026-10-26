@@ -8,7 +8,7 @@ Stable tag: 1.0.68
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Embedded WooCommerce checkout via the CARDZ3N payment gateway. Card, ACH, Apple Pay, Google Pay, saved methods, subscriptions, refunds, and Level 2/3 data.
+Embedded WooCommerce checkout via the CARDZ3N payment gateway. Card, ACH, Apple Pay, Google Pay, saved methods, refunds, and Level 2/3 data.
 
 == Description ==
 
@@ -23,8 +23,6 @@ B2B merchants benefit from **automatic Level 2 and Level 3 commercial-card data*
 * Embedded, on-site checkout — no redirect
 * Credit / debit card, ACH / eCheck, and optional Apple Pay and Google Pay — all in one gateway UI
 * Saved payment methods (card + ACH), stored in a secure vault
-* WooCommerce Subscriptions compatibility (if installed)
-* WooCommerce Pre-Orders compatibility (if installed)
 * Authorize-only + manual capture, void, full and partial refunds
 * Auto-capture on order-status change
 * 3-D Secure 2 / SCA
@@ -105,9 +103,9 @@ No. Card, ACH, and wallet data are tokenized by Collect.js, loaded from the CARD
 
 No. Apple Pay and Google Pay are optional features of this plugin and appear in the same gateway panel when you switch them on. They need HTTPS and domain registration, and only show on supported devices and browsers.
 
-= Does it support WooCommerce Subscriptions? =
+= Does it support WooCommerce Subscriptions or Pre-Orders? =
 
-Yes, when the WooCommerce Subscriptions extension is installed. Renewals are charged server-side against the saved payment method (vault ID) stored on the parent order.
+Not yet. The plugin has a "Subscriptions Support" and a "Pre-Orders Support" switch (both off by default), but renewal and pre-order release payments have not been verified with this gateway and may fail. Please do not use this gateway to sell subscriptions or pre-orders yet; offer another payment method for those products.
 
 = What is Level 3 data and why does it matter? =
 

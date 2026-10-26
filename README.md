@@ -7,7 +7,7 @@ Embedded, on-site WooCommerce checkout using the CARDZ3N payment gateway.
 - **Embedded UX** — no redirect. Buyers stay on-site.
 - **Everything in one gateway** — credit/debit cards, ACH, Apple Pay, Google Pay, and saved methods inside a single gateway UI.
 - **B2B-ready** — automatic Level 2 / Level 3 commercial-card data on every transaction.
-- **Subscriptions** — native support when WooCommerce Subscriptions is installed.
+- **Subscriptions and Pre-Orders** — not supported yet (renewal and pre-order release payments are not verified).
 - **HPOS-ready** — Custom Order Tables compatibility declared.
 - **White-label** — single codebase, CARDZ3N + AerospacePay variants via a constant.
 

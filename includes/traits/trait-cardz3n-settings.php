@@ -190,17 +190,17 @@ trait Settings_Trait {
 				'default' => 'no',
 			),
 			'enable_subscriptions'      => array(
-				'title'   => __( 'Subscriptions Support', 'cardz3n-gateway' ),
+				'title'   => __( 'Subscriptions Support (not yet supported)', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
-				'label'   => __( 'Enable recurring billing when WooCommerce Subscriptions is installed.', 'cardz3n-gateway' ),
-				'description' => __( 'Checking this box only enables the option. WooCommerce Subscriptions must be installed and active, and recurring billing must also be activated in your CARDZ3N account, for this to actually work.', 'cardz3n-gateway' ),
+				'label'   => __( 'Not yet supported: renewal payments with this gateway have not been verified and may fail. Leave this off.', 'cardz3n-gateway' ),
+				'description' => __( 'Do not use this gateway to sell subscriptions yet. If you switch this on, WooCommerce Subscriptions will offer this gateway for subscription products, but renewals may fail and the saved payment method is not guaranteed to be stored.', 'cardz3n-gateway' ),
 				'default' => 'no',
 			),
 			'enable_preorders'          => array(
-				'title'   => __( 'Pre-Orders Support', 'cardz3n-gateway' ),
+				'title'   => __( 'Pre-Orders Support (not yet supported)', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
-				'label'   => __( 'Enable tokenized pre-order handling when WooCommerce Pre-Orders is installed.', 'cardz3n-gateway' ),
-				'description' => __( 'Checking this box only enables the option. WooCommerce Pre-Orders must be installed and active, and pre-order charges must also be activated in your CARDZ3N account, for this to actually work.', 'cardz3n-gateway' ),
+				'label'   => __( 'Not yet supported: the charge when a pre-order is released has not been verified and may fail. Leave this off.', 'cardz3n-gateway' ),
+				'description' => __( 'Do not use this gateway to sell pre-orders yet. If you switch this on, WooCommerce Pre-Orders will offer this gateway, but the release payment may fail and the saved payment method is not guaranteed to be stored.', 'cardz3n-gateway' ),
 				'default' => 'no',
 			),
 

@@ -102,24 +102,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	protected function build_method_description( $brand ) {
 		$text = isset( $brand['method_description'] ) ? $brand['method_description'] : '';
 
-		/*
-		 * Recurring-payments support badge.
-		 *
-		 * WooCommerce runs method_description through wp_kses_post() before
-		 * rendering, which strips <svg> and most custom tags but DOES allow
-		 * <span> with a style attribute and <img>. We use a CSS background-image
-		 * on a <span> with a data-URI of our recurring glyph, so the icon
-		 * survives kses and has no external HTTP request, and we pair it with a
-		 * UTF-8 "⟲" fallback in case the background image is blocked.
-		 */
-		$svg      = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="%230a5cff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-7.94-4.76"/><path d="M3 12a9 9 0 0 1 9-9 9 9 0 0 1 7.94 4.76"/><polyline points="21 3 21 7.76 16.24 7.76"/><polyline points="3 21 3 16.24 7.76 16.24"/></svg>';
-		$data_uri = 'data:image/svg+xml;charset=utf-8,' . str_replace( array( '"', '<', '>' ), array( "'", '%3C', '%3E' ), $svg );
-
-		$badge  = '<span style="display:inline-block;margin-left:8px;padding:2px 10px 2px 26px;background:#eef6ff no-repeat 8px center / 14px 14px url(\'' . esc_url( $data_uri ) . '\');border:1px solid #b6d4fe;border-radius:12px;font-size:11px;font-weight:600;color:#0a5cff;vertical-align:middle;line-height:16px;" title="' . esc_attr__( 'Supports WooCommerce Subscriptions and recurring payments', 'cardz3n-gateway' ) . '">';
-		$badge .= esc_html__( 'Recurring Payments', 'cardz3n-gateway' );
-		$badge .= '</span>';
-
-		return $text . ' ' . $badge;
+		// No "Recurring Payments" badge: renewal payments are not verified with this gateway yet.
+		return $text;
 	}
 
 	/*
