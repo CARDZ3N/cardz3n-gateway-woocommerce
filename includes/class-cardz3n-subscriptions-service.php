@@ -46,8 +46,85 @@ class Subscriptions_Service {
 			return;
 		}
 
-		$hook = 'woocommerce_scheduled_subscription_payment_' . Brand::id();
-		add_action( $hook, array( $this, 'process_renewal' ), 10, 2 );
+		// Registered on init: Brand::id() builds translated text, which must not run before init.
+		add_action(
+			'init',
+			function () {
+				add_action( 'woocommerce_scheduled_subscription_payment_' . Brand::id(), array( $this, 'process_renewal' ), 10, 2 );
+
+				/*
+				 * Change payment method. ASSUMPTIONS (from the Subscriptions gateway documentation; not testable without the real plugin):
+				 *   A9.  `woocommerce_subscription_payment_meta` ( $payment_meta, $subscription ) lists the editable stored values.
+				 *   A10. `woocommerce_subscription_validate_payment_meta_<gateway id>` ( $payment_meta, $subscription ) is an action
+				 *        that stops the save when it throws an Exception; $payment_meta holds this gateway's rows as posted.
+				 *   A11. `woocommerce_subscription_failing_payment_method_updated_<gateway id>` passes the subscription and the
+				 *        failed renewal order (this code finds which is which, so the order of the two does not matter).
+				 */
+				add_filter( 'woocommerce_subscription_payment_meta', array( $this, 'payment_meta' ), 10, 2 );
+				add_action( 'woocommerce_subscription_validate_payment_meta_' . Brand::id(), array( $this, 'validate_payment_meta' ) );
+				add_action( 'woocommerce_subscription_failing_payment_method_updated_' . Brand::id(), array( $this, 'copy_method_to_failed_renewal' ), 10, 2 );
+			},
+			5
+		);
+	}
+
+	/**
+	 * Show the stored card reference of a subscription so an administrator can read or correct it.
+	 *
+	 * @param array     $payment_meta Rows of all gateways, keyed by gateway ID.
+	 * @param \WC_Order $subscription The subscription.
+	 * @return array
+	 */
+	public function payment_meta( $payment_meta, $subscription ) {
+		$payment_meta[ Brand::id() ] = array(
+			'post_meta' => array(
+				Recurring::META_VAULT       => array(
+					'value' => (string) $subscription->get_meta( Recurring::META_VAULT ),
+					'label' => __( 'Saved card ID (vault ID)', 'cardz3n-gateway' ),
+				),
+				Recurring::META_INITIAL_TXN => array(
+					'value' => (string) $subscription->get_meta( Recurring::META_INITIAL_TXN ),
+					'label' => __( 'First transaction ID of the saved card', 'cardz3n-gateway' ),
+				),
+			),
+		);
+		return $payment_meta;
+	}
+
+	/**
+	 * Refuse an empty or odd-looking saved card ID before it is stored on a subscription.
+	 *
+	 * @param array $payment_meta This gateway's rows as posted.
+	 * @throws \Exception When the saved card ID is empty or has unexpected characters.
+	 */
+	public function validate_payment_meta( $payment_meta ) {
+		$vault   = isset( $payment_meta['post_meta'][ Recurring::META_VAULT ]['value'] ) ? trim( (string) $payment_meta['post_meta'][ Recurring::META_VAULT ]['value'] ) : '';
+		$initial = isset( $payment_meta['post_meta'][ Recurring::META_INITIAL_TXN ]['value'] ) ? trim( (string) $payment_meta['post_meta'][ Recurring::META_INITIAL_TXN ]['value'] ) : '';
+		if ( ! preg_match( '/^[A-Za-z0-9_-]{1,64}$/', $vault ) ) {
+			throw new \Exception( esc_html__( 'Enter the saved card ID (vault ID): letters, numbers, dashes and underscores only.', 'cardz3n-gateway' ) );
+		}
+		if ( '' !== $initial && ! preg_match( '/^[A-Za-z0-9_-]{1,64}$/', $initial ) ) {
+			throw new \Exception( esc_html__( 'The first transaction ID may only contain letters, numbers, dashes and underscores.', 'cardz3n-gateway' ) );
+		}
+	}
+
+	/**
+	 * After a customer fixes a failing renewal by changing the payment method, give that renewal order the new card.
+	 *
+	 * @param \WC_Order $first  The subscription or the failed renewal order.
+	 * @param \WC_Order $second The other one.
+	 */
+	public function copy_method_to_failed_renewal( $first, $second ) {
+		if ( ! $first instanceof \WC_Order || ! $second instanceof \WC_Order ) {
+			return;
+		}
+		$first_is_sub = function_exists( 'wcs_is_subscription' ) && wcs_is_subscription( $first );
+		$subscription = $first_is_sub ? $first : $second;
+		$renewal      = $first_is_sub ? $second : $first;
+		$vault        = (string) $subscription->get_meta( Recurring::META_VAULT );
+		if ( '' !== $vault ) {
+			Recurring::replace( $renewal, $vault, (string) $subscription->get_meta( Recurring::META_INITIAL_TXN ) );
+		}
 	}
 
 	/**
@@ -68,24 +145,42 @@ class Subscriptions_Service {
 			return;
 		}
 
-		$subscriptions = function_exists( 'wcs_get_subscriptions_for_renewal_order' )
-			? wcs_get_subscriptions_for_renewal_order( $renewal_order )
-			: array();
+		// An unexpected error must fail this renewal cleanly (Subscriptions then applies its retry rules), never stop the scheduler.
+		try {
+			$this->charge_renewal( $amount, $renewal_order );
+		} catch ( \Throwable $e ) {
+			Logger::error( 'Subscription renewal error: ' . $e->getMessage() );
+			$renewal_order->add_order_note(
+				sprintf(
+					/* translators: %s: error message */
+					__( 'Subscription renewal failed with an unexpected error: %s', 'cardz3n-gateway' ),
+					$e->getMessage()
+				)
+			);
+			$renewal_order->update_status( 'failed' );
+		}
+	}
 
-		$vault_id = '';
-		foreach ( $subscriptions as $sub ) {
-			$vault_id = (string) $sub->get_meta( '_cardz3n_customer_vault_id' );
-			if ( ! empty( $vault_id ) ) {
-				break;
-			}
+	/**
+	 * The renewal charge itself (see process_renewal()).
+	 *
+	 * @param float     $amount        Amount to capture for this renewal.
+	 * @param \WC_Order $renewal_order The renewal order being paid.
+	 */
+	private function charge_renewal( $amount, $renewal_order ) {
+
+		// Never charge the same renewal twice (for example when the scheduled action runs again).
+		if ( $renewal_order->is_paid() ) {
+			return;
 		}
 
-		if ( empty( $vault_id ) ) {
-			$vault_id = (string) $renewal_order->get_meta( '_cardz3n_customer_vault_id' );
-		}
+		// The saved card: the subscription, then the first order, then the renewal order, then the customer's saved methods.
+		$found       = Recurring::find_for_renewal( $renewal_order );
+		$vault_id    = $found['vault_id'];
+		$initial_txn = $found['initial_txn'];
 
 		if ( empty( $vault_id ) ) {
-			$renewal_order->add_order_note( __( 'Subscription renewal failed: no CARDZ3N vault reference on file.', 'cardz3n-gateway' ) );
+			$renewal_order->add_order_note( __( 'Subscription renewal failed: no saved payment method was found for this subscription (not on the subscription, its first order, this order or the customer\'s saved methods).', 'cardz3n-gateway' ) );
 			$renewal_order->update_status( 'failed' );
 			return;
 		}
@@ -99,10 +194,12 @@ class Subscriptions_Service {
 				'type'              => 'sale',
 				'amount'            => $amount,
 				'order_id'          => $renewal_order->get_id(),
+				'currency'          => $renewal_order->get_currency(),
 				'customer_vault_id' => $vault_id,
 				'payment'           => 'creditcard', // vault knows the real type.
 				'order_description' => 'WC Subscription renewal #' . $renewal_order->get_id(),
 				'level3'            => $level3,
+				'extra'             => Recurring::later_payment_fields( $initial_txn ), // ASSUMPTIONS A6 to A8, see Recurring.
 				'billing'           => array(
 					'first_name' => $renewal_order->get_billing_first_name(),
 					'last_name'  => $renewal_order->get_billing_last_name(),
@@ -129,6 +226,10 @@ class Subscriptions_Service {
 			$renewal_order->add_order_note( Order_Service::success_note( $response, $extra ) );
 		} else {
 			$renewal_order->add_order_note( Order_Service::failure_note( $response, $extra ) );
+			// ASSUMPTION: the gateway's text mentions the vault when the saved card no longer exists there.
+			if ( false !== stripos( (string) $response['text'], 'vault' ) ) {
+				$renewal_order->add_order_note( __( 'The saved card is no longer valid at the gateway. The customer needs to use "Change payment method" on the subscription.', 'cardz3n-gateway' ) );
+			}
 			$renewal_order->update_status( 'failed' );
 		}
 	}

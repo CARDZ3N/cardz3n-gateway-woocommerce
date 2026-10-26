@@ -42,7 +42,17 @@ class Token_Service {
 		$token->set_card_type( strtolower( $card_info['brand'] ?? 'credit' ) );
 		$token->add_meta_data( 'cardz3n_vault_id', $vault_id, true );
 		$token->add_meta_data( 'cardz3n_payment_source_type', 'card', true );
-		$saved = $token->save();
+		if ( ! empty( $card_info['initial_txn_id'] ) ) {
+			// Needed as `initial_transaction_id` on later merchant-initiated charges (ASSUMPTION A6/A7, see Recurring).
+			$token->add_meta_data( 'cardz3n_initial_txn_id', (string) $card_info['initial_txn_id'], true );
+		}
+		try {
+			$saved = $token->save();
+		} catch ( \Exception $e ) {
+			// A missing field in the gateway reply must never break a checkout that has already been charged.
+			Logger::warning( 'Could not save the card as a WooCommerce saved method: ' . $e->getMessage() );
+			return false;
+		}
 
 		return $saved ? $token->get_id() : false;
 	}
