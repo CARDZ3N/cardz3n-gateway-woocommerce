@@ -287,12 +287,13 @@ trait Settings_Trait {
 				'label'   => __( 'Also send the gateway-generated receipt email (WooCommerce receipt is primary).', 'cardz3n-gateway' ),
 				'default' => 'no',
 			),
+			// 3-D Secure is not built: no code reads this setting and no payment is authenticated. It is shown as a plain notice
+			// (type 'title' has no input and is skipped when settings are saved), and a value saved by an earlier version stays in the
+			// stored settings untouched. Do not remove the key.
 			'enable_3ds'                => array(
-				'title'       => __( '3D Secure 2.0', 'cardz3n-gateway' ),
-				'type'        => 'checkbox',
-				'label'       => __( 'Enable 3D Secure 2.0', 'cardz3n-gateway' ),
-				'description' => __( '3D Secure 2.0 can help you avoid fraudulent transactions by authenticating transactions before submitting them to the gateway for processing.', 'cardz3n-gateway' ),
-				'default'     => 'no',
+				'title'       => __( '3D Secure 2.0 (not available yet)', 'cardz3n-gateway' ),
+				'type'        => 'title',
+				'description' => __( 'This plugin does not perform 3D Secure authentication yet, so no payment is authenticated and nothing needs to be switched on. A value saved here by an earlier version is kept but has no effect.', 'cardz3n-gateway' ),
 			),
 
 			/* ---------------- Commercial Data ---------------- */
