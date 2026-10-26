@@ -353,6 +353,7 @@ class Blocks_Support extends AbstractPaymentMethodType {
 				'checking'      => __( 'Checking', 'cardz3n-gateway' ),
 				'savings'       => __( 'Savings', 'cardz3n-gateway' ),
 				'processing'    => __( 'Processing…', 'cardz3n-gateway' ),
+				'cardSaved'     => __( 'Your card will be saved and used for the later payments of this order.', 'cardz3n-gateway' ),
 				'invalidFields' => __( 'Please check your payment details and try again.', 'cardz3n-gateway' ),
 				'timeout'       => __( 'Tokenization timed out. Please try again.', 'cardz3n-gateway' ),
 			),
@@ -360,23 +361,20 @@ class Blocks_Support extends AbstractPaymentMethodType {
 	}
 
 	/**
-	 * Features the Blocks Checkout should enable for this method.
-	 * Pulled straight from the classic gateway's $supports array so the block
-	 * UI offers the same capabilities (refunds, tokenization, subscriptions…).
+	 * Features the Blocks Checkout should enable for this method: products and refunds always, plus the subscription and
+	 * pre-order features (and tokenization) when the matching store switches are on and the plugin is active.
 	 *
 	 * @return string[]
 	 */
 	public function get_supported_features() {
 		/*
-		 * Deliberately NOT advertising 'subscriptions', 'pre-orders' or
-		 * 'tokenization' here yet: those need the buyer's card saved for later
-		 * charges, and saving a card is not implemented in the native Blocks
-		 * path in this release. Advertising them would let a subscription or
-		 * pre-order be bought in the block checkout without a vault token being
-		 * stored, so the renewal or later charge would fail. Carts that need
-		 * those features simply do not offer this method in the block checkout.
+		 * Subscription and pre-order carts carry a payment requirement ('subscriptions' / 'pre-orders') and the Checkout block
+		 * only offers methods whose features include every requirement. They are added here only when the store switches are on
+		 * and the plugin is active (see Recurring::block_checkout_features()). The card is saved for those orders by
+		 * Gateway::process_payment() (forced, no checkbox), so the block path is safe for them.
 		 */
-		return array( 'products', 'refunds' );
+		$settings = is_array( $this->settings ) ? $this->settings : array();
+		return array_merge( array( 'products', 'refunds' ), Recurring::block_checkout_features( $settings ) );
 	}
 
 	/**
