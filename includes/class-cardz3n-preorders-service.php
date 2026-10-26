@@ -40,7 +40,14 @@ class Preorders_Service {
 		if ( ! class_exists( 'WC_Pre_Orders' ) ) {
 			return;
 		}
-		add_action( 'wc_pre_orders_process_pre_order_completion_payment_' . Brand::id(), array( $this, 'process_release' ) );
+		// Registered on init: Brand::id() builds translated text, which must not run before init.
+		add_action(
+			'init',
+			function () {
+				add_action( 'wc_pre_orders_process_pre_order_completion_payment_' . Brand::id(), array( $this, 'process_release' ) );
+			},
+			5
+		);
 	}
 
 	/**
