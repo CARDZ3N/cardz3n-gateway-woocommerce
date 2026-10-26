@@ -226,6 +226,7 @@ function cardz3n_gw_bootstrap() {
 	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-wallet-service.php';
 	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-ach-service.php';
 	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-recurring.php';
+	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-apple-pay-service.php';
 	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-subscriptions-service.php';
 	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-preorders-service.php';
 	require_once CARDZ3N_GW_PATH . 'includes/traits/trait-cardz3n-refunds.php';
@@ -246,6 +247,9 @@ function cardz3n_gw_bootstrap() {
 	if ( is_admin() ) {
 		Cardz3n_Gateway\Admin::instance();
 	}
+
+	// Serve the Apple Pay domain verification file when one was pasted into the settings.
+	Cardz3n_Gateway\Apple_Pay_Service::init();
 
 	// Boot subscriptions + pre-orders shims (no-op unless their extension is installed).
 	Cardz3n_Gateway\Subscriptions_Service::instance();
