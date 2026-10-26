@@ -164,7 +164,7 @@ try {
     await cfg('reset_reqs=1');
     const po = await placeOrder(page);
     const o = await probe('order&id=' + po.json.order_id); const q = (o.requests || [])[0] || {};
-    check('Returning customer, pre-order cart: paid with the saved card (no new card data), still stored for the later charge', po.status === 200 && po.data['wc-cardz3n_gateway-payment-token'] && q.customer_vault_id && q.has_token === false && /^V-/.test(o.order_vault), j(q));
+    check('Returning customer, pre-order cart: paid with the saved card (nothing sent to the gateway: the card is already stored), kept for the later charge', po.status === 200 && po.data['wc-cardz3n_gateway-payment-token'] && (o.requests || []).length === 0 && /^V-/.test(o.order_vault), j(o.requests));
     await ctx.close(); }
   { const w = await warns(); check('Switches on: the settings page warning is gone', w === '', w.slice(0, 120)); }
 
