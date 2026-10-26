@@ -46,8 +46,14 @@ class Subscriptions_Service {
 			return;
 		}
 
-		$hook = 'woocommerce_scheduled_subscription_payment_' . Brand::id();
-		add_action( $hook, array( $this, 'process_renewal' ), 10, 2 );
+		// Registered on init: Brand::id() builds translated text, which must not run before init.
+		add_action(
+			'init',
+			function () {
+				add_action( 'woocommerce_scheduled_subscription_payment_' . Brand::id(), array( $this, 'process_renewal' ), 10, 2 );
+			},
+			5
+		);
 	}
 
 	/**
@@ -68,24 +74,18 @@ class Subscriptions_Service {
 			return;
 		}
 
-		$subscriptions = function_exists( 'wcs_get_subscriptions_for_renewal_order' )
-			? wcs_get_subscriptions_for_renewal_order( $renewal_order )
-			: array();
-
-		$vault_id = '';
-		foreach ( $subscriptions as $sub ) {
-			$vault_id = (string) $sub->get_meta( '_cardz3n_customer_vault_id' );
-			if ( ! empty( $vault_id ) ) {
-				break;
-			}
+		// Never charge the same renewal twice (for example when the scheduled action runs again).
+		if ( $renewal_order->is_paid() ) {
+			return;
 		}
 
-		if ( empty( $vault_id ) ) {
-			$vault_id = (string) $renewal_order->get_meta( '_cardz3n_customer_vault_id' );
-		}
+		// The saved card: the subscription, then the first order, then the renewal order, then the customer's saved methods.
+		$found       = Recurring::find_for_renewal( $renewal_order );
+		$vault_id    = $found['vault_id'];
+		$initial_txn = $found['initial_txn'];
 
 		if ( empty( $vault_id ) ) {
-			$renewal_order->add_order_note( __( 'Subscription renewal failed: no CARDZ3N vault reference on file.', 'cardz3n-gateway' ) );
+			$renewal_order->add_order_note( __( 'Subscription renewal failed: no saved payment method was found for this subscription (not on the subscription, its first order, this order or the customer\'s saved methods).', 'cardz3n-gateway' ) );
 			$renewal_order->update_status( 'failed' );
 			return;
 		}
@@ -99,10 +99,12 @@ class Subscriptions_Service {
 				'type'              => 'sale',
 				'amount'            => $amount,
 				'order_id'          => $renewal_order->get_id(),
+				'currency'          => $renewal_order->get_currency(),
 				'customer_vault_id' => $vault_id,
 				'payment'           => 'creditcard', // vault knows the real type.
 				'order_description' => 'WC Subscription renewal #' . $renewal_order->get_id(),
 				'level3'            => $level3,
+				'extra'             => Recurring::later_payment_fields( $initial_txn ), // ASSUMPTIONS A6 to A8, see Recurring.
 				'billing'           => array(
 					'first_name' => $renewal_order->get_billing_first_name(),
 					'last_name'  => $renewal_order->get_billing_last_name(),

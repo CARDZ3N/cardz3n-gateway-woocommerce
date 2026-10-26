@@ -221,6 +221,7 @@ function cardz3n_gw_bootstrap() {
 	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-order-service.php';
 	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-wallet-service.php';
 	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-ach-service.php';
+	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-recurring.php';
 	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-subscriptions-service.php';
 	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-preorders-service.php';
 	require_once CARDZ3N_GW_PATH . 'includes/traits/trait-cardz3n-refunds.php';

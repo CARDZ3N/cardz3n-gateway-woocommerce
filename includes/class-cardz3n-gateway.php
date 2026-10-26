@@ -772,6 +772,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				);
 			}
 			$vault_id = ( '' !== (string) $token->get_meta( 'cardz3n_vault_id' ) ) ? (string) $token->get_meta( 'cardz3n_vault_id' ) : $token->get_token();
+			$saved_initial_txn    = (string) $token->get_meta( 'cardz3n_initial_txn_id' );
 			$using_saved          = true;
 			$normalized_source    = $token instanceof \WC_Payment_Token_ECheck ? 'ach_vault' : 'card_vault';
 			if ( 'card_vault' === $normalized_source ) {
@@ -845,6 +846,25 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		// Transaction type from settings.
 		$txn_type = 'yes' === $this->get_option( 'transaction_mode' ) ? 'sale' : $this->get_option( 'transaction_mode', 'sale' );
 		if ( ! in_array( $txn_type, array( 'sale', 'auth' ), true ) ) {
+			$txn_type = 'sale';
+		}
+
+		/*
+		 * Subscription or pre-order: the card MUST be stored (later charges use it), so saving is not a checkbox here,
+		 * and the first charge is always a sale (an authorize-only order would never activate the subscription).
+		 * Card payments only for now: bank (ACH) recurring is not supported yet.
+		 */
+		$needs_stored = Recurring::order_needs_stored_method( $order );
+		if ( $needs_stored ) {
+			if ( in_array( $normalized_source, array( 'ach', 'ach_vault' ), true ) ) {
+				$cardz3n_gw_error_msg = __( 'Bank payments are not available for subscriptions or pre-orders yet. Please pay with a card.', 'cardz3n-gateway' );
+				wc_add_notice( $cardz3n_gw_error_msg, 'error' );
+				return array(
+					'result'   => 'failure',
+					'message'  => $cardz3n_gw_error_msg,
+					'redirect' => '',
+				);
+			}
 			$txn_type = 'sale';
 		}
 
@@ -923,6 +943,11 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				'merchant_defined_field_10' => $normalized_source, // Wallet source provenance.
 			),
 		);
+
+		if ( $needs_stored ) {
+			$should_vault_card = ! $using_saved;
+			$args['extra']     = array_merge( $args['extra'], Recurring::first_payment_fields( $using_saved ) );
+		}
 
 		if ( $using_saved ) {
 			$args['customer_vault_id'] = $vault_id;
@@ -1051,8 +1076,31 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			);
 		}
 
+		/*
+		 * Recurring order: the charge went through, but if no saved card came back, later charges would fail. Do not
+		 * leave a subscription that cannot renew: void the charge and ask the shopper to try again.
+		 */
+		if ( $needs_stored ) {
+			$stored_vault = $using_saved ? $vault_id : (string) $response['customer_vault_id'];
+			if ( '' === $stored_vault ) {
+				$client->void( $response['transaction_id'] );
+				$order->add_order_note( __( 'The payment was voided: the gateway did not return a saved payment method, so the subscription or pre-order could not be renewed later.', 'cardz3n-gateway' ) );
+				$cardz3n_gw_error_msg = __( 'We could not save your payment method for the later payments, so your card was not charged. Please try again.', 'cardz3n-gateway' );
+				wc_add_notice( $cardz3n_gw_error_msg, 'error' );
+				return array(
+					'result'   => 'failure',
+					'message'  => $cardz3n_gw_error_msg,
+					'redirect' => '',
+				);
+			}
+			$initial_txn = $using_saved ? $saved_initial_txn : (string) $response['transaction_id'];
+		}
+
 		// Persist standard meta and notes.
 		Order_Service::stamp( $order, $response, $extra );
+		if ( $needs_stored ) {
+			Recurring::store( $order, $stored_vault, $initial_txn );
+		}
 		Order_Service::apply_payment_method_title( $order, $normalized_source, $response, $vault_brand, $client_brand );
 		$order->add_order_note( Order_Service::success_note( $response, $extra ) );
 
@@ -1064,6 +1112,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 					$this->id,
 					$response['customer_vault_id'],
 					array(
+						'initial_txn_id' => (string) $response['transaction_id'],
 						'last4'     => substr( (string) ( $response['raw']['cc_number'] ?? '' ), -4 ),
 						'brand'     => \Cardz3n_Gateway\brand_slug( '' !== $client_brand ? $client_brand : ( $response['raw']['cc_type'] ?? $response['raw']['card_type'] ?? '' ) ),
 						'exp_month' => \Cardz3n_Gateway\parse_ccexp( $response['raw']['cc_exp'] ?? $response['raw']['ccexp'] ?? '' )['month'],
