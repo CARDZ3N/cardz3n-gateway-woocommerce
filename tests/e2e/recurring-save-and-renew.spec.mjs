@@ -99,6 +99,24 @@ try {
   // 11) authorize-only setting
   check('Authorize-only store setting: a subscription sign-up is still a sale, a normal order is an authorization', j(r.auth_only_mode.subscription_order_types) === j(['sale']) && j(r.auth_only_mode.normal_order_types) === j(['auth']), j(r.auth_only_mode));
 
+
+  // 12) Free trial
+  const ft = r.free_trial; const fsr = ft.signup_requests || [];
+  check('Free trial: exactly one request at sign-up, and it is a card verification, not a sale', fsr.length === 1 && fsr[0].type === 'validate', j(fsr.map((x) => x.type)));
+  check('Free trial: the verification is for $0.00 and saves the card with the stored-credential fields', fsr[0] && fsr[0].amount === '0.00' && fsr[0].customer_vault === 'add_customer' && fsr[0].initiated_by === 'customer' && fsr[0].stored_credential_indicator === 'stored', j(fsr[0]));
+  check('Free trial: the order completes (paid, no charge)', ft.result === 'success' && ['processing', 'completed'].includes(ft.status) && ft.paid === true, j({ r: ft.result, s: ft.status }));
+  check('Free trial: the saved card is stored on the order and the subscription', /^V-/.test(ft.order.vault) && ft.subscription.vault === ft.order.vault && /^TX-/.test(ft.subscription.initial), j(ft.subscription));
+  const rat = (ft.renewal_after_trial || [])[0] || {};
+  check('Free trial: the first renewal after the trial is charged from that saved card, with the verification transaction as the first transaction', rat.type === 'sale' && rat.customer_vault_id === ft.order.vault && rat.initial_transaction_id === ft.subscription.initial, j(rat));
+
+  // 13) Free trial, declined card
+  const fd = r.free_trial_declined;
+  check('Free trial with a declined card: checkout fails, nothing is stored, the order is not paid', fd.result === 'failure' && fd.paid === false && fd.subscription.vault === '', j(fd));
+
+  // 14) Free trial, saved card
+  const fs = r.free_trial_saved_card;
+  check('Free trial with a saved card: no request is sent, the order completes and the card is wired to the subscription', fs.result === 'success' && fs.paid === true && (fs.requests || []).length === 0 && fs.subscription.vault === 'V-SAVED' && fs.subscription.initial === 'TX-SAVED', j(fs.subscription));
+
   await browser.close();
 } catch (e) {
   check('test run completed without an error', false, String(e.message).slice(0, 200));
