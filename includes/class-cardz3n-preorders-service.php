@@ -133,6 +133,10 @@ class Preorders_Service {
 	 * @return bool Whether the gateway approved the charge.
 	 */
 	private function charge_release( $order, $vault_id, $initial_txn ) {
+		if ( '' === (string) $initial_txn ) {
+			// ASSUMPTION A11: still charge, but say that the first transaction ID is missing.
+			$order->add_order_note( __( 'The first transaction ID of this pre-order is not known, so the release charge was sent without it.', 'cardz3n-gateway' ) );
+		}
 		$client = new Api_Client();
 		$mapper = new Level3_Mapper();
 		$level3 = $mapper->build( $order );
