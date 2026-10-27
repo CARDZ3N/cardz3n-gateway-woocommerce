@@ -211,6 +211,11 @@ class Subscriptions_Service {
 			return;
 		}
 
+		if ( '' === (string) $initial_txn ) {
+			// ASSUMPTION A11: still charge (do not strand an older subscription), but say that the first transaction ID is missing.
+			$renewal_order->add_order_note( __( 'The first transaction ID of this subscription is not known, so the renewal was sent without it. If the gateway or the card issuer questions it, use "Change payment method" on the subscription to save the card again.', 'cardz3n-gateway' ) );
+		}
+
 		$client = new Api_Client();
 		$mapper = new Level3_Mapper();
 		$level3 = $mapper->build( $renewal_order );

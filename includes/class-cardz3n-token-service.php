@@ -45,6 +45,10 @@ class Token_Service {
 		if ( ! empty( $card_info['initial_txn_id'] ) ) {
 			// Needed as `initial_transaction_id` on later merchant-initiated charges (ASSUMPTION A6/A7, see Recurring).
 			$token->add_meta_data( 'cardz3n_initial_txn_id', (string) $card_info['initial_txn_id'], true );
+			// Only a first transaction that was sent with the first-store flags may be reused as `initial_transaction_id`.
+			if ( ! empty( $card_info['initial_flagged'] ) ) {
+				$token->add_meta_data( 'cardz3n_initial_flagged', 'yes', true );
+			}
 		}
 		try {
 			$saved = $token->save();

@@ -73,7 +73,7 @@ try {
   check('Saved card chosen: no request is sent to the gateway', s.error === undefined && (s.requests || []).length === 0, s.error || j(s.requests));
   check('Saved card chosen: the subscription gets that card and its first transaction ID, the first order is untouched', s.result === 'success' && s.sub.vault === 'V-SAVED' && s.sub.initial === 'TX-SAVED' && s.parent.vault === 'V-OLD', j(s));
   const s2 = r.change_saved_card_no_txn;
-  check('Saved card without a first transaction ID: the old card\'s ID is removed, not left behind', s2.result === 'success' && s2.sub.vault === 'V-SAVED2' && s2.sub.initial === '', j(s2.sub));
+  check('Saved card without a first transaction ID: the old card\'s ID is not left behind, a fresh one comes from a $0.00 verification of the saved card', s2.result === 'success' && s2.sub.vault === 'V-SAVED2' && /^TX-\d+$/.test(s2.sub.initial) && s2.sub.initial !== 'TX-OLD' && (s2.requests || []).length === 1 && s2.requests[0].type === 'validate' && s2.requests[0].amount === '0.00' && s2.requests[0].customer_vault_id === 'V-SAVED2' && s2.requests[0].stored_credential_indicator === 'stored' && s2.requests[0].billing_method === 'recurring', j({ sub: s2.sub, requests: s2.requests }));
 
   // D4) ACH, D5) someone else's subscription
   const a = r.change_ach_refused;
