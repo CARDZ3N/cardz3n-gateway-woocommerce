@@ -6,17 +6,29 @@
  * token, the browser authenticates the card (a hidden device check, and only if the issuer asks, a challenge) and receives
  * authentication values, which are sent with the sale. Source: https://docs.nmi.com/docs/payer-authentication-3ds
  *
- * Everything that depends on how CARDZ3N's gateway answers is an ASSUMPTION, marked here and in the PR, and can be corrected with
- * a filter without changing the plugin:
+ * CONFIRMED by NMI's AI assistant (ticket answer, 2026-10-26; the live behaviour of our TEST account is not yet checked):
+ * - 3-D Secure needs Payer Authentication 2.0 switched on for the merchant account, an eCommerce-classified processor and
+ *   enrollment data (website URL, acquiring bank, bank VISA and MasterCard BINs, requestor category code, name and ID). Collect.js
+ *   works with 3-D Secure only together with Gateway.js.
+ * - For the first-store transaction use challengeIndicator '04'. After authentication send cavv, xid, eci, cardholder_auth,
+ *   three_ds_version and directory_server_id with the Payment API request (T3 is therefore confirmed), together with the
+ *   first-store flags of the recurring fields. Cardholder first and last name are required for 3-D Secure 2.
+ * - 3-D Secure can be tested in Test Mode when Payer Authentication 2.0 is active. NMI's "Testing" page lists the Test Mode cards
+ *   (Visa 4000000000002701 successful frictionless, ...2925 failed, ...2719 attempted, ...2503 successful step up, ...2370 failed
+ *   step up and others); the AI assistant says expiry 08/2030, CVV 999, challenge password 1234 (not on the page).
+ *
+ * NOT answered by NMI yet (ticket 1337309, human agent): the Gateway.js address on our host, the key type, fees, how a sale without
+ * 3-D Secure data is handled, the block checkout. Everything that still depends on that is an ASSUMPTION, marked here and in the PR,
+ * and can be corrected with a filter without changing the plugin:
  *
  * - T1: Gateway.js is served from the same gateway host as Collect.js, at /js/v1/Gateway.js (NMI's own sandbox URL is
  *   https://sandbox.nmi.com/js/v1/Gateway.js). Filter `cardz3n_gw_3ds_script_url`.
  * - T2: Gateway.js takes the same public key that Collect.js takes (NMI says "public API key with Checkout permissions"; it may
  *   be a different key on this gateway). Filter `cardz3n_gw_3ds_public_key`.
- * - T3: the sale accepts these fields, named as in NMI's table: cavv, xid, eci, cardholder_auth, three_ds_version,
- *   directory_server_id. Filter `cardz3n_gw_3ds_fields`.
- * - T4: renewals of a subscription are merchant-initiated and are sent without 3-D Secure, from the card stored by the first
- *   (authenticated) payment. NMI's page does not describe recurring billing; this is the usual card-network practice, not
+ * - T3 (CONFIRMED by NMI's AI assistant): the sale accepts these fields, named as in NMI's table: cavv, xid, eci,
+ *   cardholder_auth, three_ds_version, directory_server_id. Filter `cardz3n_gw_3ds_fields`.
+ * - T4: renewals of a subscription are merchant-initiated (confirmed by NMI: initiated_by=merchant) and are sent without 3-D Secure
+ *   data, from the card stored by the first (authenticated) payment; whether issuers accept that is not confirmed. NMI's page does not describe recurring billing; this is the usual card-network practice, not
  *   something the docs confirm. Nothing is added to a renewal request.
  * - T5: a $0.00 card verification (free trial, pre-order saved card) is not authenticated: NMI's page says nothing about it.
  * - T6: the saved-card path, bank payments and wallet payments are not authenticated by this plugin (a wallet token carries its
@@ -38,6 +50,12 @@ class Three_DS {
 	 * Path of Gateway.js on the gateway host. ASSUMPTION T1.
 	 */
 	const SCRIPT_PATH = '/js/v1/Gateway.js';
+
+	/**
+	 * challengeIndicator for the first-store transaction (a subscription or a pre-order whose card is stored), as NMI says: '04'.
+	 * Other payments send no indicator, so the default (no preference) applies.
+	 */
+	const CHALLENGE_FIRST_STORE = '04';
 
 	/**
 	 * The posted fields the checkout page sends after the browser finished the authentication, and the gateway request field
@@ -93,6 +111,27 @@ class Three_DS {
 	 */
 	public static function applies( $settings, $source, $using_saved ) {
 		return self::enabled( $settings ) && 'card' === $source && ! $using_saved;
+	}
+
+	/**
+	 * Does the cart being paid contain a subscription or a pre-order, i.e. is this the first-store transaction?
+	 *
+	 * ASSUMPTION T8: Subscriptions' `WC_Subscriptions_Cart::cart_contains_subscription()` and Pre-Orders'
+	 * `WC_Pre_Orders_Cart::cart_contains_pre_order()` are the plugins' own cart checks. A wrong answer only changes the challenge
+	 * indicator (no challenge preference instead of '04'); the sale flags are decided on the order, not here.
+	 * Filter `cardz3n_gw_3ds_first_store_cart`.
+	 *
+	 * @return bool
+	 */
+	public static function first_store_cart() {
+		$first = false;
+		if ( class_exists( 'WC_Subscriptions_Cart' ) && method_exists( 'WC_Subscriptions_Cart', 'cart_contains_subscription' ) ) {
+			$first = (bool) \WC_Subscriptions_Cart::cart_contains_subscription();
+		}
+		if ( ! $first && class_exists( 'WC_Pre_Orders_Cart' ) && method_exists( 'WC_Pre_Orders_Cart', 'cart_contains_pre_order' ) ) {
+			$first = (bool) \WC_Pre_Orders_Cart::cart_contains_pre_order();
+		}
+		return (bool) apply_filters( 'cardz3n_gw_3ds_first_store_cart', $first );
 	}
 
 	/**

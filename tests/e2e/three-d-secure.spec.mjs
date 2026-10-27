@@ -72,7 +72,7 @@ const check = (name, ok, detail = '') => { results.push({ name, ok }); console.l
 const j = (x) => JSON.stringify(x);
 
 // Opens the classic checkout, fills the billing form, presses Place order and reports what happened.
-async function placeOrder(browser, { mode = 'complete', gatewayScript = true } = {}) {
+async function placeOrder(browser, { mode = 'complete', gatewayScript = true, product = 'E2E Test Item', lastName = 'Buyer' } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
   const page = await ctx.newPage(); page.setDefaultTimeout(300000);
   const seen = { gatewayJsRequests: 0, posts: [] };
@@ -82,12 +82,12 @@ async function placeOrder(browser, { mode = 'complete', gatewayScript = true } =
   await page.route(/wc-ajax=checkout/, (route) => { seen.posts.push(route.request().postData() || ''); return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ result: 'failure', messages: '<ul class="woocommerce-error"><li>stub: order not created</li></ul>', refresh: false, reload: false }) }); });
   await page.addInitScript((m) => { window.__3ds = m; window.__errSeen = []; setInterval(() => { document.querySelectorAll('.woocommerce-error, .cardz3n-errors').forEach((e) => { const t = (e.innerText || '').trim(); if (t && !window.__errSeen.includes(t)) { window.__errSeen.push(t); } }); }, 50); }, mode);
   await page.goto(base + '/', { waitUntil: 'domcontentloaded', timeout: 300000 });
-  const pid = await page.evaluate(() => fetch('/wp-json/wc/store/v1/products?search=E2E%20Test%20Item').then((r) => r.json()).then((p) => p[0].id));
+  const pid = await page.evaluate((name) => fetch('/wp-json/wc/store/v1/products?search=' + encodeURIComponent(name)).then((r) => r.json()).then((p) => p[0].id), product);
   await page.goto(`${base}/?add-to-cart=${pid}`, { waitUntil: 'domcontentloaded' });
   await page.goto(base + '/checkout-classic/');
   await page.waitForSelector('form.checkout');
   await page.waitForTimeout(4000);
-  const fill = { billing_first_name: 'Test', billing_last_name: 'Buyer', billing_address_1: '1 Test St', billing_city: 'Los Angeles', billing_postcode: '90001', billing_phone: '5555550100', billing_email: 'e2e@example.test' };
+  const fill = { billing_first_name: 'Test', billing_last_name: lastName, billing_address_1: '1 Test St', billing_city: 'Los Angeles', billing_postcode: '90001', billing_phone: '5555550100', billing_email: 'e2e@example.test' };
   for (const [k, v] of Object.entries(fill)) { const el = page.locator(`[name="${k}"]`); if (await el.count()) { await el.first().fill(v); } }
   const pre = await page.evaluate(() => ({ mount: !!document.querySelector('#cardz3n-3ds-mount'), cfg: window.CARDZ3N_GW ? window.CARDZ3N_GW.threeDs : null }));
   await page.evaluate(() => { const m = document.querySelector('#payment_method_cardz3n_gateway'); if (m) { m.checked = true; } });
@@ -126,6 +126,13 @@ try {
   check('Gateway.js unavailable: no order request is sent', gone.seen.posts.length === 0, 'posts: ' + gone.seen.posts.length);
   check('Gateway.js unavailable: the shopper sees a plain message', gone.after.errors.some((e) => /not available right now/i.test(e)), j(gone.after.errors));
 
+  // 4b) First-store carts and names: '04' only for a subscription cart; first and last name are required.
+  const subCart = await placeOrder(browser, { mode: 'complete', product: 'E2E Subscription Item' });
+  check("Subscription cart: the authentication is asked with challengeIndicator '04' (confirmed by NMI)", !!subCart.after.gw && !!subCart.after.gw.options && subCart.after.gw.options.challengeIndicator === '04', j(subCart.after.gw && subCart.after.gw.options && subCart.after.gw.options.challengeIndicator));
+  check('Normal cart: no challengeIndicator is sent (no preference)', !!ok.after.gw && !!ok.after.gw.options && ok.after.gw.options.challengeIndicator === undefined, j(ok.after.gw && ok.after.gw.options && ok.after.gw.options.challengeIndicator));
+  const noName = await placeOrder(browser, { mode: 'complete', lastName: '' });
+  check('No last name: 3-D Secure is not started, no order request is sent, and the shopper is asked for the name', noName.seen.posts.length === 0 && !(noName.after.gw && noName.after.gw.created) && noName.after.errors.some((e) => /first and last name/i.test(e)), j({ posts: noName.seen.posts.length, errors: noName.after.errors.slice(0, 2) }));
+
   // 5) The setting off: unchanged checkout (no Gateway.js, no 3-D Secure values).
   const ctl = await browser.newContext(); const cp = await ctl.newPage(); cp.setDefaultTimeout(300000);
   await cp.goto(`${base}/?cardz3n_e2e=cfg3ds&v=no`, { waitUntil: 'domcontentloaded', timeout: 300000 });
@@ -147,6 +154,8 @@ try {
   check('Server, on: a new card with no authentication is refused and nothing is sent to the gateway', a.result === 'failure' && (a.requests || []).length === 0, j(a));
   const b = r.on_card_status_not_complete;
   check('Server, on: an authentication that did not finish is refused and nothing is sent', b.result === 'failure' && (b.requests || []).length === 0, j(b));
+  const nn = r.on_card_no_name;
+  check('Server, on: an order without a first and last name is refused and nothing is sent', nn.result === 'failure' && (nn.requests || []).length === 0, j(nn));
   const c = r.on_card_authenticated;
   const cs = sale(c)[0] || {};
   check('Server, on: an authenticated card is accepted and the sale carries the authentication values', c.result === 'success' && sale(c).length === 1 && cs.cavv === 'CAVV123abc=' && cs.eci === '05' && cs.xid === 'XID.1' && cs.cardholder_auth === 'verified' && cs.three_ds_version === '2.2.0' && cs.directory_server_id === 'DS-1', j(cs));

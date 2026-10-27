@@ -310,6 +310,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				'threeDs'         => array(
 					'enabled'   => $three_ds_on,
 					'publicKey' => $three_ds_on ? Three_DS::public_key( $pk ) : '',
+					'challengeIndicator' => ( $three_ds_on && Three_DS::first_store_cart() ) ? Three_DS::CHALLENGE_FIRST_STORE : '',
 				),
 				'allowedBrands'   => (array) $this->get_option( 'allowed_card_brands', array() ),
 				'country'         => ( WC()->customer && WC()->customer->get_billing_country() ) ? WC()->customer->get_billing_country() : 'US',
@@ -333,6 +334,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 					'timeout'       => __( 'Tokenization timed out. Please try again.', 'cardz3n-gateway' ),
 					'initError'     => __( 'Unable to initialize secure payment form. Please refresh the page and try again.', 'cardz3n-gateway' ),
 					'threeDsFailed' => __( 'Your card could not be verified. Please check your details or use a different card.', 'cardz3n-gateway' ),
+					'threeDsNameRequired' => __( 'Please enter your first and last name so your card can be verified.', 'cardz3n-gateway' ),
 					'threeDsUnavailable' => __( 'Card verification is not available right now. Please try again, or use a different payment method.', 'cardz3n-gateway' ),
 				),
 			)
@@ -1009,6 +1011,16 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		 */
 		$three_ds_fields = array();
 		if ( Three_DS::applies( $this->settings, $normalized_source, $using_saved ) ) {
+			// 3-D Secure 2 needs the cardholder's first and last name (confirmed by NMI).
+			if ( '' === trim( (string) $order->get_billing_first_name() ) || '' === trim( (string) $order->get_billing_last_name() ) ) {
+				$cardz3n_gw_error_msg = __( 'Please enter your first and last name so your card can be verified.', 'cardz3n-gateway' );
+				wc_add_notice( $cardz3n_gw_error_msg, 'error' );
+				return array(
+					'result'   => 'failure',
+					'message'  => $cardz3n_gw_error_msg,
+					'redirect' => '',
+				);
+			}
 			$posted_auth = Three_DS::fields_from_request();
 			if ( null === $posted_auth ) {
 				$cardz3n_gw_error_msg = __( 'Your card could not be verified. Please check your details or use a different card.', 'cardz3n-gateway' );

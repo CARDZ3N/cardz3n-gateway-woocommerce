@@ -305,7 +305,7 @@ trait Settings_Trait {
 				'title'       => __( '3D Secure 2.0', 'cardz3n-gateway' ),
 				'type'        => 'checkbox',
 				'label'       => __( 'Authenticate new card payments with 3D Secure', 'cardz3n-gateway' ),
-				'description' => __( 'Before a new card is charged, the shopper’s bank checks the card (most often without the shopper seeing anything, sometimes with a one-time code). It applies to new cards on the classic checkout payment form, not to saved cards, bank payments, Apple Pay, Google Pay or subscription renewals. 3D Secure must also be switched on for your CARDZ3N merchant account, or card payments will fail. Switching this on turns the native block checkout off, because 3D Secure runs on the classic payment form.', 'cardz3n-gateway' ),
+				'description' => __( 'Before a new card is charged, the shopper’s bank checks the card (most often without the shopper seeing anything, sometimes with a one-time code). It applies to new cards on the classic checkout payment form, not to saved cards, bank payments, Apple Pay, Google Pay or subscription renewals. 3D Secure also needs Payer Authentication 2.0 switched on for your CARDZ3N merchant account, an eCommerce processor and the bank enrollment details (ask CARDZ3N support), or card payments will fail. Switching this on turns the native block checkout off, because 3D Secure runs on the classic payment form.', 'cardz3n-gateway' ),
 				'default'     => 'no',
 			),
 

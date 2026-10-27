@@ -601,6 +601,10 @@
 
 	function runThreeDs(response) {
 		var finished = false;
+		if (!billingValue('first_name') || !billingValue('last_name')) {
+			threeDsFailure(cfg.i18n.threeDsNameRequired);
+			return;
+		}
 		var done = function (fn) { return function () { if (finished) { return; } finished = true; if (timer) { clearTimeout(timer); } fn.apply(null, arguments); }; };
 		var timer = setTimeout(done(function () { threeDsFailure(cfg.i18n.threeDsUnavailable); }), 90000);
 		if (!window.Gateway || typeof window.Gateway.create !== 'function') {
@@ -623,6 +627,8 @@
 				country: billingValue('country'),
 				postalCode: billingValue('postcode')
 			};
+			// '04' on the first-store transaction (a subscription or pre-order cart), as NMI says; otherwise no preference is sent.
+			if (cfg.threeDs.challengeIndicator) { options.challengeIndicator = cfg.threeDs.challengeIndicator; }
 			var ui = gateway.get3DSecure().createUI(options);
 			ui.on('challenge', function () { $('#cardz3n-3ds-mount').addClass('is-challenge'); });
 			ui.on('complete', done(function (e) {
