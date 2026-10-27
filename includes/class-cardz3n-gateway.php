@@ -26,6 +26,13 @@ use Cardz3n_Gateway\ACH_Service;
  */
 class Gateway extends \WC_Payment_Gateway_CC {
 
+	/**
+	 * ID of the saved method chosen in the current payment request (0 when a new card is used).
+	 *
+	 * @var int
+	 */
+	private $saved_token_id = 0;
+
 	use Refunds_Trait;
 	use Settings_Trait;
 	use Compatibility_Trait;
@@ -829,6 +836,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 
 		// Resolve payment mechanism.
 		$using_saved       = false;
+		$this->saved_token_id = 0;
 		$vault_id          = '';
 		$saved_initial_txn = '';
 		$vault_brand      = '';
@@ -846,7 +854,9 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				);
 			}
 			$vault_id = ( '' !== (string) $token->get_meta( 'cardz3n_vault_id' ) ) ? (string) $token->get_meta( 'cardz3n_vault_id' ) : $token->get_token();
-			$saved_initial_txn    = (string) $token->get_meta( 'cardz3n_initial_txn_id' );
+			// Only a first transaction that was sent with the first-store flags may be reused as `initial_transaction_id`.
+			$saved_initial_txn    = ( $token instanceof \WC_Payment_Token_ECheck ) ? '' : Recurring::flagged_initial_txn( $token );
+			$this->saved_token_id = (int) $token->get_id();
 			$using_saved          = true;
 			$normalized_source    = $token instanceof \WC_Payment_Token_ECheck ? 'ach_vault' : 'card_vault';
 			if ( 'card_vault' === $normalized_source ) {
@@ -1041,7 +1051,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 
 		if ( $needs_stored ) {
 			$should_vault_card = ! $using_saved;
-			$args['extra']     = array_merge( $args['extra'], Recurring::first_payment_fields( $using_saved ) );
+			// A saved card with a flagged first transaction is reused (`used` + that ID). Any other card is a first-store (ASSUMPTION A10).
+			$args['extra']     = array_merge( $args['extra'], Recurring::first_payment_fields( $using_saved && '' !== $saved_initial_txn, $saved_initial_txn ) );
 		}
 
 		if ( ! empty( $three_ds_fields ) ) {
@@ -1215,7 +1226,11 @@ class Gateway extends \WC_Payment_Gateway_CC {
 					'redirect' => '',
 				);
 			}
-			$initial_txn = $using_saved ? $saved_initial_txn : (string) $response['transaction_id'];
+			// A new card, or a saved card without a flagged first transaction: this payment was the first-store, so it is the new first transaction.
+			$initial_txn = ( $using_saved && '' !== $saved_initial_txn ) ? $saved_initial_txn : (string) $response['transaction_id'];
+			if ( $using_saved && '' === $saved_initial_txn ) {
+				Recurring::mark_token_initial( $this->saved_token_id, $initial_txn );
+			}
 		}
 
 		// Persist standard meta and notes.
@@ -1234,7 +1249,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 					$this->id,
 					$response['customer_vault_id'],
 					array(
-						'initial_txn_id' => (string) $response['transaction_id'],
+						'initial_txn_id'  => (string) $response['transaction_id'],
+						'initial_flagged' => (bool) $needs_stored, // Only a recurring order's payment was sent with the first-store flags.
 						'last4'     => substr( (string) ( $response['raw']['cc_number'] ?? '' ), -4 ),
 						'brand'     => \Cardz3n_Gateway\brand_slug( '' !== $client_brand ? $client_brand : ( $response['raw']['cc_type'] ?? $response['raw']['card_type'] ?? '' ) ),
 						'exp_month' => \Cardz3n_Gateway\parse_ccexp( $response['raw']['cc_exp'] ?? $response['raw']['ccexp'] ?? '' )['month'],
@@ -1295,6 +1311,18 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	 */
 	private function process_card_verification( $order, $client, $using_saved, $vault_id, $saved_initial_txn, $collect_token, $normalized_source, array $billing, $client_brand ) {
 		if ( $using_saved ) {
+			if ( '' === $saved_initial_txn ) {
+				// The saved card has no flagged first transaction: give it a fresh one (ASSUMPTION A9).
+				$fresh = $this->reinitialise_saved_card( $client, $order, $vault_id, $billing );
+				if ( is_array( $fresh ) ) {
+					if ( empty( $fresh['success'] ) || '' === (string) $fresh['transaction_id'] ) {
+						$order->add_order_note( Order_Service::failure_note( $fresh, array( 'transaction_type' => 'validate' ) ) );
+						return $this->failure( __( 'Your saved card could not be verified. Please check your details or use a different card.', 'cardz3n-gateway' ) );
+					}
+					$saved_initial_txn = (string) $fresh['transaction_id'];
+					Recurring::mark_token_initial( $this->saved_token_id, $saved_initial_txn );
+				}
+			}
 			Recurring::store( $order, $vault_id, $saved_initial_txn );
 			$order->add_order_note( __( 'Nothing is due today. The customer\'s saved card will be used for the later payments.', 'cardz3n-gateway' ) );
 			$order->payment_complete();
@@ -1370,6 +1398,40 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	}
 
 	/**
+	 * Give a saved card that has no usable first transaction a fresh one: a $0.00 verification of the existing vault entry
+	 * sent with the first-store flags. ASSUMPTION A9: the gateway accepts `type=validate` with `customer_vault_id`.
+	 * Filter `cardz3n_gw_reinitialise_saved_cards` (default true) switches it off; the card is then stored without a first transaction ID (an unflagged old ID is never reused), and the renewal notes it as missing.
+	 *
+	 * @param Api_Client     $client   Gateway client.
+	 * @param \WC_Order|null $order    Order or subscription the card is for.
+	 * @param string         $vault_id Vault ID of the saved card.
+	 * @param array          $billing  Billing fields.
+	 * @return array|null The gateway reply, or null when switched off.
+	 */
+	private function reinitialise_saved_card( $client, $order, $vault_id, array $billing ) {
+		if ( ! apply_filters( 'cardz3n_gw_reinitialise_saved_cards', true ) ) {
+			return null;
+		}
+		$args = array(
+			'type'              => 'validate',
+			'amount'            => '0.00',
+			'customer_vault_id' => $vault_id,
+			'payment'           => 'creditcard',
+			'billing'           => $billing,
+			'extra'             => array_merge(
+				array( 'merchant_defined_field_10' => 'card_vault' ),
+				Recurring::first_payment_fields( false )
+			),
+		);
+		if ( $order ) {
+			$args['order_id']          = $order->get_id();
+			$args['order_description'] = sprintf( /* translators: order id */ __( 'Order #%s', 'cardz3n-gateway' ), $order->get_order_number() );
+			$args['currency']          = $order->get_currency();
+		}
+		return $client->transaction( $args );
+	}
+
+	/**
 	 * Verify a new card for $0.00 and add it to the vault (never a sale). ASSUMPTIONS A1 to A5, see Recurring.
 	 *
 	 * @param Api_Client     $client            Gateway client.
@@ -1415,8 +1477,9 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			$this->id,
 			$response['customer_vault_id'],
 			array(
-				'initial_txn_id' => (string) $response['transaction_id'],
-				'last4'          => substr( (string) ( $response['raw']['cc_number'] ?? '' ), -4 ),
+				'initial_txn_id'  => (string) $response['transaction_id'],
+				'initial_flagged' => true, // A verification is always sent with the first-store flags.
+				'last4'           => substr( (string) ( $response['raw']['cc_number'] ?? '' ), -4 ),
 				'brand'          => \Cardz3n_Gateway\brand_slug( '' !== $client_brand ? $client_brand : ( $response['raw']['cc_type'] ?? $response['raw']['card_type'] ?? '' ) ),
 				'exp_month'      => \Cardz3n_Gateway\parse_ccexp( $response['raw']['cc_exp'] ?? $response['raw']['ccexp'] ?? '' )['month'],
 				'exp_year'       => \Cardz3n_Gateway\parse_ccexp( $response['raw']['cc_exp'] ?? $response['raw']['ccexp'] ?? '' )['year'],
@@ -1468,6 +1531,18 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		if ( $using_saved ) {
 			$new_vault   = $vault_id;
 			$initial_txn = $saved_initial_txn;
+			if ( '' === $initial_txn ) {
+				// The saved card has no flagged first transaction: give it a fresh one (ASSUMPTION A9).
+				$fresh = $this->reinitialise_saved_card( $client, $subscription, $vault_id, $this->order_billing( $subscription ) );
+				if ( is_array( $fresh ) ) {
+					if ( empty( $fresh['success'] ) || '' === (string) $fresh['transaction_id'] ) {
+						$subscription->add_order_note( Order_Service::failure_note( $fresh, array( 'transaction_type' => 'validate' ) ) );
+						return $this->failure( __( 'Your saved card could not be verified, so your previous payment method has not been changed. Please check your details or use a different card.', 'cardz3n-gateway' ) );
+					}
+					$initial_txn = (string) $fresh['transaction_id'];
+					Recurring::mark_token_initial( $this->saved_token_id, $initial_txn );
+				}
+			}
 		} else {
 			$response = $this->verify_and_vault_card( $client, $subscription, $collect_token, $normalized_source, $this->order_billing( $subscription ) );
 			if ( ! $response['success'] || '' === (string) $response['customer_vault_id'] ) {
