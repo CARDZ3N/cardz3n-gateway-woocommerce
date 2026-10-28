@@ -18,11 +18,14 @@
  *   step up and others); the AI assistant says expiry 08/2030, CVV 999, challenge password 1234 (not on the page).
  *
  * NOT answered by NMI yet (ticket 1337309, human agent): the Gateway.js address on our host, the key type, fees, how a sale without
- * 3-D Secure data is handled, the block checkout. Everything that still depends on that is an ASSUMPTION, marked here and in the PR,
+ * 3-D Secure data is handled, the block checkout, and (still open) 3-D Secure on a $0 verification. Everything that still depends on that is an ASSUMPTION, marked here and in the PR,
  * and can be corrected with a filter without changing the plugin:
  *
  * - T1: Gateway.js is served from the same gateway host as Collect.js, at /js/v1/Gateway.js (NMI's own sandbox URL is
- *   https://sandbox.nmi.com/js/v1/Gateway.js). Filter `cardz3n_gw_3ds_script_url`.
+ *   https://sandbox.nmi.com/js/v1/Gateway.js). Checked with a real request on 2026-10-27: https://z3n.transactiongateway.com/js/v1/Gateway.js
+ *   answers 200 with the script (it contains get3DSecure). The address NMI's support gave (/web/js/v1/gateway.js) answers 403 from the
+ *   gateway's edge, with or without a browser user agent, and a lowercase /js/v1/gateway.js answers 404, so the default stays
+ *   /js/v1/Gateway.js. Ask NMI which one is meant. Filter `cardz3n_gw_3ds_script_url`.
  * - T2: Gateway.js takes the same public key that Collect.js takes (NMI says "public API key with Checkout permissions"; it may
  *   be a different key on this gateway). Filter `cardz3n_gw_3ds_public_key`.
  * - T3 (CONFIRMED by NMI's AI assistant): the sale accepts these fields, named as in NMI's table: cavv, xid, eci,
@@ -73,13 +76,44 @@ class Three_DS {
 	);
 
 	/**
-	 * Is 3-D Secure switched on in the gateway settings?
+	 * The 3-D Secure mode in the gateway settings: 'off' (default), 'attempt' (try it; if it cannot run, take the payment without it
+	 * and add an order note) or 'required' (if it cannot be completed for any reason, stop the payment with a plain message).
+	 * A bank-reported authentication FAILURE stops the payment in both modes.
+	 *
+	 * The first build of this feature used a yes/no checkbox `enable_3d_secure`; a saved 'yes' counts as 'attempt'. The old dead
+	 * `enable_3ds` checkbox is never read.
+	 *
+	 * @param array $settings The gateway settings.
+	 * @return string off|attempt|required
+	 */
+	public static function mode( $settings ) {
+		if ( ! is_array( $settings ) ) {
+			return 'off';
+		}
+		if ( isset( $settings['three_d_secure_mode'] ) && in_array( $settings['three_d_secure_mode'], array( 'off', 'attempt', 'required' ), true ) ) {
+			return $settings['three_d_secure_mode'];
+		}
+		return ( isset( $settings['enable_3d_secure'] ) && 'yes' === $settings['enable_3d_secure'] ) ? 'attempt' : 'off';
+	}
+
+	/**
+	 * Is 3-D Secure switched on (attempt or required)?
 	 *
 	 * @param array $settings The gateway settings.
 	 * @return bool
 	 */
 	public static function enabled( $settings ) {
-		return is_array( $settings ) && isset( $settings['enable_3d_secure'] ) && 'yes' === $settings['enable_3d_secure'];
+		return 'off' !== self::mode( $settings );
+	}
+
+	/**
+	 * Is 3-D Secure required (a payment that cannot be authenticated is stopped)?
+	 *
+	 * @param array $settings The gateway settings.
+	 * @return bool
+	 */
+	public static function required( $settings ) {
+		return 'required' === self::mode( $settings );
 	}
 
 	/**

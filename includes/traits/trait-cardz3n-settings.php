@@ -301,12 +301,16 @@ trait Settings_Trait {
 			),
 			// The old `enable_3ds` checkbox did nothing and is gone from this screen; a value saved by an earlier version stays in the stored
 			// settings and is ignored. This is a new, separate setting, so a store that ticked the old box does not get 3-D Secure switched on.
-			'enable_3d_secure'          => array(
+'three_d_secure_mode'       => array(
 				'title'       => __( '3D Secure 2.0', 'cardz3n-gateway' ),
-				'type'        => 'checkbox',
-				'label'       => __( 'Authenticate new card payments with 3D Secure', 'cardz3n-gateway' ),
-				'description' => __( 'Before a new card is charged, the shopper’s bank checks the card (most often without the shopper seeing anything, sometimes with a one-time code). It applies to new cards on the classic checkout payment form, not to saved cards, bank payments, Apple Pay, Google Pay or subscription renewals. 3D Secure also needs Payer Authentication 2.0 switched on for your CARDZ3N merchant account, an eCommerce processor and the bank enrollment details (ask CARDZ3N support), or card payments will fail. Switching this on turns the native block checkout off, because 3D Secure runs on the classic payment form.', 'cardz3n-gateway' ),
-				'default'     => 'no',
+				'type'        => 'select',
+				'default'     => 'off',
+				'options'     => array(
+					'off'      => __( 'Off', 'cardz3n-gateway' ),
+					'attempt'  => __( 'Attempt: try 3D Secure; if it cannot run, take the payment without it', 'cardz3n-gateway' ),
+					'required' => __( 'Required: stop the payment if 3D Secure cannot be completed', 'cardz3n-gateway' ),
+				),
+				'description' => __( 'Before a new card is charged, the cardholder\'s bank checks the card (usually without the shopper seeing anything, sometimes with a one-time code). UK and EU merchants: card payments there normally need this (strong customer authentication). It only works if Payer Authentication 2.0 is already switched on for your CARDZ3N gateway account, with an eCommerce processor and your bank enrollment details (ask CARDZ3N support); this plugin cannot enroll you. Choose Required if every new card must be authenticated. Choose Attempt to try it without risking lost sales when it cannot run (those payments are then not protected by 3D Secure, and the order note says so). A card that its bank reports as failed is always stopped. It applies to new cards on the classic checkout payment form, including free trials and pre-orders; not to saved cards, bank payments, Apple Pay, Google Pay, the My Account pages or subscription renewals. Switching it on turns the native block checkout off. Test it with your gateway account before relying on it.', 'cardz3n-gateway' ),
 			),
 
 			/* ---------------- Commercial Data ---------------- */

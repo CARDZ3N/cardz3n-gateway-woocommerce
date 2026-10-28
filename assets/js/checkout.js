@@ -600,15 +600,29 @@
 	}
 
 	function runThreeDs(response) {
+		/*
+		 * Two modes (cfg.threeDs.mode). If 3-D Secure cannot run (Gateway.js did not load, the gateway is not enrolled for 3-D
+		 * Secure and reports an error, nothing answers within 20 seconds, the cardholder name is missing, or the call throws):
+		 *   - 'attempt': the payment goes on WITHOUT 3-D Secure (the server adds an order note);
+		 *   - 'required': the payment is stopped with a plain message and nothing is sent.
+		 * An authentication that the bank reports as FAILED stops the payment in both modes.
+		 */
 		var finished = false;
+		var timer = null;
+		var required = cfg.threeDs.mode === 'required';
+		var done = function (fn) { return function () { if (finished) { return; } finished = true; if (timer) { clearTimeout(timer); } fn.apply(null, arguments); }; };
+		var without = done(function () {
+			if (required) { threeDsFailure(cfg.i18n.threeDsRequired); return; }
+			onTokenReceived(response, { status: 'unavailable' });
+		});
 		if (!billingValue('first_name') || !billingValue('last_name')) {
-			threeDsFailure(cfg.i18n.threeDsNameRequired);
+			if (required) { done(function () { threeDsFailure(cfg.i18n.threeDsNameRequired); })(); } else { without(); }
 			return;
 		}
-		var done = function (fn) { return function () { if (finished) { return; } finished = true; if (timer) { clearTimeout(timer); } fn.apply(null, arguments); }; };
-		var timer = setTimeout(done(function () { threeDsFailure(cfg.i18n.threeDsUnavailable); }), 90000);
+		// No answer at all within 20 seconds: go on without. A challenge that is on screen cancels this timer.
+		timer = setTimeout(without, 20000);
 		if (!window.Gateway || typeof window.Gateway.create !== 'function') {
-			done(function () { threeDsFailure(cfg.i18n.threeDsUnavailable); })();
+			without();
 			return;
 		}
 		try {
@@ -630,7 +644,7 @@
 			// '04' on the first-store transaction (a subscription or pre-order cart), as NMI says; otherwise no preference is sent.
 			if (cfg.threeDs.challengeIndicator) { options.challengeIndicator = cfg.threeDs.challengeIndicator; }
 			var ui = gateway.get3DSecure().createUI(options);
-			ui.on('challenge', function () { $('#cardz3n-3ds-mount').addClass('is-challenge'); });
+			ui.on('challenge', function () { if (timer) { clearTimeout(timer); timer = null; } $('#cardz3n-3ds-mount').addClass('is-challenge'); });
 			ui.on('complete', done(function (e) {
 				$('#cardz3n-3ds-mount').removeClass('is-challenge');
 				e = e || {};
@@ -644,12 +658,12 @@
 			}));
 			ui.on('failure', done(function () { threeDsFailure(cfg.i18n.threeDsFailed); }));
 			if (typeof gateway.on === 'function') {
-				gateway.on('error', done(function () { threeDsFailure(cfg.i18n.threeDsUnavailable); }));
+				gateway.on('error', without);
 			}
 			ui.start('#cardz3n-3ds-mount');
 		} catch (err) {
-			if (window.console && console.warn) { console.warn('[CARDZ3N] 3-D Secure could not start:', err && err.message ? err.message : err); }
-			done(function () { threeDsFailure(cfg.i18n.threeDsUnavailable); })();
+			if (window.console && console.warn) { console.warn('[CARDZ3N] 3-D Secure could not start, going on without it:', err && err.message ? err.message : err); }
+			without();
 		}
 	}
 
@@ -713,12 +727,14 @@
 		mirror('cardz3n_card_brand', cardBrand);
 		if (authentication) {
 			mirror('cardz3n_3ds_status', authentication.status);
-			mirror('cardz3n_3ds_cavv', authentication.cavv);
-			mirror('cardz3n_3ds_xid', authentication.xid);
-			mirror('cardz3n_3ds_eci', authentication.eci);
-			mirror('cardz3n_3ds_cardholder_auth', authentication.cardholder_auth);
-			mirror('cardz3n_3ds_version', authentication.version);
-			mirror('cardz3n_3ds_directory_server_id', authentication.directory_server_id);
+			if (authentication.status === 'complete') {
+				mirror('cardz3n_3ds_cavv', authentication.cavv);
+				mirror('cardz3n_3ds_xid', authentication.xid);
+				mirror('cardz3n_3ds_eci', authentication.eci);
+				mirror('cardz3n_3ds_cardholder_auth', authentication.cardholder_auth);
+				mirror('cardz3n_3ds_version', authentication.version);
+				mirror('cardz3n_3ds_directory_server_id', authentication.directory_server_id);
+			}
 		}
 
 		// Trigger the real submission; WC's own handler will send to the server.
