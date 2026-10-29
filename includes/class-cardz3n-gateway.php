@@ -38,13 +38,6 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	use Compatibility_Trait;
 
 	/**
-	 * Google's own Google Pay script. Collect.js builds the Google Pay button with it, so it is loaded in the shopper's browser
-	 * (only when the store switched Google Pay on) before Collect.js is configured with the Google Pay field. Disclosed in the
-	 * readme under External services.
-	 */
-	const GOOGLE_PAY_SCRIPT = 'https://pay.google.com/gp/p/js/pay.js';
-
-	/**
 	 * Extra Google Pay options for Collect.js, empty by default.
 	 *
 	 * ASSUMPTION GP1: Collect.js chooses Google's TEST or PRODUCTION environment itself (from the key), so the plugin passes
@@ -311,7 +304,6 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				'enableAch'       => 'yes' === $this->get_option( 'enable_ach', 'no' ),
 				'enableApplePay'  => 'yes' === $this->get_option( 'enable_apple_pay', 'no' ),
 				'enableGooglePay' => 'yes' === $this->get_option( 'enable_google_pay', 'no' ),
-				'googlePayScript' => 'yes' === $this->get_option( 'enable_google_pay', 'no' ) ? self::GOOGLE_PAY_SCRIPT : '',
 				'googlePayOptions' => $this->google_pay_options(),
 				'enableSaved'     => 'yes' === $this->get_option( 'enable_saved_methods', 'no' ),
 				'threeDs'         => array(

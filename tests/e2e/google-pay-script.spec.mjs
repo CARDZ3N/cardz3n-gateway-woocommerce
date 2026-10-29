@@ -1,10 +1,9 @@
-// End-to-end check: Google Pay gets Google's script before Collect.js is configured, and is left out whenever it cannot work.
+// End-to-end check: the plugin does NOT load or integrate Google's Google Pay script itself; Collect.js does that.
 //
-// Why: Collect.js builds the Google Pay button with Google's own library. The plugin never loaded that library, and only passed
-// Google Pay to Collect.js if some other script had already loaded it, so the button could never appear. Now, when the store
-// switched Google Pay on, the plugin loads the script first, configures Collect.js after it loaded, and leaves Google Pay out
-// (card and bank fields still mount, no error) when the script fails to load, is too slow, or does not provide the library.
-// When Google Pay is off, Google's script is never requested.
+// Why: NMI (2026-10-27): with the Collect.js wallet integration, Google's pay.js is a dependency handled inside Collect.js, and we must
+// not add a second, independent Google Pay integration. An earlier version loaded Google's script from the plugin and only passed
+// Google Pay to Collect.js when that script had provided the library. Now the plugin loads nothing from Google, passes Google Pay to
+// Collect.js whenever the store switched it on, and passes nothing when it is off.
 //
 // No keys, nothing is charged, nothing is sent to Google: Collect.js and Google's script are both replaced by stubs.
 //
@@ -95,27 +94,17 @@ try {
   const admin = await (await browser.newContext()).newPage(); admin.setDefaultTimeout(300000);
   const set = async (q) => { await admin.goto(`${base}/?cardz3n_e2e=set&${q}`, { waitUntil: 'domcontentloaded', timeout: 300000 }); };
 
-  // 1) Google Pay on, Google's script loads: requested once, loaded BEFORE Collect.js is configured, Google Pay passed.
+  // 1) Google Pay on: the plugin never requests Google's script; Collect.js is configured straight away with Google Pay.
   await set('gp=yes&env=0');
   const ok = await checkout(browser, 'ok');
-  check('Google Pay on: Google\'s script is requested once', ok.googleRequests === 1 && ok.scriptTags === 1, j({ requests: ok.googleRequests, tags: ok.scriptTags }));
-  check('Google Pay on: Collect.js is configured only AFTER Google\'s script loaded', j(ok.events) === j(['google-loaded', 'configure']), j(ok.events));
-  check('Google Pay on: Collect.js gets the card fields and Google Pay', !!ok.configured && ok.configured.fields.includes('ccnumber') && ok.configured.fields.includes('googlePay'), j(ok.configured));
-  check('Google Pay on: only the documented selector is passed by default (no environment option)', !!ok.configured && j(ok.configured.googleKeys) === j(['selector']), j(ok.configured));
+  check('Google Pay on: the plugin requests nothing from Google (no pay.google.com request, no script tag)', ok.googleRequests === 0 && ok.scriptTags === 0, j({ requests: ok.googleRequests, tags: ok.scriptTags }));
+  check('Google Pay on: Collect.js is configured straight away, with nothing waiting for Google', ok.events.length > 0 && ok.events[0] === 'configure' && !ok.events.includes('google-loaded'), j(ok.events));
+  check('Google Pay on: Collect.js gets the card fields and Google Pay, with only the documented selector', !!ok.configured && ok.configured.fields.includes('ccnumber') && ok.configured.fields.includes('googlePay') && j(ok.configured.googleKeys) === j(['selector']), j(ok.configured));
+  check('Google Pay on: no error is shown to the shopper', ok.errors.length === 0, j(ok.errors));
 
-  // 2) Google's script cannot be loaded: Google Pay is left out, card fields still mount, no error.
-  const failed = await checkout(browser, 'fail');
-  check('Script blocked: Collect.js is still configured with the card fields', !!failed.configured && failed.configured.fields.includes('ccnumber'), j(failed.configured));
-  check('Script blocked: Google Pay is left out', !!failed.configured && !failed.configured.fields.includes('googlePay'), j(failed.configured));
-  check('Script blocked: no error is shown to the shopper and the Google Pay area stays empty', failed.errors.length === 0 && failed.googleBoxEmpty, j({ errors: failed.errors, empty: failed.googleBoxEmpty }));
-
-  // 3) The script loads but gives no Google Pay library: left out.
-  const empty = await checkout(browser, 'empty');
-  check('Script without the library: card fields mount, Google Pay is left out', !!empty.configured && empty.configured.fields.includes('ccnumber') && !empty.configured.fields.includes('googlePay'), j(empty.configured));
-
-  // 4) Google's script never answers: after the time limit Collect.js is configured without Google Pay.
-  const hang = await checkout(browser, 'hang');
-  check('Script too slow: after the time limit the card fields mount without Google Pay', !!hang.configured && hang.configured.fields.includes('ccnumber') && !hang.configured.fields.includes('googlePay'), j(hang.configured));
+  // 2) Google's address blocked by the shopper's browser (an ad blocker, a firewall): nothing changes for the plugin, no error.
+  const blocked = await checkout(browser, 'fail');
+  check('Google blocked in the browser: the card fields still mount, no error is shown', !!blocked.configured && blocked.configured.fields.includes('ccnumber') && blocked.errors.length === 0, j({ configured: blocked.configured, errors: blocked.errors }));
 
   // 5) The documented option filter (off by default): the option is passed to Collect.js, non-plain values are dropped.
   await set('gp=yes&env=1');

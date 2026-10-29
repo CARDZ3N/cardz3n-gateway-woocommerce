@@ -76,7 +76,7 @@ This plugin connects to the CARDZ3N payment gateway, a white-labeled instance of
 * CARDZ3N terms: https://cardz3n.com/merchant-services-terms-conditions
 * CARDZ3N privacy policy: https://cardz3n.com/privacy-policy
 
-3. **Apple Pay and Google Pay** (optional, off by default) — only if the store owner turns a wallet on. The wallet buttons are provided through Collect.js, so the shopper's browser may also communicate with Apple's or Google's wallet service when the shopper chooses that wallet, under Apple's or Google's own terms. Purpose: to let the shopper pay with the wallet. When the store owner turns Google Pay on, the plugin also loads Google's Google Pay script (https://pay.google.com/gp/p/js/pay.js) in the shopper's browser on the checkout pages, because Collect.js needs it to show the Google Pay button; Google then receives the usual request data (such as the IP address and browser details). The script is not loaded when Google Pay is off.
+3. **Apple Pay and Google Pay** (optional, off by default) — only if the store owner turns a wallet on. The wallet buttons are provided through Collect.js, so the shopper's browser may also communicate with Apple's or Google's wallet service when the shopper chooses that wallet, under Apple's or Google's own terms. Purpose: to let the shopper pay with the wallet.
 * Apple privacy policy: https://www.apple.com/legal/privacy/
 * Google privacy policy: https://policies.google.com/privacy
 * Google Pay terms: https://payments.developers.google.com/terms/sellertos
