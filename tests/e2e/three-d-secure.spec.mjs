@@ -70,6 +70,8 @@ window.Gateway = { create: function (key) {
           if (mode === 'silent') { return; }
           setTimeout(function () {
             if (mode === 'error') { gh.error && gh.error({ message: 'payer authentication is not enabled' }); return; }
+            if (mode === 'blocked-rule') { console.error('Gateway.js - ThreeDSecureUI: Payer Authentication Error - Blocked due to Failed Authentication rule REFID: 123456'); return; }
+            if (mode === 'console-error') { console.error('Gateway.js - ThreeDSecureUI: A 3DS error occurred: Error Processing PARes'); return; }
             if (mode === 'failure') { h.failure && h.failure({}); return; }
             if (mode === 'challenge-then-complete') { h.challenge && h.challenge({}); window.__gw.events.push('challenge'); }
             h.complete && h.complete({ cavv: 'CAVV123abc=', xid: 'XID.1', eci: '05', cardHolderAuth: 'verified', threeDsVersion: '2.2.0', directoryServerId: 'DS-1', cardHolderInfo: 'ignored' });
@@ -88,9 +90,10 @@ const j = (x) => JSON.stringify(x);
 async function placeOrder(browser, { mode = 'complete', gatewayScript = true, product = 'E2E Test Item', lastName = 'Buyer', waitMs = 6000 } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
   const page = await ctx.newPage(); page.setDefaultTimeout(300000);
-  const seen = { gatewayJsRequests: 0, posts: [] };
+  const seen = { gatewayJsRequests: 0, posts: [], reports: [] };
   await page.route(/Collect\.js/, (route) => route.fulfill({ status: 200, contentType: 'application/javascript', body: STUB_COLLECT_JS }));
   await page.route(/Gateway\.js/, (route) => { seen.gatewayJsRequests++; return gatewayScript ? route.fulfill({ status: 200, contentType: 'application/javascript', body: STUB_GATEWAY_JS }) : route.abort(); });
+  await page.route(/admin-ajax\.php/, (route) => { const d = route.request().postData() || ''; if (/action=cardz3n_gw_3ds_report/.test(d)) { seen.reports.push((d.match(/reason=([^&]*)/) || [])[1] || ''); return route.fulfill({ status: 200, contentType: 'application/json', body: '{"success":true}' }); } return route.continue(); });
   // The checkout request is captured and answered with a failure, so no order is created: the server side is tested separately below.
   await page.route(/wc-ajax=checkout/, (route) => { seen.posts.push(route.request().postData() || ''); return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ result: 'failure', messages: '<ul class="woocommerce-error"><li>stub: order not created</li></ul>', refresh: false, reload: false }) }); });
   await page.addInitScript((m) => { window.__3ds = m; window.__errSeen = []; setInterval(() => { document.querySelectorAll('.woocommerce-error, .cardz3n-errors').forEach((e) => { const t = (e.innerText || '').trim(); if (t && !/secure payment form did not load|stub: order not created/i.test(t) && !window.__errSeen.includes(t)) { window.__errSeen.push(t); } }); }, 50); }, mode);
@@ -121,7 +124,9 @@ const AUTH_KEYS = /^cardz3n_3ds_(cavv|xid|eci|cardholder_auth|version|directory_
 // The payment went on WITHOUT 3-D Secure: one order request, the token, status "unavailable", no authentication values, no error.
 const wentOn = (x) => x.seen.posts.length === 1 && !!x.body && x.body.cardz3n_payment_token === 'tok-3ds-e2e' && x.body.cardz3n_3ds_status === 'unavailable' && !Object.keys(x.body).some((k) => AUTH_KEYS.test(k)) && x.after.errors.length === 0;
 // The payment was stopped: no order request, a plain message, the used token cleared.
-const stopped = (x, re) => x.seen.posts.length === 0 && x.after.errors.some((e) => re.test(e)) && x.after.tokenField === '';
+const stopped = (x, re, reason) => x.seen.posts.length === 0 && x.after.errors.some((e) => re.test(e)) && x.after.tokenField === '' && (reason === undefined || (x.seen.reports.length === 1 && x.seen.reports[0] === reason));
+// The payment went on without 3-D Secure and the order request carries the reason.
+const wentOnBecause = (x, reason) => wentOn(x) && x.body.cardz3n_3ds_reason === reason;
 const BANK = /could not be verified with your bank/i;
 
 try {
@@ -148,15 +153,19 @@ try {
   check('Attempt: the bank reports the authentication as FAILED: the payment is stopped with a plain message and the token is cleared', stopped(bankFail, /could not be verified/i), j({ posts: bankFail.seen.posts.length, errors: bankFail.after.errors, token: bankFail.after.tokenField }));
 
   const aGone = await placeOrder(browser, { gatewayScript: false });
-  check('Attempt: Gateway.js does not load: the payment goes on WITHOUT 3-D Secure, no error shown', wentOn(aGone), j({ posts: aGone.seen.posts.length, errors: aGone.after.errors }));
+  check('Attempt: Gateway.js does not load: the payment goes on WITHOUT 3-D Secure, no error shown, the reason is sent with the order', wentOnBecause(aGone, 'script_unavailable'), j({ posts: aGone.seen.posts.length, errors: aGone.after.errors }));
   const aErr = await placeOrder(browser, { mode: 'error' });
-  check('Attempt: the gateway reports an error (Payer Authentication not enabled): the payment goes on without 3-D Secure', wentOn(aErr), j({ posts: aErr.seen.posts.length, errors: aErr.after.errors }));
+  check('Attempt: the gateway reports an error (Payer Authentication not enabled): the payment goes on without 3-D Secure, with the reason', wentOnBecause(aErr, 'gateway_error'), j({ posts: aErr.seen.posts.length, errors: aErr.after.errors }));
   const aThrow = await placeOrder(browser, { mode: 'throw' });
-  check('Attempt: starting 3-D Secure crashes: the payment goes on without 3-D Secure', wentOn(aThrow), j({ posts: aThrow.seen.posts.length, errors: aThrow.after.errors }));
+  check('Attempt: starting 3-D Secure crashes: the payment goes on without 3-D Secure, with the reason', wentOnBecause(aThrow, 'crash'), j({ posts: aThrow.seen.posts.length, errors: aThrow.after.errors }));
   const aSilent = await placeOrder(browser, { mode: 'silent', waitMs: 27000 });
-  check('Attempt: nothing answers within 20 seconds: the payment goes on without 3-D Secure', wentOn(aSilent), j({ posts: aSilent.seen.posts.length, errors: aSilent.after.errors }));
+  check('Attempt: nothing answers within 20 seconds: the payment goes on without 3-D Secure, with the reason', wentOnBecause(aSilent, 'timeout'), j({ posts: aSilent.seen.posts.length, errors: aSilent.after.errors }));
+  const aBlocked = await placeOrder(browser, { mode: 'blocked-rule' });
+  check('Attempt: the gateway blocks a failed authentication and Gateway.js only logs it to the console (real behaviour on the demo account): the payment is STOPPED, not taken without 3-D Secure', stopped(aBlocked, /could not be verified/i), j({ posts: aBlocked.seen.posts.length, errors: aBlocked.after.errors }));
+  const aConsole = await placeOrder(browser, { mode: 'console-error' });
+  check('Attempt: Gateway.js logs a 3-D Secure processing error to the console only: the payment goes on without 3-D Secure, with the reason gateway_error', wentOnBecause(aConsole, 'gateway_error'), j({ posts: aConsole.seen.posts.length, errors: aConsole.after.errors }));
   const aName = await placeOrder(browser, { mode: 'complete', lastName: '' });
-  check('Attempt: no last name: 3-D Secure is not started and the payment goes on without it', wentOn(aName) && !(aName.after.gw && aName.after.gw.created), j({ posts: aName.seen.posts.length, started: !!(aName.after.gw && aName.after.gw.created) }));
+  check('Attempt: no last name: 3-D Secure is not started and the payment goes on without it, with the reason', wentOnBecause(aName, 'name_missing') && !(aName.after.gw && aName.after.gw.created), j({ posts: aName.seen.posts.length, started: !!(aName.after.gw && aName.after.gw.created) }));
 
   // ---------------------------------------------------------------- REQUIRED
   await setMode(browser, 'required');
@@ -165,15 +174,19 @@ try {
   const rBank = await placeOrder(browser, { mode: 'failure' });
   check('Required: the bank reports the authentication as FAILED: the payment is stopped with a plain message', stopped(rBank, /could not be verified/i), j({ posts: rBank.seen.posts.length, errors: rBank.after.errors }));
   const rGone = await placeOrder(browser, { gatewayScript: false });
-  check('Required: Gateway.js does not load: the payment is STOPPED with a plain message, nothing is sent', stopped(rGone, BANK), j({ posts: rGone.seen.posts.length, errors: rGone.after.errors }));
+  check('Required: Gateway.js does not load: the payment is STOPPED with a plain message, nothing is sent, and the cause is reported to the server', stopped(rGone, BANK, 'script_unavailable'), j({ posts: rGone.seen.posts.length, errors: rGone.after.errors }));
   const rErr = await placeOrder(browser, { mode: 'error' });
-  check('Required: the gateway reports an error (Payer Authentication not enabled): the payment is stopped', stopped(rErr, BANK), j({ posts: rErr.seen.posts.length, errors: rErr.after.errors }));
+  check('Required: the gateway reports an error (Payer Authentication not enabled): the payment is stopped and the cause is reported', stopped(rErr, BANK, 'gateway_error'), j({ posts: rErr.seen.posts.length, errors: rErr.after.errors }));
   const rThrow = await placeOrder(browser, { mode: 'throw' });
-  check('Required: starting 3-D Secure crashes: the payment is stopped', stopped(rThrow, BANK), j({ posts: rThrow.seen.posts.length, errors: rThrow.after.errors }));
+  check('Required: starting 3-D Secure crashes: the payment is stopped and the cause is reported', stopped(rThrow, BANK, 'crash'), j({ posts: rThrow.seen.posts.length, errors: rThrow.after.errors }));
   const rSilent = await placeOrder(browser, { mode: 'silent', waitMs: 27000 });
-  check('Required: nothing answers within 20 seconds: the payment is stopped', stopped(rSilent, BANK), j({ posts: rSilent.seen.posts.length, errors: rSilent.after.errors }));
+  check('Required: nothing answers within 20 seconds: the payment is stopped and the cause is reported', stopped(rSilent, BANK, 'timeout'), j({ posts: rSilent.seen.posts.length, errors: rSilent.after.errors }));
+  const rBlocked = await placeOrder(browser, { mode: 'blocked-rule' });
+  check('Required: the gateway blocks a failed authentication (console message only): the payment is stopped with a plain message', stopped(rBlocked, /could not be verified/i), j({ posts: rBlocked.seen.posts.length, errors: rBlocked.after.errors }));
+  const rConsole = await placeOrder(browser, { mode: 'console-error' });
+  check('Required: Gateway.js logs a 3-D Secure processing error (console only): the payment is stopped and the cause is reported', stopped(rConsole, BANK, 'gateway_error'), j({ posts: rConsole.seen.posts.length, errors: rConsole.after.errors }));
   const rName = await placeOrder(browser, { mode: 'complete', lastName: '' });
-  check('Required: no last name: the payment is stopped and the shopper is asked for the name', stopped(rName, /first and last name/i) && !(rName.after.gw && rName.after.gw.created), j({ posts: rName.seen.posts.length, errors: rName.after.errors }));
+  check('Required: no last name: the payment is stopped, the shopper is asked for the name and the cause is reported', stopped(rName, /first and last name/i, 'name_missing') && !(rName.after.gw && rName.after.gw.created), j({ posts: rName.seen.posts.length, errors: rName.after.errors }));
 
   // ---------------------------------------------------------------- OFF, fresh install and upgrade, the first build's checkbox
   await setMode(browser, 'off');
@@ -234,6 +247,11 @@ try {
       }
     }
     check(`Server, ${tag}: a wallet payment is not asked for 3-D Secure (its token has its own cryptogram)`, wl.result === 'success' && reqs(wl, 'sale').length === 1 && !has3ds(wls), j(wls));
+  }
+  for (const m of ['attempt', 'required']) {
+    const rs = r[m + '_reason']; const ru = r[m + '_reason_unknown'];
+    check(`Server, ${m === 'attempt' ? 'Attempt' : 'Required'}: the cause the browser reported is written into the order note`, note(rs, /Cause: Gateway\.js could not be loaded from the gateway host\./), j(rs.notes));
+    check(`Server, ${m === 'attempt' ? 'Attempt' : 'Required'}: an unknown cause is ignored (only the fixed list is accepted)`, !note(ru, /Cause:/), j(ru.notes));
   }
   const bd = r.bad_values_dropped; const bds = reqs(bd, 'sale')[0] || {};
   check('Server (Attempt): tampered values are never sent, not even the parts that look fine: the payment goes on without 3-D Secure values', bd.result === 'success' && !has3ds(bds), j(bds));

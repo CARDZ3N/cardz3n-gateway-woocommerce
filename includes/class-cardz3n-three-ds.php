@@ -254,6 +254,80 @@ class Three_DS {
 	}
 
 	/**
+	 * Why 3-D Secure could not run, as reported by the checkout page. Plain text for logs, order notes and the settings screen.
+	 *
+	 * @var array<string,string>
+	 */
+	const REASONS = array(
+		'script_unavailable' => 'Gateway.js could not be loaded from the gateway host',
+		'gateway_error'      => 'the gateway reported an error starting 3-D Secure (Payer Authentication is probably not enabled on this gateway account)',
+		'timeout'            => '3-D Secure did not answer within 20 seconds',
+		'crash'              => '3-D Secure could not start in the browser',
+		'name_missing'       => 'the cardholder\'s first and last name were missing',
+	);
+
+	/**
+	 * The reason the checkout page posted for going on without 3-D Secure, or '' (only a known code is accepted).
+	 *
+	 * @return string
+	 */
+	public static function posted_reason() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- WooCommerce verifies the checkout nonce before process_payment().
+		$code = isset( $_POST['cardz3n_3ds_reason'] ) ? sanitize_key( wp_unslash( $_POST['cardz3n_3ds_reason'] ) ) : '';
+		return isset( self::REASONS[ $code ] ) ? $code : '';
+	}
+
+	/**
+	 * Hooks for the checkout page's report of a stopped payment (Required mode: no order exists yet, so this is the only trace).
+	 */
+	public static function register_hooks() {
+		add_action( 'wp_ajax_cardz3n_gw_3ds_report', array( __CLASS__, 'ajax_report' ) );
+		add_action( 'wp_ajax_nopriv_cardz3n_gw_3ds_report', array( __CLASS__, 'ajax_report' ) );
+	}
+
+	/**
+	 * Record that a card payment was stopped because 3-D Secure could not run (reason from a fixed list, no card data), in the log and
+	 * in a short list the settings screen shows to the merchant.
+	 */
+	public static function ajax_report() {
+		check_ajax_referer( 'cardz3n_gw_nonce', 'nonce' );
+		$code = isset( $_POST['reason'] ) ? sanitize_key( wp_unslash( $_POST['reason'] ) ) : '';
+		if ( ! isset( self::REASONS[ $code ] ) ) {
+			wp_send_json_error( null, 400 );
+		}
+		$events   = self::recent_blocks();
+		$events[] = array(
+			'time'   => time(),
+			'reason' => $code,
+		);
+		update_option( 'cardz3n_gw_3ds_blocked', array_slice( $events, -50 ), false );
+		Logger::warning( '3-D Secure is required and could not run, so a card payment was stopped. Cause: ' . self::REASONS[ $code ] . '.' );
+		wp_send_json_success();
+	}
+
+	/**
+	 * Payments stopped because 3-D Secure could not run, in the last 7 days (newest last).
+	 *
+	 * @return array<int,array{time:int,reason:string}>
+	 */
+	public static function recent_blocks() {
+		$events = get_option( 'cardz3n_gw_3ds_blocked', array() );
+		$limit  = time() - 7 * DAY_IN_SECONDS;
+		$out    = array();
+		if ( is_array( $events ) ) {
+			foreach ( $events as $e ) {
+				if ( is_array( $e ) && isset( $e['time'], $e['reason'] ) && (int) $e['time'] >= $limit && isset( self::REASONS[ $e['reason'] ] ) ) {
+					$out[] = array(
+						'time'   => (int) $e['time'],
+						'reason' => (string) $e['reason'],
+					);
+				}
+			}
+		}
+		return $out;
+	}
+
+	/**
 	 * A short, plain note for the order. No card data; only what the issuer said about the authentication.
 	 *
 	 * @param array<string,string> $fields Fields from evaluate_request().

@@ -368,6 +368,21 @@ class Gateway extends \WC_Payment_Gateway_CC {
 
 		$warnings = array();
 
+		// 3-D Secure: Required blocks ALL card payments until Payer Authentication is enabled on the gateway account.
+		if ( Three_DS::required( $this->settings ) ) {
+			$warnings[] = __( '<strong>3D Secure is set to Required.</strong> Every card payment will be BLOCKED until Payer Authentication is enabled on your CARDZ3N gateway account. Use Attempt until that is confirmed with CARDZ3N support.', 'cardz3n-gateway' );
+		}
+		$blocked = Three_DS::recent_blocks();
+		if ( $blocked ) {
+			$last      = end( $blocked );
+			$warnings[] = sprintf(
+				/* translators: 1: number of stopped payments, 2: cause in plain words */
+				_n( '<strong>%1$d card payment was stopped in the last 7 days because 3D Secure could not run.</strong> Cause: %2$s. Check that Payer Authentication is enabled on your CARDZ3N gateway account.', '<strong>%1$d card payments were stopped in the last 7 days because 3D Secure could not run.</strong> Most recent cause: %2$s. Check that Payer Authentication is enabled on your CARDZ3N gateway account.', count( $blocked ), 'cardz3n-gateway' ),
+				count( $blocked ),
+				Three_DS::REASONS[ $last['reason'] ]
+			);
+		}
+
 		/*
 		 * 1.0.27 — CORRECTED Public-Key scope guidance.
 		 *
@@ -1334,12 +1349,14 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			$out['refusal'] = $this->failure( $msg );
 			return $out;
 		}
+		$cause = Three_DS::posted_reason();
+		$why   = '' !== $cause ? ' ' . sprintf( /* translators: %s: cause of the problem, in plain words */ __( 'Cause: %s.', 'cardz3n-gateway' ), Three_DS::REASONS[ $cause ] ) : '';
 		if ( $required ) {
-			$order->add_order_note( __( '3-D Secure is required, but no valid authentication was received for this card, so the payment was not sent to the gateway.', 'cardz3n-gateway' ) );
+			$order->add_order_note( __( '3-D Secure is required, but no valid authentication was received for this card, so the payment was not sent to the gateway.', 'cardz3n-gateway' ) . $why );
 			$out['refusal'] = $this->failure( $msg );
 			return $out;
 		}
-		$order->add_order_note( __( '3-D Secure was not available for this payment (the browser could not complete it, or its result was not usable), so the payment was sent without it.', 'cardz3n-gateway' ) );
+		$order->add_order_note( __( '3-D Secure was not available for this payment (the browser could not complete it, or its result was not usable), so the payment was sent without it.', 'cardz3n-gateway' ) . $why );
 		return $out;
 	}
 

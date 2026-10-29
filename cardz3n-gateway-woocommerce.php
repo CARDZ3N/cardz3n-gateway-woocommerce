@@ -234,6 +234,7 @@ function cardz3n_gw_bootstrap() {
 	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-ach-service.php';
 	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-recurring.php';
 	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-three-ds.php';
+	\Cardz3n_Gateway\Three_DS::register_hooks();
 	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-apple-pay-service.php';
 	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-subscriptions-service.php';
 	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-preorders-service.php';
