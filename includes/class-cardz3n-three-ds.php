@@ -169,43 +169,94 @@ class Three_DS {
 	}
 
 	/**
-	 * Read the authentication result the checkout page posted.
-	 *
-	 * The gateway checks the values; this only makes sure the page says it finished the authentication, and keeps values that
-	 * look like authentication values (letters, digits and + / = . _ -, up to 100 characters).
-	 *
-	 * @return array<string,string>|null Gateway request fields, or null when the authentication was not completed.
+	 * ECI values that mean the card network accepts the authentication (Visa 05 and 06, Mastercard 02 and 01: authenticated or
+	 * attempted). 07 and 00 mean "not authenticated" and are not accepted. ASSUMPTION T9 (card-network practice, not NMI's page).
 	 */
-	public static function fields_from_request() {
+	const ACCEPTABLE_ECI = array( '05', '06', '02', '01' );
+
+	/**
+	 * Evaluate the authentication result the checkout page posted, on the SERVER. The gateway does not enforce 3-D Secure itself (it
+	 * accepted sales without any 3-D Secure data on the NMI demo account), so this is the check that counts; the browser is only
+	 * where the authentication happens.
+	 *
+	 * State:
+	 * - 'none':   nothing was posted (the browser could not run 3-D Secure, or the request bypassed it).
+	 * - 'failed': the browser or the values say the authentication FAILED (status failed, cardholder_auth failed or rejected).
+	 * - 'invalid': 'complete' was posted but the values are missing, malformed (not letters, digits and + / = . _ -, up to 100 characters),
+	 *              or not acceptable (no cavv, an ECI that is not an authenticated or attempted value, a result that is not verified or
+	 *              attempted). Tampered data lands here.
+	 * - 'ok':     a complete authentication with usable values; 'fields' carries them for the gateway request.
+	 *
+	 * What the server CANNOT do is verify the cryptogram (cavv): only the gateway and the card network can, and the gateway does not
+	 * reject a bad one on the demo account. So 'ok' means "present, well formed and acceptable", not "proven genuine".
+	 *
+	 * @return array{state:string,fields:array<string,string>}
+	 */
+	public static function evaluate_request() {
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- WooCommerce verifies the checkout nonce before process_payment().
 		$status = isset( $_POST['cardz3n_3ds_status'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_3ds_status'] ) ) : '';
-		if ( 'complete' !== $status ) {
-			return null;
+		if ( '' === $status ) {
+			return array(
+				'state'  => 'none',
+				'fields' => array(),
+			);
 		}
-		$fields = array();
+		if ( 'failed' === $status ) {
+			return array(
+				'state'  => 'failed',
+				'fields' => array(),
+			);
+		}
+		if ( 'complete' !== $status ) {
+			// For example 'unavailable' (the browser could not run it) or anything unknown: no usable authentication.
+			return array(
+				'state'  => 'none',
+				'fields' => array(),
+			);
+		}
+		$fields  = array();
+		$dropped = false;
 		foreach ( self::FIELD_MAP as $posted => $name ) {
 			if ( empty( $_POST[ $posted ] ) ) {
 				continue;
 			}
 			$value = sanitize_text_field( wp_unslash( $_POST[ $posted ] ) );
 			if ( strlen( $value ) > 100 || ! preg_match( '/^[A-Za-z0-9+\/=._-]+$/', $value ) ) {
+				$dropped = true;
 				continue;
 			}
 			$fields[ $name ] = $value;
 		}
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
+
+		$result = isset( $fields['cardholder_auth'] ) ? strtolower( $fields['cardholder_auth'] ) : '';
+		if ( in_array( $result, array( 'failed', 'rejected', 'unavailable' ), true ) ) {
+			return array(
+				'state'  => 'failed',
+				'fields' => array(),
+			);
+		}
+		$acceptable = ! $dropped
+			&& ! empty( $fields['cavv'] )
+			&& ( ! isset( $fields['eci'] ) || in_array( $fields['eci'], self::ACCEPTABLE_ECI, true ) )
+			&& ( '' === $result || in_array( $result, array( 'verified', 'attempted' ), true ) )
+			&& ( isset( $fields['eci'] ) || '' !== $result );
 		/**
-		 * Gateway request fields that carry the authentication result. ASSUMPTION T3.
+		 * Gateway request fields that carry the authentication result. ASSUMPTION T3 (confirmed by NMI's AI assistant).
 		 *
 		 * @param array<string,string> $fields Field name => value.
 		 */
-		return (array) apply_filters( 'cardz3n_gw_3ds_fields', $fields );
+		$fields = (array) apply_filters( 'cardz3n_gw_3ds_fields', $fields );
+		return array(
+			'state'  => $acceptable ? 'ok' : 'invalid',
+			'fields' => $acceptable ? $fields : array(),
+		);
 	}
 
 	/**
 	 * A short, plain note for the order. No card data; only what the issuer said about the authentication.
 	 *
-	 * @param array<string,string> $fields Fields from fields_from_request().
+	 * @param array<string,string> $fields Fields from evaluate_request().
 	 * @return string
 	 */
 	public static function order_note( array $fields ) {

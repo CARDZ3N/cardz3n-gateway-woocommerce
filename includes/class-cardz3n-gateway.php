@@ -1318,17 +1318,28 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			return $out;
 		}
 
-		$posted = Three_DS::fields_from_request();
-		if ( null !== $posted ) {
-			$out['fields'] = $posted;
+		/*
+		 * The server decides, not the browser: the gateway accepts a sale without 3-D Secure data (seen on the NMI demo account), so
+		 * a browser-only check could be bypassed. See Three_DS::evaluate_request().
+		 */
+		$eval = Three_DS::evaluate_request();
+		$msg  = __( 'Your card could not be verified with your bank, so the payment was not taken. Please try again, or use a different payment method.', 'cardz3n-gateway' );
+		if ( 'ok' === $eval['state'] ) {
+			$out['fields'] = $eval['fields'];
+			return $out;
+		}
+		if ( 'failed' === $eval['state'] ) {
+			// A bank-reported failure always stops the payment, in both modes.
+			$order->add_order_note( __( '3-D Secure: the authentication failed, so the payment was not sent to the gateway.', 'cardz3n-gateway' ) );
+			$out['refusal'] = $this->failure( $msg );
 			return $out;
 		}
 		if ( $required ) {
-			$order->add_order_note( __( '3-D Secure is required, but the card could not be authenticated, so the payment was not sent to the gateway.', 'cardz3n-gateway' ) );
-			$out['refusal'] = $this->failure( __( 'Your card could not be verified with your bank, so the payment was not taken. Please try again, or use a different payment method.', 'cardz3n-gateway' ) );
+			$order->add_order_note( __( '3-D Secure is required, but no valid authentication was received for this card, so the payment was not sent to the gateway.', 'cardz3n-gateway' ) );
+			$out['refusal'] = $this->failure( $msg );
 			return $out;
 		}
-		$order->add_order_note( __( '3-D Secure was not available for this payment (the browser could not complete it), so the payment was sent without it.', 'cardz3n-gateway' ) );
+		$order->add_order_note( __( '3-D Secure was not available for this payment (the browser could not complete it, or its result was not usable), so the payment was sent without it.', 'cardz3n-gateway' ) );
 		return $out;
 	}
 

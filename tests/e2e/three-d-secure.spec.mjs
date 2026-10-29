@@ -193,7 +193,7 @@ try {
   const has3ds = (q) => ['cavv', 'eci', 'xid', 'cardholder_auth', 'three_ds_version', 'directory_server_id'].some((k) => q && q[k] !== undefined);
   const note = (x, re) => (x.notes || []).some((n) => re.test(n));
   const SENT_WITHOUT = /3-D Secure was not available for this payment.*sent without it/;
-  const REFUSED = /3-D Secure is required, but the card could not be authenticated, so the payment was not sent to the gateway/;
+  const REFUSED = /3-D Secure is required, but no valid authentication was received for this card, so the payment was not sent to the gateway/;
 
   for (const m of ['attempt', 'required']) {
     const tag = m === 'attempt' ? 'Attempt' : 'Required';
@@ -219,10 +219,24 @@ try {
       check('Server, Required: a free trial or pre-order with the card authenticated: the $0.00 verification carries the 3-D Secure values', tr.result === 'success' && !!trs.type && trs.eci === '05' && trs.cavv === 'CAVV123abc=', j(trs));
       check('Server, Required: a free trial or pre-order with no authentication is refused and nothing is sent', tn.result === 'failure' && (tn.requests || []).length === 0, j({ result: tn.result, req: tn.requests }));
     }
+    // The server decides, not the browser: tampered, failed and not-enrolled results (the gateway accepts a sale without 3-D Secure data).
+    const tp = r[m + '_tampered']; const fst = r[m + '_failed_status']; const frs = r[m + '_failed_result']; const ne = r[m + '_not_enrolled']; const nc = r[m + '_no_cavv'];
+    const FAILED_NOTE = /3-D Secure: the authentication failed, so the payment was not sent to the gateway/;
+    check(`Server, ${tag}: a posted failed authentication (status failed) stops the payment, nothing is sent, plain message`, fst.result === 'failure' && (fst.requests || []).length === 0 && note(fst, FAILED_NOTE), j({ result: fst.result, req: fst.requests }));
+    check(`Server, ${tag}: values that say the authentication failed (result failed, ECI 07) stop the payment, nothing is sent`, frs.result === 'failure' && (frs.requests || []).length === 0 && note(frs, FAILED_NOTE), j({ result: frs.result, req: frs.requests }));
+    if (m === 'attempt') {
+      for (const [nm, x] of [['tampered values (bad characters, too long)', tp], ['a card that is not enrolled (ECI 07, no cryptogram)', ne], ['a result without the cryptogram (no cavv)', nc]]) {
+        check(`Server, Attempt: ${nm}: the payment goes on WITHOUT any 3-D Secure values and the order says so`, x.result === 'success' && reqs(x, 'sale').length === 1 && !has3ds(reqs(x, 'sale')[0]) && note(x, SENT_WITHOUT), j({ result: x.result, req: x.requests }));
+      }
+    } else {
+      for (const [nm, x] of [['tampered values (bad characters, too long)', tp], ['a card that is not enrolled (ECI 07, no cryptogram)', ne], ['a result without the cryptogram (no cavv)', nc]]) {
+        check(`Server, Required: ${nm}: the payment is REFUSED and nothing is sent to the gateway`, x.result === 'failure' && (x.requests || []).length === 0 && note(x, /3-D Secure is required, but no valid authentication was received/), j({ result: x.result, req: x.requests }));
+      }
+    }
     check(`Server, ${tag}: a wallet payment is not asked for 3-D Secure (its token has its own cryptogram)`, wl.result === 'success' && reqs(wl, 'sale').length === 1 && !has3ds(wls), j(wls));
   }
   const bd = r.bad_values_dropped; const bds = reqs(bd, 'sale')[0] || {};
-  check('Server: values that do not look like authentication values are dropped, not sent', bd.result === 'success' && bds.cavv === undefined && bds.eci === undefined && bds.cardholder_auth === 'verified', j(bds));
+  check('Server (Attempt): tampered values are never sent, not even the parts that look fine: the payment goes on without 3-D Secure values', bd.result === 'success' && !has3ds(bds), j(bds));
   const o1 = r.off_ignores_posted_values;
   check('Server, Off: posted authentication values are ignored, nothing extra is sent', o1.result === 'success' && !has3ds(reqs(o1, 'sale')[0] || {}), j(reqs(o1, 'sale')[0]));
   const o2 = r.off_no_values;
