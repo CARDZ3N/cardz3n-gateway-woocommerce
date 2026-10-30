@@ -248,30 +248,33 @@ class Three_DS {
 				'fields' => array(),
 			);
 		}
-		// "Not enrolled": the card or its bank does not take part in 3-D Secure, so there is nothing to authenticate and no cryptogram.
-		// The check ran and the directory reported it, so this is accepted in BOTH modes and the order note says so (the payment is then
-		// an ordinary card payment, with no authentication result). What the real NMI sandbox returns for its "Not enrolled" cards
-		// (2026-10-29): Gateway.js completes with EMPTY values (no ECI, no result, no CAVV); NMI's page says 'attempted' and ECI 07, and
-		// the card networks use ECI 07 (Visa) or 00 (Mastercard), so all of those shapes are accepted. LIMIT: the server cannot tell a
-		// genuine "not enrolled" from a client that claims it, so Required cannot stop a client that deliberately skips 3-D Secure by
-		// posting this (ASSUMPTION T11, to be stated to merchants).
-		$eci_n = isset( $fields['eci'] ) ? self::eci_number( $fields['eci'] ) : '';
-		if ( ! $dropped
-			&& empty( $fields['cavv'] )
-			&& in_array( $eci_n, array( '', '7', '0' ), true )
-			&& in_array( $result, array( '', 'attempted' ), true )
-		) {
-			$fields = (array) apply_filters( 'cardz3n_gw_3ds_fields', $fields );
-			return array(
-				'state'  => 'ok',
-				'fields' => $fields,
-			);
+		/*
+		 * Only a consistent result is accepted (ECI as a number, leading zeros ignored):
+		 *   - ECI 5 or 2 (authenticated): the cryptogram (CAVV) is present and the result is "verified".
+		 *   - ECI 6 or 1 (attempted): the cryptogram is present and the result is "attempted".
+		 *   - ECI 7 or 0 (NOT ENROLLED, nothing to authenticate): the cryptogram is EMPTY and the result is "attempted" (the marker NMI's
+		 *     testing page documents). Accepted in BOTH modes, with an order note that says there was no authentication result.
+		 * Everything else is 'invalid': missing or blank fields, an empty result without the marker, a cryptogram with ECI 7, an ECI
+		 * that contradicts the result (ECI 5 with "attempted", ECI 6 with "verified"), an ECI that is not a number, tampered values.
+		 *
+		 * REAL-SANDBOX FINDING (2026-10-29): NMI's sandbox "Not enrolled" cards complete with EVERY value empty, without the documented
+		 * marker. That shape cannot be told apart from a request whose fields were stripped, so it is NOT accepted here: Required stops
+		 * it, Attempt goes on without 3-D Secure and says so. Whether production returns the documented marker is not known.
+		 * LIMIT: the server cannot tell a genuine marker from a forged one, so Required cannot stop a client that posts the marker
+		 * deliberately (ASSUMPTION T11, to be stated to merchants).
+		 */
+		$eci_n      = isset( $fields['eci'] ) ? self::eci_number( $fields['eci'] ) : '';
+		$has_cavv   = ! empty( $fields['cavv'] );
+		$acceptable = false;
+		if ( ! $dropped ) {
+			if ( in_array( $eci_n, array( '7', '0' ), true ) ) {
+				$acceptable = ! $has_cavv && 'attempted' === $result;
+			} elseif ( in_array( $eci_n, array( '5', '2' ), true ) ) {
+				$acceptable = $has_cavv && 'verified' === $result;
+			} elseif ( in_array( $eci_n, array( '6', '1' ), true ) ) {
+				$acceptable = $has_cavv && 'attempted' === $result;
+			}
 		}
-		$acceptable = ! $dropped
-			&& ! empty( $fields['cavv'] )
-			&& ( ! isset( $fields['eci'] ) || in_array( self::eci_number( $fields['eci'] ), self::ACCEPTABLE_ECI, true ) )
-			&& ( '' === $result || in_array( $result, array( 'verified', 'attempted' ), true ) )
-			&& ( isset( $fields['eci'] ) || '' !== $result );
 		/**
 		 * Gateway request fields that carry the authentication result. ASSUMPTION T3 (confirmed by NMI's AI assistant).
 		 *

@@ -251,13 +251,22 @@ try {
     const FAILED_NOTE = /3-D Secure: the authentication failed, so the payment was not sent to the gateway/;
     check(`Server, ${tag}: a posted failed authentication (status failed) stops the payment, nothing is sent, plain message`, fst.result === 'failure' && (fst.requests || []).length === 0 && note(fst, FAILED_NOTE), j({ result: fst.result, req: fst.requests }));
     check(`Server, ${tag}: values that say the authentication failed (result failed, ECI 07) stop the payment, nothing is sent`, frs.result === 'failure' && (frs.requests || []).length === 0 && note(frs, FAILED_NOTE), j({ result: frs.result, req: frs.requests }));
-    // Not enrolled (nothing to authenticate): accepted in BOTH modes, the values are sent, the order says so.
-    const nes = r[m + '_not_enrolled_sandbox']; const ness = reqs(nes, 'sale')[0] || {};
-    check(`Server, ${tag}: a card that is not enrolled in 3-D Secure (ECI 07, empty CAVV) is accepted with an order note that says there was no authentication result`, ne.result === 'success' && reqs(ne, 'sale').length === 1 && reqs(ne, 'sale')[0].eci === '07' && note(ne, /not enrolled in 3-D Secure \(ECI 07\).*normal card payment/), j({ result: ne.result, req: ne.requests, notes: ne.notes }));
-    const sf = r[m + '_sandbox_frictionless']; const sfs = reqs(sf, 'sale')[0] || {}; const se = r[m + '_sandbox_not_enrolled_empty'];
+    // Genuine "Not enrolled" (the marker NMI documents: attempted, ECI 07, empty CAVV): accepted in BOTH modes, with an order note.
+    const nm_ = r[m + '_not_enrolled_marker']; const nms = reqs(nm_, 'sale')[0] || {};
+    check(`Server, ${tag}: a genuine Not enrolled result (attempted, ECI 07, empty CAVV) is accepted, sent as it is, with an order note that says there was no authentication result`, nm_.result === 'success' && reqs(nm_, 'sale').length === 1 && nms.eci === '07' && nms.cardholder_auth === 'attempted' && nms.cavv === undefined && note(nm_, /not enrolled in 3-D Secure \(ECI 07\).*normal card payment/), j({ result: nm_.result, req: nms, notes: nm_.notes }));
+    // Not accepted: stripped, blank, half marker, contradictions, junk. Required refuses and sends nothing; Attempt goes on WITHOUT values and says so.
+    const BAD = [['all fields stripped (status complete and nothing else)', '_all_stripped'], ['blank fields without the marker (the real sandbox Not enrolled shape)', '_blank_no_marker'], ['half a marker (ECI 07 without "attempted")', '_half_marker'],
+      ['a cryptogram together with ECI 07 (contradiction)', '_cavv_with_eci7'], ['ECI 05 with "attempted" (contradiction)', '_eci5_attempted'], ['ECI 06 with "verified" (contradiction)', '_eci6_verified'], ['an ECI that is not a number', '_eci_not_a_number']];
+    for (const [what, key] of BAD) {
+      const x = r[m + key];
+      if (m === 'required') {
+        check(`Server, Required: ${what}: the payment is REFUSED and nothing is sent to the gateway`, x.result === 'failure' && (x.requests || []).length === 0 && note(x, /3-D Secure is required, but no valid authentication was received/), j({ result: x.result, req: x.requests }));
+      } else {
+        check(`Server, Attempt: ${what}: handled as "could not run": the payment goes on WITHOUT 3-D Secure values and the order says so`, x.result === 'success' && reqs(x, 'sale').length === 1 && !has3ds(reqs(x, 'sale')[0]) && note(x, SENT_WITHOUT), j({ result: x.result, req: x.requests }));
+      }
+    }
+    const sf = r[m + '_sandbox_frictionless']; const sfs = reqs(sf, 'sale')[0] || {};
     check(`Server, ${tag}: the real NMI sandbox frictionless result (ECI '5' without a leading zero, 3-D Secure 2.1.0) is accepted and its values are sent`, sf.result === 'success' && sfs.eci === '5' && sfs.cavv === 'CAVV123abc=' && sfs.three_ds_version === '2.1.0', j(sfs));
-    check(`Server, ${tag}: the real NMI sandbox "Not enrolled" result (a complete event with EMPTY values) is accepted as a normal card payment with an order note`, se.result === 'success' && reqs(se, 'sale').length === 1 && !has3ds(reqs(se, 'sale')[0]) && note(se, /not enrolled in 3-D Secure \(ECI none\)/), j({ result: se.result, notes: se.notes }));
-    check(`Server, ${tag}: the NMI sandbox "Not enrolled" shape (attempted, empty CAVV, ECI 07) is accepted and sent as it is`, nes.result === 'success' && ness.eci === '07' && ness.cardholder_auth === 'attempted' && ness.cavv === undefined, j(ness));
     if (m === 'attempt') {
       for (const [nm, x] of [['tampered values (bad characters, too long)', tp], ['an ECI that is not a "not enrolled" value, with no cryptogram', r.attempt_eci_without_cavv], ['a result without the cryptogram (no cavv)', nc]]) {
         check(`Server, Attempt: ${nm}: the payment goes on WITHOUT any 3-D Secure values and the order says so`, x.result === 'success' && reqs(x, 'sale').length === 1 && !has3ds(reqs(x, 'sale')[0]) && note(x, SENT_WITHOUT), j({ result: x.result, req: x.requests }));
