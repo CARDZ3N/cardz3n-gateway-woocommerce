@@ -73,7 +73,7 @@ try {
   await page.waitForSelector('form#mainform');
   const v1 = await page.evaluate((sel) => ({ text: document.body.innerText, box: document.querySelectorAll(sel).length }), FIELD);
   check('Settings page: the Apple Pay file box is there', v1.box === 1, 'boxes: ' + v1.box);
-  check('Settings page: plain-language steps (HTTPS, CARDZ3N registers the domain, paste the file, test on an iPhone in Safari)', /must start with https:\/\//i.test(v1.text) && /register this store.s domain for Apple Pay/i.test(v1.text) && /paste its whole text/i.test(v1.text) && /iPhone in Safari/i.test(v1.text));
+  check('Settings page: plain-language steps in NMI\'s order (HTTPS first, then the control panel, the file, Allowed Domains, the test)', /must start with https:\/\//i.test(v1.text) && /Options, then Settings, then Apple Pay/i.test(v1.text) && /paste its whole text into the box/i.test(v1.text) && /Allowed Domains/i.test(v1.text) && /iPhone in Safari/i.test(v1.text));
   check('Settings page: says wallets are optional and not yet verified on real devices', /optional and have not yet been verified on real devices/i.test(v1.text));
   check('Settings page: status "Store address is HTTPS: no" and "Verification file: not set"', /Store address is HTTPS:\s*no/i.test(v1.text) && /Verification file:\s*not set/i.test(v1.text));
   check('Settings page: Apple Pay on without HTTPS shows an admin warning', /does not start with https:\/\//i.test(v1.text) && /shoppers see no error/i.test(v1.text));
@@ -103,6 +103,7 @@ try {
   await page.waitForSelector('form#mainform');
   const v2 = await page.evaluate(() => ({ text: document.body.innerText, link: !!Array.from(document.querySelectorAll('a')).find((a) => /Open the file address/.test(a.textContent)) }));
   check('Settings page with an HTTPS store address: "Store address is HTTPS: yes" and no warning', /Store address is HTTPS:\s*yes/i.test(v2.text) && !/does not start with https:\/\//i.test(v2.text));
+  check('Settings page: the guidance follows NMI\'s steps (control panel Options, Settings, Apple Pay; Domain Verification File; .well-known directory; Allowed Domains) and no longer tells the merchant to ask CARDZ3N to register the domain', /Options, then Settings, then Apple Pay/.test(v2.text) && /Domain Verification File/.test(v2.text) && /\.well-known directory/.test(v2.text) && /Allowed Domains/.test(v2.text) && !/Ask CARDZ3N support/i.test(v2.text), v2.text.slice(v2.text.indexOf('Apple Pay only appears'), v2.text.indexOf('Apple Pay only appears') + 160).replace(/\s+/g, ' '));
   check('Settings page: "Verification file: served at <address>" and an "Open the file address" link', /Verification file:\s*served at https:\/\/.*apple-developer-merchantid-domain-association/i.test(v2.text) && v2.link);
 
   // 6) Too long: refused, the old value stays.

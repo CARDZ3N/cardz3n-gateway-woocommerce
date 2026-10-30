@@ -144,12 +144,13 @@ class Apple_Pay_Service {
 		$url   = self::url();
 
 		$html  = '<strong>' . esc_html__( 'Apple Pay and Google Pay are optional and have not yet been verified on real devices.', 'cardz3n-gateway' ) . '</strong> ';
-		$html .= esc_html__( 'Apple Pay only appears for a shopper on an iPhone, iPad or Mac using Safari with a card in Apple Wallet. To get it working:', 'cardz3n-gateway' );
+		$html .= esc_html__( 'Apple Pay only appears for a shopper on an iPhone, iPad or Mac using Safari with a card in Apple Wallet. You set it up yourself in the gateway control panel, in these steps:', 'cardz3n-gateway' );
 		$html .= '<ol style="margin:8px 0 8px 20px;list-style:decimal;">';
 		$html .= '<li>' . esc_html__( 'The store address must start with https://.', 'cardz3n-gateway' ) . '</li>';
-		$html .= '<li>' . esc_html__( 'Ask CARDZ3N support (support@cardz3n.com, 725-888-5001) to register this store\'s domain for Apple Pay.', 'cardz3n-gateway' ) . '</li>';
-		$html .= '<li>' . esc_html__( 'Download the Apple Pay Domain Verification File from the CARDZ3N Merchant Portal (Apple Pay settings), open it in a text editor and paste its whole text into the box below.', 'cardz3n-gateway' ) . '</li>';
-		$html .= '<li>' . esc_html__( 'Save, open the file address shown below in a browser (it must show the text, not an error), then test with Test Mode on, on an iPhone in Safari.', 'cardz3n-gateway' ) . '</li>';
+		$html .= '<li>' . esc_html__( 'In the gateway control panel, go to Options, then Settings, then Apple Pay, and download the Domain Verification File.', 'cardz3n-gateway' ) . '</li>';
+		$html .= '<li>' . esc_html__( 'Put that file in your site\'s .well-known directory. Easiest here: open it in a text editor, paste its whole text into the box below and save, and this plugin serves it at the address shown below. (Uploading the file to the .well-known directory yourself works too; a real file there is used instead.)', 'cardz3n-gateway' ) . '</li>';
+		$html .= '<li>' . esc_html__( 'On the same Apple Pay page in the gateway control panel, add this store\'s domain to your Allowed Domains.', 'cardz3n-gateway' ) . '</li>';
+		$html .= '<li>' . esc_html__( 'Open the file address shown below in a browser (it must show the text, not an error), then test with Test Mode on, on an iPhone in Safari. A Test Mode approval does not prove that your live processor supports Apple Pay.', 'cardz3n-gateway' ) . '</li>';
 		$html .= '</ol>';
 		$html .= '<span class="cardz3n-apple-status">';
 		$html .= '<strong>' . esc_html__( 'Store address is HTTPS:', 'cardz3n-gateway' ) . '</strong> ' . ( $https ? esc_html__( 'yes', 'cardz3n-gateway' ) : esc_html__( 'no (Apple Pay will not work until it is)', 'cardz3n-gateway' ) ) . '<br />';
