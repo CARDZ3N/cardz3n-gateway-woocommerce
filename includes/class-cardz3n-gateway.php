@@ -1342,6 +1342,10 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		$msg  = __( 'Your card could not be verified with your bank, so the payment was not taken. Please try again, or use a different payment method.', 'cardz3n-gateway' );
 		if ( 'ok' === $eval['state'] ) {
 			$out['fields'] = $eval['fields'];
+			if ( empty( $eval['fields'] ) ) {
+				// Not enrolled and nothing posted with it (the real sandbox shape): say so on the order, send nothing extra.
+				$order->add_order_note( Three_DS::order_note( array() ) );
+			}
 			return $out;
 		}
 		if ( 'failed' === $eval['state'] ) {

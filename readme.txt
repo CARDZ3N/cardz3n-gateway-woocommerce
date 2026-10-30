@@ -109,6 +109,10 @@ No. Card, ACH, and wallet data are tokenized by Collect.js, loaded from the CARD
 
 No. Apple Pay and Google Pay are optional features of this plugin and appear in the same gateway panel when you switch them on. They need HTTPS and domain registration, and only show on supported devices and browsers.
 
+= Can I use 3D Secure (strong customer authentication)? =
+
+Optional, off by default. The plugin can ask the cardholder's bank to check a new card before it is charged. **Payer Authentication 2.0 must first be enabled on your CARDZ3N gateway account (with an eCommerce processor and your bank enrollment details; ask CARDZ3N support), and this plugin cannot enroll you.** Then choose a mode in the gateway settings: *Attempt* tries 3D Secure and takes the payment without it if it cannot run (the order note says so); *Required* stops every new card payment that cannot be authenticated, so it blocks all card payments until Payer Authentication is enabled; use Attempt until that is confirmed. A card that its bank reports as failed is always stopped. It covers new cards on the classic checkout payment form, including free trials and pre-orders; not saved cards, bank payments, Apple Pay, Google Pay, the My Account pages, the native block checkout or subscription renewals. The flow was verified against NMI's 3D Secure test environment; it has not been verified on CARDZ3N's own gateway host. The plugin makes no promise about liability or about meeting any regulation: ask your bank and CARDZ3N which payments you need to cover.
+
 = Does it support WooCommerce Subscriptions? =
 
 Yes, when the WooCommerce Subscriptions extension is installed. Renewals are charged server-side against the saved payment method (vault ID) stored on the parent order.

@@ -172,7 +172,19 @@ class Three_DS {
 	 * ECI values that mean the card network accepts the authentication (Visa 05 and 06, Mastercard 02 and 01: authenticated or
 	 * attempted). 07 and 00 mean "not authenticated" and are not accepted. ASSUMPTION T9 (card-network practice, not NMI's page).
 	 */
-	const ACCEPTABLE_ECI = array( '05', '06', '02', '01' );
+	const ACCEPTABLE_ECI = array( '5', '6', '2', '1' );
+
+	/**
+	 * An ECI as a plain number string: the NMI sandbox returns '5', the demo account '05', so leading zeros are ignored. Anything that is
+	 * not digits is returned unchanged (and is never acceptable).
+	 *
+	 * @param string $eci ECI as posted.
+	 * @return string
+	 */
+	public static function eci_number( $eci ) {
+		$eci = (string) $eci;
+		return ctype_digit( $eci ) ? ( '' === ltrim( $eci, '0' ) ? '0' : ltrim( $eci, '0' ) ) : $eci;
+	}
 
 	/**
 	 * Evaluate the authentication result the checkout page posted, on the SERVER. The gateway does not enforce 3-D Secure itself (it
@@ -236,14 +248,17 @@ class Three_DS {
 				'fields' => array(),
 			);
 		}
-		// "Not enrolled": the card or its bank does not take part in 3-D Secure (ECI 07, or 00 for Mastercard), so there is nothing to
-		// authenticate and no cryptogram. The check ran and the directory reported it, so this is accepted in BOTH modes and the order
-		// note says so (the payment is then an ordinary card payment, with no authentication result). NMI sandbox: "Not enrolled" gives
-		// cardholder_auth 'attempted', an empty CAVV and ECI 07. LIMIT: the server cannot tell a genuine "not enrolled" from a client that
-		// claims it; Required therefore cannot stop a client that deliberately skips 3-D Secure by posting this (ASSUMPTION T11).
+		// "Not enrolled": the card or its bank does not take part in 3-D Secure, so there is nothing to authenticate and no cryptogram.
+		// The check ran and the directory reported it, so this is accepted in BOTH modes and the order note says so (the payment is then
+		// an ordinary card payment, with no authentication result). What the real NMI sandbox returns for its "Not enrolled" cards
+		// (2026-10-29): Gateway.js completes with EMPTY values (no ECI, no result, no CAVV); NMI's page says 'attempted' and ECI 07, and
+		// the card networks use ECI 07 (Visa) or 00 (Mastercard), so all of those shapes are accepted. LIMIT: the server cannot tell a
+		// genuine "not enrolled" from a client that claims it, so Required cannot stop a client that deliberately skips 3-D Secure by
+		// posting this (ASSUMPTION T11, to be stated to merchants).
+		$eci_n = isset( $fields['eci'] ) ? self::eci_number( $fields['eci'] ) : '';
 		if ( ! $dropped
 			&& empty( $fields['cavv'] )
-			&& isset( $fields['eci'] ) && in_array( $fields['eci'], array( '07', '00' ), true )
+			&& in_array( $eci_n, array( '', '7', '0' ), true )
 			&& in_array( $result, array( '', 'attempted' ), true )
 		) {
 			$fields = (array) apply_filters( 'cardz3n_gw_3ds_fields', $fields );
@@ -254,7 +269,7 @@ class Three_DS {
 		}
 		$acceptable = ! $dropped
 			&& ! empty( $fields['cavv'] )
-			&& ( ! isset( $fields['eci'] ) || in_array( $fields['eci'], self::ACCEPTABLE_ECI, true ) )
+			&& ( ! isset( $fields['eci'] ) || in_array( self::eci_number( $fields['eci'] ), self::ACCEPTABLE_ECI, true ) )
 			&& ( '' === $result || in_array( $result, array( 'verified', 'attempted' ), true ) )
 			&& ( isset( $fields['eci'] ) || '' !== $result );
 		/**
@@ -350,11 +365,11 @@ class Three_DS {
 	 * @return string
 	 */
 	public static function order_note( array $fields ) {
-		if ( isset( $fields['eci'] ) && in_array( $fields['eci'], array( '07', '00' ), true ) && empty( $fields['cavv'] ) ) {
+		if ( empty( $fields['cavv'] ) && in_array( isset( $fields['eci'] ) ? self::eci_number( $fields['eci'] ) : '', array( '', '7', '0' ), true ) ) {
 			return sprintf(
-				/* translators: %s: ECI value such as 07 */
+				/* translators: %s: ECI value such as 07, or "none" */
 				__( '3-D Secure: the card is not enrolled in 3-D Secure (ECI %s), so there was no authentication result; the payment was taken as a normal card payment.', 'cardz3n-gateway' ),
-				$fields['eci']
+				! empty( $fields['eci'] ) ? $fields['eci'] : __( 'none', 'cardz3n-gateway' )
 			);
 		}
 		$parts = array();
