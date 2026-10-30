@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, ach, apple pay, google pay
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.68
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -143,6 +143,17 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Changelog ==
 
+= 1.1.0 =
+* New: native block checkout for card payments, on by default for new installs. Stores that were set up earlier keep their current behavior until they switch "Native Block Checkout" on. ACH, Apple Pay, Google Pay and saved methods are not in the block checkout yet.
+* Fixed: on the classic checkout the order could be sent before the card details were turned into a token.
+* Fixed: bank (ACH) payments were recorded as card payments.
+* Fixed: ACH, Apple Pay, Google Pay and saved methods were switched off on the classic checkout when the native block checkout was on.
+* Fixed: Test Mode no longer uses your live keys. With no test keys the gateway is hidden until you add them.
+* Fixed: Debug Mode no longer logs payment tokens, vault IDs or customer details.
+* Fixed: a declined card on the block checkout shows a clear message; switched-off payment methods are refused on the server; Capture only works on capturable orders; a repeated submit no longer charges twice.
+* Changed: the native block checkout is off by default for new installs that have WooCommerce Subscriptions or Pre-Orders active, and the gateway settings page now warns that carts with those products cannot be paid here on the block checkout yet (use the classic checkout page).
+* Changed: the plugin is now named "CARDZ3N for WooCommerce", and the readme Privacy and External services sections were rewritten.
+
 = 1.0.68 =
 * New, experimental and OFF by default: a "Native Block Checkout" setting. When switched on, the block-based Checkout shows this gateway as a native block payment method for card payments. ACH, Apple Pay, Google Pay and saved payment methods are not available in the block checkout yet, and carts containing subscriptions or pre-orders will not offer this method there. Stores that leave the setting off see no change.
 * Fixed: a declined card or a failed payment on the block checkout no longer ends in a server error. Every error and decline path now returns the result WooCommerce expects, so the buyer sees the message and can try again.
@@ -279,6 +290,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * Initial release. Embedded Collect.js checkout -- Card, ACH, Apple Pay, Google Pay, saved methods, Subscriptions/Pre-Orders, refunds, Level 2/3 data, 3DS2/SCA, HPOS.
 
 == Upgrade Notice ==
+
+= 1.1.0 =
+Test Mode now never uses live keys: a store in Test Mode with only live keys sees the gateway hidden until test keys are added. New installs get the native block checkout on (off if Subscriptions or Pre-Orders is active). Fixes classic checkout, ACH and more.
 
 = 1.0.68 =
 Adds an optional, off-by-default "Native Block Checkout" setting (card payments only) and makes declined or failed payments on the block checkout show a clear message instead of an error. No change to checkout unless you turn the setting on.

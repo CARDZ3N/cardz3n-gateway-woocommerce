@@ -3,6 +3,33 @@
 All notable changes to CARDZ3N for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-10-25
+### Added
+- Native Cart & Checkout Blocks payment method for CARD payments, **on by default for new installs** (setting `enable_experimental_blocks_checkout`, "Native Block Checkout", still visible and switchable). Stores that already had saved settings are pinned to their previous behaviour (off) once, by `cardz3n_gw_maybe_migrate_settings()`. `cart_checkout_blocks` is declared compatible whenever the integration is on (HPOS stays compatible).
+- Friendly decline message and a 20 s tokenization watchdog on the block checkout.
+- Test Mode with no test keys: clear error on the gateway settings page and the gateway is hidden at checkout (`no_test_credentials`).
+- Warning on the gateway settings page when WooCommerce Subscriptions or Pre-Orders is active (carts with those products cannot be paid with this gateway on the block checkout yet; use the classic checkout page).
+- Playwright end-to-end tests under `tests/e2e/` (excluded from the package); `.gitattributes` (LF line endings).
+
+### Fixed
+- Classic checkout: the order request left before the card token existed. The plugin now returns `false` from WooCommerce's `checkout_place_order_<gateway>` hook until tokenization finishes.
+- Bank (ACH) payments were sent and recorded as card payments (Collect.js reports `inline` for both); the source now follows the tab the buyer used.
+- Classic checkout lost ACH, Apple Pay, Google Pay and saved methods in the page settings when the Native Block Checkout setting was on (two `CARDZ3N_GW` objects printed; the Blocks one won).
+- `ApplePaySession.canMakePayments()` throwing aborted the whole Collect.js setup; it is now guarded.
+- Test Mode fell back to the live keys (and to the legacy unified pair, which holds live keys). It now uses test keys only.
+- Debug Mode logged the full one-time payment token, vault ID and customer name, email, phone and address, and key/token prefixes. It now logs a whitelist only.
+- Wrong logger class name caused a fatal error when the card token was missing; error and decline paths in `process_payment()` now return a `failure` result.
+- Server-side guards: switched-off payment sources are refused; Capture checks gateway, paid, captured and status; a paid or authorized order is not charged again on a repeated submit; the delete-saved-method action is limited to the signed-in user's own methods of this gateway; the "gateway hidden" warning is logged once per reason; the saved ACH account type is limited to checking or savings.
+
+### Changed
+- Native Block Checkout is off by default for new installs that have WooCommerce Subscriptions or Pre-Orders active; a saved choice always wins and existing stores are unchanged.
+- Product name "CARDZ3N for WooCommerce"; merchant-facing text uses "CARDZ3N payment gateway"; vendor product names and marks removed from public text outside the readme Privacy and External services sections; readme Privacy and External services rewritten.
+- Key-type messages say "checkout-only key".
+
+### Notes
+- **Upgrade note:** stores in Test Mode with only live keys saved will see the gateway hidden at checkout, and an error on the settings page, until test keys are added or Test Mode is switched off.
+- ACH, Apple Pay, Google Pay and saved methods are not available in the block checkout yet; the block payment method advertises only `products` and `refunds`.
+
 ## [1.0.68] - 2026-10-24
 ### Added
 - Experimental, opt-in native Cart & Checkout Blocks payment method for CARD payments (setting `enable_experimental_blocks_checkout`, "Native Block Checkout", default off). Registered through `Cardz3n_Gateway\Blocks_Support` on `woocommerce_blocks_payment_method_type_registration`; the settings key is resolved through `Brand::id()` (`cardz3n_gw_settings_option_key()`), so white-label gateway IDs work.
