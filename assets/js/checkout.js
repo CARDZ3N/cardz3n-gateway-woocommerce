@@ -559,12 +559,71 @@
 		showError(message);
 	}
 
+	// Tell the server a payment was stopped because 3-D Secure could not run (a reason code only, no card data).
+	function reportThreeDs(reason) {
+		try { $.post(cfg.ajaxUrl, { action: 'cardz3n_gw_3ds_report', nonce: cfg.nonce, reason: reason }); } catch (e) { /* best effort */ }
+	}
+
 	function runThreeDs(response) {
+		/*
+		 * Two modes (cfg.threeDs.mode). If 3-D Secure cannot run (Gateway.js did not load, the gateway is not enrolled for 3-D
+		 * Secure and reports an error, nothing answers within 20 seconds, the cardholder name is missing, or the call throws):
+		 *   - 'attempt': the payment goes on WITHOUT 3-D Secure (the server adds an order note);
+		 *   - 'required': the payment is stopped with a plain message and nothing is sent.
+		 * An authentication that the bank reports as FAILED stops the payment in both modes.
+		 */
 		var finished = false;
-		var done = function (fn) { return function () { if (finished) { return; } finished = true; if (timer) { clearTimeout(timer); } fn.apply(null, arguments); }; };
-		var timer = setTimeout(done(function () { threeDsFailure(cfg.i18n.threeDsUnavailable); }), 90000);
+		var timer = null;
+		var required = cfg.threeDs.mode === 'required';
+		var ui = null;
+		var origConsoleError = window.console && console.error;
+		var restore = function () {
+			if (window.console && origConsoleError) { console.error = origConsoleError; }
+			// Gateway.js allows one 3-D Secure instance at a time: unmount it so a retry can start a new one.
+			try { if (ui && typeof ui.unmount === 'function') { ui.unmount(); } } catch (e) { /* best effort */ }
+		};
+		var done = function (fn) { return function () { if (finished) { return; } finished = true; if (timer) { clearTimeout(timer); } restore(); fn.apply(null, arguments); }; };
+		// reason: script_unavailable | gateway_error | timeout | crash | name_missing. Required: report it (no order exists yet, so the
+		// server logs it and shows the merchant a notice) and stop. Attempt: go on, and the order note carries the reason.
+		var without = function (reason) {
+			done(function () {
+				if (required) {
+					reportThreeDs(reason);
+					threeDsFailure(reason === 'name_missing' ? cfg.i18n.threeDsNameRequired : cfg.i18n.threeDsRequired);
+					return;
+				}
+				onTokenReceived(response, { status: 'unavailable', reason: reason });
+			})();
+		};
+		if (!billingValue('first_name') || !billingValue('last_name')) {
+			without('name_missing');
+			return;
+		}
+		// No answer at all within 20 seconds: go on without. A challenge that is on screen replaces this with a longer limit (5 minutes), so
+		// a window that never finishes cannot hold the checkout for ever.
+		timer = setTimeout(function () { without('timeout'); }, 20000);
+		/*
+		 * Gateway.js reports some outcomes ONLY in the browser console, with no event (seen on the NMI demo account): a card that fails
+		 * authentication and is blocked by the gateway's Failed Authentication rule ("Blocked due to Failed Authentication rule"), and a
+		 * 3-D Secure processing error ("A 3DS error occurred"). Waiting for an event that never comes would end in the timeout above and,
+		 * in Attempt mode, a payment WITHOUT 3-D Secure for a card that just failed it. So these two messages are read from the console:
+		 * the first is a bank-reported failure (stops the payment in both modes), the second is an error (reason gateway_error).
+		 * ASSUMPTION T10: the wording of these messages; it is read only inside this check and the page console still shows them.
+		 */
+		if (window.console && origConsoleError) {
+			console.error = function () {
+				try {
+					var msg = Array.prototype.join.call(arguments, ' ');
+					if (/ThreeDSecureUI/.test(msg)) {
+						if (/Blocked due to Failed Authentication/i.test(msg)) { done(function () { threeDsFailure(cfg.i18n.threeDsFailed); })(); }
+						else if (/Payer Authentication Error|A 3DS error occurred|Error Processing/i.test(msg)) { without('gateway_error'); }
+					}
+				} catch (e) { /* never let the check break the console */ }
+				return origConsoleError.apply(console, arguments);
+			};
+		}
 		if (!window.Gateway || typeof window.Gateway.create !== 'function') {
-			done(function () { threeDsFailure(cfg.i18n.threeDsUnavailable); })();
+			without('script_unavailable');
 			return;
 		}
 		try {
@@ -583,11 +642,23 @@
 				country: billingValue('country'),
 				postalCode: billingValue('postcode')
 			};
-			var ui = gateway.get3DSecure().createUI(options);
-			ui.on('challenge', function () { $('#cardz3n-3ds-mount').addClass('is-challenge'); });
+			// '04' on the first-store transaction (a subscription or pre-order cart), as NMI says; otherwise no preference is sent.
+			if (cfg.threeDs.challengeIndicator) { options.challengeIndicator = cfg.threeDs.challengeIndicator; }
+			ui = gateway.get3DSecure().createUI(options);
+			// A challenge on screen means the shopper is taking part. If it is cancelled, closed or never finished, the shopper is NOT
+			// charged silently, in either mode: the payment stops with a plain message (limit: 5 minutes, filter
+			// cardz3n_gw_3ds_challenge_timeout_ms).
+			ui.on('challenge', function () {
+				if (timer) { clearTimeout(timer); }
+				timer = setTimeout(done(function () { threeDsFailure(cfg.i18n.threeDsFailed); }), cfg.threeDs.challengeTimeout || 300000);
+				$('#cardz3n-3ds-mount').addClass('is-challenge');
+			});
 			ui.on('complete', done(function (e) {
 				$('#cardz3n-3ds-mount').removeClass('is-challenge');
 				e = e || {};
+				// An "incomplete" result (for example the shopper pressed Cancel in the challenge) is not an authentication: stop.
+				var result = String(e.cardHolderAuth || e.cardholder_auth || '').toLowerCase();
+				if (/^(incomplete|cancel+ed|failed|rejected|unavailable)$/.test(result)) { threeDsFailure(cfg.i18n.threeDsFailed); return; }
 				onTokenReceived(response, {
 					status: 'complete',
 					cavv: e.cavv, xid: e.xid, eci: e.eci,
@@ -598,12 +669,12 @@
 			}));
 			ui.on('failure', done(function () { threeDsFailure(cfg.i18n.threeDsFailed); }));
 			if (typeof gateway.on === 'function') {
-				gateway.on('error', done(function () { threeDsFailure(cfg.i18n.threeDsUnavailable); }));
+				gateway.on('error', function () { without('gateway_error'); });
 			}
 			ui.start('#cardz3n-3ds-mount');
 		} catch (err) {
-			if (window.console && console.warn) { console.warn('[CARDZ3N] 3-D Secure could not start:', err && err.message ? err.message : err); }
-			done(function () { threeDsFailure(cfg.i18n.threeDsUnavailable); })();
+			if (window.console && console.warn) { console.warn('[CARDZ3N] 3-D Secure could not start, going on without it:', err && err.message ? err.message : err); }
+			without('crash');
 		}
 	}
 
@@ -667,12 +738,15 @@
 		mirror('cardz3n_card_brand', cardBrand);
 		if (authentication) {
 			mirror('cardz3n_3ds_status', authentication.status);
-			mirror('cardz3n_3ds_cavv', authentication.cavv);
-			mirror('cardz3n_3ds_xid', authentication.xid);
-			mirror('cardz3n_3ds_eci', authentication.eci);
-			mirror('cardz3n_3ds_cardholder_auth', authentication.cardholder_auth);
-			mirror('cardz3n_3ds_version', authentication.version);
-			mirror('cardz3n_3ds_directory_server_id', authentication.directory_server_id);
+			if (authentication.reason) { mirror('cardz3n_3ds_reason', authentication.reason); }
+			if (authentication.status === 'complete') {
+				mirror('cardz3n_3ds_cavv', authentication.cavv);
+				mirror('cardz3n_3ds_xid', authentication.xid);
+				mirror('cardz3n_3ds_eci', authentication.eci);
+				mirror('cardz3n_3ds_cardholder_auth', authentication.cardholder_auth);
+				mirror('cardz3n_3ds_version', authentication.version);
+				mirror('cardz3n_3ds_directory_server_id', authentication.directory_server_id);
+			}
 		}
 
 		// Trigger the real submission; WC's own handler will send to the server.
