@@ -301,7 +301,7 @@ trait Settings_Trait {
 			),
 			// The old `enable_3ds` checkbox did nothing and is gone from this screen; a value saved by an earlier version stays in the stored
 			// settings and is ignored. This is a new, separate setting, so a store that ticked the old box does not get 3-D Secure switched on.
-'three_d_secure_mode'       => array(
+			'three_d_secure_mode'       => array(
 				'title'       => __( '3D Secure 2.0', 'cardz3n-gateway' ),
 				'type'        => 'select',
 				'default'     => 'off',

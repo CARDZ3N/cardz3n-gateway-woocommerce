@@ -55,7 +55,7 @@ class Three_DS {
 	const SCRIPT_PATH = '/js/v1/Gateway.js';
 
 	/**
-	 * challengeIndicator for the first-store transaction (a subscription or a pre-order whose card is stored), as NMI says: '04'.
+	 * The challengeIndicator for the first-store transaction (a subscription or a pre-order whose card is stored), as NMI says: '04'.
 	 * Other payments send no indicator, so the default (no preference) applies.
 	 */
 	const CHALLENGE_FIRST_STORE = '04';
@@ -248,6 +248,7 @@ class Three_DS {
 				'fields' => array(),
 			);
 		}
+
 		/*
 		 * Only a consistent result is accepted (ECI as a number, leading zeros ignored):
 		 *   - ECI 5 or 2 (authenticated): the cryptogram (CAVV) is present and the result is "verified".

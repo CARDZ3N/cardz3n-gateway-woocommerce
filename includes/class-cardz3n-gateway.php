@@ -1380,6 +1380,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	 * @param string     $normalized_source  card, apple_pay, google_pay.
 	 * @param array      $billing            Billing fields.
 	 * @param string     $client_brand       Card brand reported by the browser.
+	 * @param array      $three_ds_fields    3-D Secure values for the verification (empty when none).
 	 * @return array{result:string,redirect:string,message?:string}
 	 */
 	private function process_card_verification( $order, $client, $using_saved, $vault_id, $saved_initial_txn, $collect_token, $normalized_source, array $billing, $client_brand, array $three_ds_fields = array() ) {
@@ -1515,6 +1516,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	 * @param string         $collect_token     Collect.js token of the new card.
 	 * @param string         $normalized_source card.
 	 * @param array          $billing           Billing fields.
+	 * @param array          $three_ds_fields   3-D Secure values for the request (empty when none).
 	 * @return array Gateway response (see Api_Client::transaction()).
 	 */
 	private function verify_and_vault_card( $client, $order, $collect_token, $normalized_source, array $billing, array $three_ds_fields = array() ) {
