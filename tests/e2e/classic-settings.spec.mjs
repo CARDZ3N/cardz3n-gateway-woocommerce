@@ -46,6 +46,8 @@ async function settingsOn(browser, path) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await ctx.newPage(); page.setDefaultTimeout(120000);
   await page.route(/Collect\.js/, (route) => route.fulfill({ status: 200, contentType: 'application/javascript', body: STUB_COLLECT_JS }));
+  // Google Pay is on in this store: Google's script is requested, so answer it with an empty script (never reach Google).
+  await page.route(/pay\.google\.com\/gp\/p\/js\/pay\.js/, (route) => route.fulfill({ status: 200, contentType: 'application/javascript', body: '' }));
   await page.goto(base + '/', { waitUntil: 'domcontentloaded' });
   const pid = await page.evaluate(() => fetch('/wp-json/wc/store/v1/products').then((r) => r.json()).then((p) => p[0].id));
   await page.goto(`${base}/?add-to-cart=${pid}`, { waitUntil: 'domcontentloaded' });

@@ -10,15 +10,27 @@
  *      first order was stamped by an older version (the "saved-method lookup problem").
  *   3. The card-on-file fields sent with the first and the later charges.
  *
- * ASSUMPTIONS (based on the gateway's published Payment API documentation; to be adjusted when the gateway answers
- * Josh's technical questions; every field set below passes through the `cardz3n_gw_recurring_fields` filter, so a
- * correction does not need new plumbing):
- *   A4. First charge of a stored card: `initiated_by=customer`, `stored_credential_indicator=stored`.
- *   A5. Those are accepted together with `customer_vault=add_customer` on a sale.
- *   A6. Later charges (renewals, pre-order release): `initiated_by=merchant`, `stored_credential_indicator=used`,
- *       and `initial_transaction_id` = the transaction ID of the first charge.
- *   A7. We keep that first transaction ID per subscription / order (meta `_cardz3n_initial_txn_id`).
- *   A8. `billing_method=recurring` marks a renewal as recurring billing.
+ * Every field set below passes through the `cardz3n_gw_recurring_fields` filter, so a correction does not need new plumbing.
+ *
+ * CONFIRMED by NMI's AI assistant on 2026-10-26 (recurring ticket; to be verified against the live behaviour of our TEST
+ * account, which is why they stay behind the filter):
+ *   C1. The Customer Vault works in Test Mode: `customer_vault=add_customer` with a Collect.js payment_token returns a vault ID.
+ *   C2. First-store transaction: `customer_vault=add_customer`, `billing_method=recurring`, `initiated_by=customer`,
+ *       `stored_credential_indicator=stored`; the returned transaction_id is saved (A4, A5, A8 are now confirmed).
+ *   C3. Every later charge: `customer_vault_id`, `billing_method=recurring`, `stored_credential_indicator=used`,
+ *       `initial_transaction_id` (the saved first transaction ID), and `initiated_by=merchant` for renewals or
+ *       `initiated_by=customer` for a customer-present charge (A6, A7 are now confirmed).
+ *   C4. A void is only possible before settlement and for the full amount; after settlement it must be a refund.
+ *   C5. A $0.00 verification may become a $1.00 authorization on processors that do not support validates.
+ *
+ * STILL ASSUMED:
+ *   A9. A `type=validate` request with `customer_vault_id` (an existing vault entry) and the first-store fields is accepted
+ *       and returns a transaction ID. It is used to give a saved card that has no flagged first transaction a fresh one
+ *       (see Gateway::reinitialise_saved_card()). Filter `cardz3n_gw_reinitialise_saved_cards` switches it off.
+ *   A10. A saved card used for a recurring order is treated as a new first-store (`stored`, with this payment as the first
+ *       transaction) when its stored first transaction was not itself sent with the first-store flags.
+ *   A11. A renewal without a known first transaction ID is still sent (without `initial_transaction_id`) rather than failed,
+ *       so older subscriptions keep renewing; an order note says so.
  *
  * @package Cardz3n_Gateway
  */
@@ -34,6 +46,45 @@ class Recurring {
 
 	const META_VAULT       = '_cardz3n_customer_vault_id';
 	const META_INITIAL_TXN = '_cardz3n_initial_txn_id';
+
+	/**
+	 * Token meta: the first transaction ID of a saved card, and whether that transaction was sent with the first-store
+	 * flags (only then may it be sent as `initial_transaction_id`).
+	 */
+	const TOKEN_INITIAL_TXN     = 'cardz3n_initial_txn_id';
+	const TOKEN_INITIAL_FLAGGED = 'cardz3n_initial_flagged';
+
+	/**
+	 * The first transaction ID of a saved card, only when it is safe to reuse (sent with the first-store flags).
+	 *
+	 * @param \WC_Payment_Token $token Saved method.
+	 * @return string Transaction ID, or an empty string.
+	 */
+	public static function flagged_initial_txn( $token ) {
+		if ( 'yes' !== (string) $token->get_meta( self::TOKEN_INITIAL_FLAGGED ) ) {
+			return '';
+		}
+		return (string) $token->get_meta( self::TOKEN_INITIAL_TXN );
+	}
+
+	/**
+	 * Record a fresh first transaction on a saved method and mark it as sent with the first-store flags.
+	 *
+	 * @param int    $token_id    Saved method ID.
+	 * @param string $initial_txn Transaction ID.
+	 */
+	public static function mark_token_initial( $token_id, $initial_txn ) {
+		if ( $token_id < 1 || '' === (string) $initial_txn ) {
+			return;
+		}
+		$token = \WC_Payment_Tokens::get( (int) $token_id );
+		if ( ! $token ) {
+			return;
+		}
+		$token->update_meta_data( self::TOKEN_INITIAL_TXN, (string) $initial_txn );
+		$token->update_meta_data( self::TOKEN_INITIAL_FLAGGED, 'yes' );
+		$token->save_meta_data();
+	}
 
 	/**
 	 * Whether WooCommerce Subscriptions is active.
@@ -356,21 +407,28 @@ class Recurring {
 	}
 
 	/**
-	 * Card-on-file fields for the FIRST charge of a card that will be stored (assumptions A4, A5).
+	 * Card-on-file fields for a payment made while the customer is present: the first-store transaction of a card (C2), or a
+	 * later customer-present charge of a card whose first transaction is known (C3).
 	 *
-	 * @param bool $already_stored True when the card was already stored (the customer picked a saved method).
+	 * @param bool   $reuse_initial True when a saved card is reused and its flagged first transaction ID is known.
+	 * @param string $initial_txn   That first transaction ID.
 	 * @return array<string,string>
 	 */
-	public static function first_payment_fields( $already_stored = false ) {
+	public static function first_payment_fields( $reuse_initial = false, $initial_txn = '' ) {
 		$fields = array(
+			'billing_method'              => 'recurring',
 			'initiated_by'                => 'customer',
-			'stored_credential_indicator' => $already_stored ? 'used' : 'stored',
+			'stored_credential_indicator' => 'stored',
 		);
+		if ( $reuse_initial && '' !== (string) $initial_txn ) {
+			$fields['stored_credential_indicator'] = 'used';
+			$fields['initial_transaction_id']      = (string) $initial_txn;
+		}
 		return (array) apply_filters( 'cardz3n_gw_recurring_fields', $fields, 'first' );
 	}
 
 	/**
-	 * Card-on-file fields for a LATER charge (renewal or pre-order release) (assumptions A6, A7, A8).
+	 * Card-on-file fields for a LATER charge, merchant-initiated (renewal or pre-order release) (C3).
 	 *
 	 * @param string $initial_txn Transaction ID of the first charge, when known.
 	 * @return array<string,string>

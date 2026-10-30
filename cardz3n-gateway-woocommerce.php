@@ -113,6 +113,13 @@ function cardz3n_gw_blocks_default_value() {
  */
 function cardz3n_gw_native_blocks_enabled() {
 	$settings = get_option( cardz3n_gw_settings_option_key(), array() );
+	// 3-D Secure runs on the classic payment form only (the native block checkout does not run it), so the native Blocks method is off while it is switched on.
+	if ( is_array( $settings ) ) {
+		$three_ds_mode = isset( $settings['three_d_secure_mode'] ) ? $settings['three_d_secure_mode'] : ( ( isset( $settings['enable_3d_secure'] ) && 'yes' === $settings['enable_3d_secure'] ) ? 'attempt' : 'off' );
+		if ( in_array( $three_ds_mode, array( 'attempt', 'required' ), true ) ) {
+			return false;
+		}
+	}
 	$value    = ( is_array( $settings ) && isset( $settings['enable_experimental_blocks_checkout'] ) ) ? $settings['enable_experimental_blocks_checkout'] : cardz3n_gw_blocks_default_value();
 	return 'yes' === $value;
 }
@@ -226,6 +233,9 @@ function cardz3n_gw_bootstrap() {
 	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-wallet-service.php';
 	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-ach-service.php';
 	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-recurring.php';
+	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-three-ds.php';
+	\Cardz3n_Gateway\Three_DS::register_hooks();
+	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-apple-pay-service.php';
 	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-subscriptions-service.php';
 	require_once CARDZ3N_GW_PATH . 'includes/class-cardz3n-preorders-service.php';
 	require_once CARDZ3N_GW_PATH . 'includes/traits/trait-cardz3n-refunds.php';
@@ -246,6 +256,9 @@ function cardz3n_gw_bootstrap() {
 	if ( is_admin() ) {
 		Cardz3n_Gateway\Admin::instance();
 	}
+
+	// Serve the Apple Pay domain verification file when one was pasted into the settings.
+	Cardz3n_Gateway\Apple_Pay_Service::init();
 
 	// Boot subscriptions + pre-orders shims (no-op unless their extension is installed).
 	Cardz3n_Gateway\Subscriptions_Service::instance();

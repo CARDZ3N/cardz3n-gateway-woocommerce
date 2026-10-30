@@ -26,9 +26,43 @@ use Cardz3n_Gateway\ACH_Service;
  */
 class Gateway extends \WC_Payment_Gateway_CC {
 
+	/**
+	 * ID of the saved method chosen in the current payment request (0 when a new card is used).
+	 *
+	 * @var int
+	 */
+	private $saved_token_id = 0;
+
 	use Refunds_Trait;
 	use Settings_Trait;
 	use Compatibility_Trait;
+
+	/**
+	 * Extra Google Pay options for Collect.js, empty by default.
+	 *
+	 * ASSUMPTION GP1: Collect.js chooses Google's TEST or PRODUCTION environment itself (from the key), so the plugin passes
+	 * nothing. If CARDZ3N / the gateway says the store must set it, add it with this filter, for example
+	 * `array( 'environment' => $test_mode ? 'TEST' : 'PRODUCTION' )`. Do not add anything Collect.js does not document: its
+	 * validator rejects unknown keys and would stop the whole payment form from loading. Only plain string, number and boolean
+	 * values are passed to the browser.
+	 *
+	 * @return array<string,string|int|float|bool>
+	 */
+	private function google_pay_options() {
+		if ( 'yes' !== $this->get_option( 'enable_google_pay', 'no' ) ) {
+			return array();
+		}
+		$options = apply_filters( 'cardz3n_gw_google_pay_options', array(), 'yes' === $this->get_option( 'test_mode' ) );
+		$clean   = array();
+		if ( is_array( $options ) ) {
+			foreach ( $options as $key => $value ) {
+				if ( is_string( $key ) && '' !== $key && is_scalar( $value ) ) {
+					$clean[ $key ] = $value;
+				}
+			}
+		}
+		return $clean;
+	}
 
 	/**
 	 * Configure the gateway's identity, settings fields, and hooks.
@@ -55,6 +89,11 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			? __( 'Powered by CARDZ3N', 'cardz3n-gateway' )
 			: __( 'Check Out', 'cardz3n-gateway' );
 		$this->description = $this->get_option( 'description' );
+		// The old default text named ACH, Apple Pay and Google Pay, which are optional and not verified on real devices, so shoppers must not
+		// be told they are offered. A description the merchant wrote is left as it is; only the old default is replaced.
+		if ( __( 'Pay securely with a credit/debit card, ACH, Apple Pay, or Google Pay.', 'cardz3n-gateway' ) === $this->description ) {
+			$this->description = __( 'Pay securely with a credit or debit card.', 'cardz3n-gateway' );
+		}
 
 		$this->supports = $this->build_supports_array();
 
@@ -227,11 +266,22 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			2
 		);
 
+		/*
+		 * 3-D Secure: Gateway.js is loaded from the gateway host only when the setting is on (ASSUMPTION T1, see Three_DS).
+		 * The checkout bundle waits for it, so the authentication step can run as soon as a card token exists.
+		 */
+		$three_ds_on   = Three_DS::enabled( $this->settings ) && 'yes' === $this->get_option( 'enable_cards', 'yes' );
+		$checkout_deps = array( 'jquery', 'cardz3n-collectjs' );
+		if ( $three_ds_on ) {
+			wp_enqueue_script( 'cardz3n-gatewayjs', Three_DS::script_url(), array(), CARDZ3N_GW_VERSION, true );
+			$checkout_deps[] = 'cardz3n-gatewayjs';
+		}
+
 		// Our static checkout bundle (no inline JS, no synchronous AJAX).
 		wp_enqueue_script(
 			'cardz3n-checkout',
 			CARDZ3N_GW_URL . 'assets/js/checkout.js',
-			array( 'jquery', 'cardz3n-collectjs' ),
+			$checkout_deps,
 			CARDZ3N_GW_VERSION,
 			true
 		);
@@ -254,7 +304,15 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				'enableAch'       => 'yes' === $this->get_option( 'enable_ach', 'no' ),
 				'enableApplePay'  => 'yes' === $this->get_option( 'enable_apple_pay', 'no' ) && $this->wallets_allowed(),
 				'enableGooglePay' => 'yes' === $this->get_option( 'enable_google_pay', 'no' ) && $this->wallets_allowed(),
+				'googlePayOptions' => $this->google_pay_options(),
 				'enableSaved'     => 'yes' === $this->get_option( 'enable_saved_methods', 'no' ),
+				'threeDs'         => array(
+					'enabled'   => $three_ds_on,
+					'publicKey' => $three_ds_on ? Three_DS::public_key( $pk ) : '',
+					'challengeIndicator' => ( $three_ds_on && Three_DS::first_store_cart() ) ? Three_DS::CHALLENGE_FIRST_STORE : '',
+					'mode'               => Three_DS::mode( $this->settings ),
+					'challengeTimeout'   => max( 1000, (int) apply_filters( 'cardz3n_gw_3ds_challenge_timeout_ms', 300000 ) ),
+				),
 				'allowedBrands'   => (array) $this->get_option( 'allowed_card_brands', array() ),
 				'country'         => ( WC()->customer && WC()->customer->get_billing_country() ) ? WC()->customer->get_billing_country() : 'US',
 				'currency'        => get_woocommerce_currency(),
@@ -276,6 +334,10 @@ class Gateway extends \WC_Payment_Gateway_CC {
 					'invalidFields' => __( 'Please check your payment details and try again.', 'cardz3n-gateway' ),
 					'timeout'       => __( 'Tokenization timed out. Please try again.', 'cardz3n-gateway' ),
 					'initError'     => __( 'Unable to initialize secure payment form. Please refresh the page and try again.', 'cardz3n-gateway' ),
+					'threeDsFailed' => __( 'Your card could not be verified. Please check your details or use a different card.', 'cardz3n-gateway' ),
+					'threeDsRequired' => __( 'Your card could not be verified with your bank, so the payment was not taken. Please try again, or use a different payment method.', 'cardz3n-gateway' ),
+					'threeDsNameRequired' => __( 'Please enter your first and last name so your card can be verified.', 'cardz3n-gateway' ),
+					'threeDsUnavailable' => __( 'Card verification is not available right now. Please try again, or use a different payment method.', 'cardz3n-gateway' ),
 				),
 			)
 		);
@@ -298,6 +360,21 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		$shared_demo = '6457Thfj624V5r7WUwc5v6a68Zsd6YEm'; // NMI's published demo Security Key.
 
 		$warnings = array();
+
+		// 3-D Secure: Required blocks ALL card payments until Payer Authentication is enabled on the gateway account.
+		if ( Three_DS::required( $this->settings ) ) {
+			$warnings[] = __( '<strong>3D Secure is set to Required.</strong> Every card payment will be BLOCKED until Payer Authentication is enabled on your CARDZ3N gateway account. Use Attempt until that is confirmed with CARDZ3N support.', 'cardz3n-gateway' );
+		}
+		$blocked = Three_DS::recent_blocks();
+		if ( $blocked ) {
+			$last      = end( $blocked );
+			$warnings[] = sprintf(
+				/* translators: 1: number of stopped payments, 2: cause in plain words */
+				_n( '<strong>%1$d card payment was stopped in the last 7 days because 3D Secure could not run.</strong> Cause: %2$s. Check that Payer Authentication is enabled on your CARDZ3N gateway account.', '<strong>%1$d card payments were stopped in the last 7 days because 3D Secure could not run.</strong> Most recent cause: %2$s. Check that Payer Authentication is enabled on your CARDZ3N gateway account.', count( $blocked ), 'cardz3n-gateway' ),
+				count( $blocked ),
+				Three_DS::REASONS[ $last['reason'] ]
+			);
+		}
 
 		/*
 		 * 1.0.27 — CORRECTED Public-Key scope guidance.
@@ -460,6 +537,9 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			<input type="hidden" name="cardz3n_payment_token" value="" />
 			<input type="hidden" name="cardz3n_token_type" value="" />
 			<input type="hidden" name="cardz3n_card_brand" value="" />
+			<?php if ( Three_DS::enabled( $this->settings ) ) : ?>
+			<div id="cardz3n-3ds-mount" class="cardz3n-3ds-mount"></div>
+			<?php endif; ?>
 
 			<div class="cardz3n-panes">
 
@@ -789,6 +869,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 
 		// Resolve payment mechanism.
 		$using_saved       = false;
+		$this->saved_token_id = 0;
 		$vault_id          = '';
 		$saved_initial_txn = '';
 		$vault_brand      = '';
@@ -806,7 +887,9 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				);
 			}
 			$vault_id = ( '' !== (string) $token->get_meta( 'cardz3n_vault_id' ) ) ? (string) $token->get_meta( 'cardz3n_vault_id' ) : $token->get_token();
-			$saved_initial_txn    = (string) $token->get_meta( 'cardz3n_initial_txn_id' );
+			// Only a first transaction that was sent with the first-store flags may be reused as `initial_transaction_id`.
+			$saved_initial_txn    = ( $token instanceof \WC_Payment_Token_ECheck ) ? '' : Recurring::flagged_initial_txn( $token );
+			$this->saved_token_id = (int) $token->get_id();
 			$using_saved          = true;
 			$normalized_source    = $token instanceof \WC_Payment_Token_ECheck ? 'ach_vault' : 'card_vault';
 			if ( 'card_vault' === $normalized_source ) {
@@ -938,9 +1021,15 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			'country'    => $order->get_shipping_country(),
 		);
 
+		// 3-D Secure (new cards only): decided once, for the sale below and for the $0.00 verification of a free trial or pre-order.
+		$three_ds = $this->three_ds_decision( $order, $normalized_source, $using_saved );
+		if ( null !== $three_ds['refusal'] ) {
+			return $three_ds['refusal'];
+		}
+
 		// Nothing is due today (a free trial, or a pre-order charged on release): save the card without charging it.
 		if ( $needs_stored && ( (float) $order->get_total() <= 0 || Recurring::order_charged_on_release( $order ) ) ) {
-			return $this->process_card_verification( $order, $client, $using_saved, $vault_id, $saved_initial_txn, $collect_token, $normalized_source, $billing, $client_brand );
+			return $this->process_card_verification( $order, $client, $using_saved, $vault_id, $saved_initial_txn, $collect_token, $normalized_source, $billing, $client_brand, $three_ds['fields'] );
 		}
 
 		// Level 3 payload.
@@ -977,6 +1066,9 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		$should_vault_card = ( $save_card && ! $using_saved && in_array( $normalized_source, array( 'card', 'apple_pay', 'google_pay' ), true ) );
 		$should_vault_ach  = ( $save_ach && ! $using_saved && 'ach' === $normalized_source && ACH_Service::reuse_allowed() );
 
+		// 3-D Secure fields decided above (three_ds_decision()); empty unless the browser completed the authentication.
+		$three_ds_fields = $three_ds['fields'];
+
 		$args = array(
 			'type'              => $txn_type,
 			'amount'            => $order->get_total(),
@@ -995,7 +1087,13 @@ class Gateway extends \WC_Payment_Gateway_CC {
 
 		if ( $needs_stored ) {
 			$should_vault_card = ! $using_saved;
-			$args['extra']     = array_merge( $args['extra'], Recurring::first_payment_fields( $using_saved ) );
+			// A saved card with a flagged first transaction is reused (`used` + that ID). Any other card is a first-store (ASSUMPTION A10).
+			$args['extra']     = array_merge( $args['extra'], Recurring::first_payment_fields( $using_saved && '' !== $saved_initial_txn, $saved_initial_txn ) );
+		}
+
+		if ( ! empty( $three_ds_fields ) ) {
+			$args['extra'] = array_merge( $args['extra'], $three_ds_fields );
+			$order->add_order_note( Three_DS::order_note( $three_ds_fields ) );
 		}
 
 		if ( $using_saved ) {
@@ -1164,7 +1262,11 @@ class Gateway extends \WC_Payment_Gateway_CC {
 					'redirect' => '',
 				);
 			}
-			$initial_txn = $using_saved ? $saved_initial_txn : (string) $response['transaction_id'];
+			// A new card, or a saved card without a flagged first transaction: this payment was the first-store, so it is the new first transaction.
+			$initial_txn = ( $using_saved && '' !== $saved_initial_txn ) ? $saved_initial_txn : (string) $response['transaction_id'];
+			if ( $using_saved && '' === $saved_initial_txn ) {
+				Recurring::mark_token_initial( $this->saved_token_id, $initial_txn );
+			}
 		}
 
 		// Persist standard meta and notes.
@@ -1183,7 +1285,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 					$this->id,
 					$response['customer_vault_id'],
 					array(
-						'initial_txn_id' => (string) $response['transaction_id'],
+						'initial_txn_id'  => (string) $response['transaction_id'],
+						'initial_flagged' => (bool) $needs_stored, // Only a recurring order's payment was sent with the first-store flags.
 						'last4'     => substr( (string) ( $response['raw']['cc_number'] ?? '' ), -4 ),
 						'brand'     => \Cardz3n_Gateway\brand_slug( '' !== $client_brand ? $client_brand : ( $response['raw']['cc_type'] ?? $response['raw']['card_type'] ?? '' ) ),
 						'exp_month' => \Cardz3n_Gateway\parse_ccexp( $response['raw']['cc_exp'] ?? $response['raw']['ccexp'] ?? '' )['month'],
@@ -1226,6 +1329,70 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	}
 
 	/**
+	 * Decide what to do about 3-D Secure for this payment (a NEW card only; see Three_DS for what it covers and the assumptions).
+	 *
+	 * - Off, or not a new card: nothing.
+	 * - The browser completed the authentication: its values are returned and go to the gateway with the request.
+	 * - The browser could not complete it (Gateway.js did not load, the gateway is not enrolled for Payer Authentication, a timeout,
+	 *   a crash, the cardholder name is missing): in "attempt" mode the payment goes on WITHOUT 3-D Secure and an order note says so
+	 *   (no liability shift for that payment); in "required" mode the payment is stopped with a plain message and nothing is sent to
+	 *   the gateway.
+	 * - An authentication that the bank reports as FAILED never reaches the server: the checkout page stops it in both modes.
+	 *
+	 * @param \WC_Order $order        The order.
+	 * @param string    $source       Normalized payment source.
+	 * @param bool      $using_saved  True when a saved card was chosen.
+	 * @return array{fields:array,refusal:?array} Gateway request fields, and a failure result when the payment must be stopped.
+	 */
+	private function three_ds_decision( $order, $source, $using_saved ) {
+		$out = array(
+			'fields'  => array(),
+			'refusal' => null,
+		);
+		if ( ! Three_DS::applies( $this->settings, $source, $using_saved ) ) {
+			return $out;
+		}
+		$required = Three_DS::required( $this->settings );
+
+		// 3-D Secure 2 needs the cardholder's first and last name (confirmed by NMI).
+		if ( $required && ( '' === trim( (string) $order->get_billing_first_name() ) || '' === trim( (string) $order->get_billing_last_name() ) ) ) {
+			$order->add_order_note( __( '3-D Secure is required, but the cardholder\'s first and last name were missing, so the payment was not sent to the gateway.', 'cardz3n-gateway' ) );
+			$out['refusal'] = $this->failure( __( 'Please enter your first and last name so your card can be verified.', 'cardz3n-gateway' ) );
+			return $out;
+		}
+
+		/*
+		 * The server decides, not the browser: the gateway accepts a sale without 3-D Secure data (seen on the NMI demo account), so
+		 * a browser-only check could be bypassed. See Three_DS::evaluate_request().
+		 */
+		$eval = Three_DS::evaluate_request();
+		$msg  = __( 'Your card could not be verified with your bank, so the payment was not taken. Please try again, or use a different payment method.', 'cardz3n-gateway' );
+		if ( 'ok' === $eval['state'] ) {
+			$out['fields'] = $eval['fields'];
+			if ( empty( $eval['fields'] ) ) {
+				// Not enrolled and nothing posted with it (the real sandbox shape): say so on the order, send nothing extra.
+				$order->add_order_note( Three_DS::order_note( array() ) );
+			}
+			return $out;
+		}
+		if ( 'failed' === $eval['state'] ) {
+			// A bank-reported failure always stops the payment, in both modes.
+			$order->add_order_note( __( '3-D Secure: the authentication failed, so the payment was not sent to the gateway.', 'cardz3n-gateway' ) );
+			$out['refusal'] = $this->failure( $msg );
+			return $out;
+		}
+		$cause = Three_DS::posted_reason();
+		$why   = '' !== $cause ? ' ' . sprintf( /* translators: %s: cause of the problem, in plain words */ __( 'Cause: %s.', 'cardz3n-gateway' ), Three_DS::REASONS[ $cause ] ) : '';
+		if ( $required ) {
+			$order->add_order_note( __( '3-D Secure is required, but no valid authentication was received for this card, so the payment was not sent to the gateway.', 'cardz3n-gateway' ) . $why );
+			$out['refusal'] = $this->failure( $msg );
+			return $out;
+		}
+		$order->add_order_note( __( '3-D Secure was not available for this payment (the browser could not complete it, or its result was not usable), so the payment was sent without it.', 'cardz3n-gateway' ) . $why );
+		return $out;
+	}
+
+	/**
 	 * Save the customer's card for later charges when nothing is due today (a subscription free trial, or a pre-order
 	 * charged on release). The card is verified and added to the vault with a $0.00 verification request, never a $0.00
 	 * sale. ASSUMPTIONS A1 to A3 (see Recurring): `type=validate` with amount 0.00 and `customer_vault=add_customer` is
@@ -1240,10 +1407,23 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	 * @param string     $normalized_source  card, apple_pay, google_pay.
 	 * @param array      $billing            Billing fields.
 	 * @param string     $client_brand       Card brand reported by the browser.
+	 * @param array      $three_ds_fields    3-D Secure values for the verification (empty when none).
 	 * @return array{result:string,redirect:string,message?:string}
 	 */
-	private function process_card_verification( $order, $client, $using_saved, $vault_id, $saved_initial_txn, $collect_token, $normalized_source, array $billing, $client_brand ) {
+	private function process_card_verification( $order, $client, $using_saved, $vault_id, $saved_initial_txn, $collect_token, $normalized_source, array $billing, $client_brand, array $three_ds_fields = array() ) {
 		if ( $using_saved ) {
+			if ( '' === $saved_initial_txn ) {
+				// The saved card has no flagged first transaction: give it a fresh one (ASSUMPTION A9).
+				$fresh = $this->reinitialise_saved_card( $client, $order, $vault_id, $billing );
+				if ( is_array( $fresh ) ) {
+					if ( empty( $fresh['success'] ) || '' === (string) $fresh['transaction_id'] ) {
+						$order->add_order_note( Order_Service::failure_note( $fresh, array( 'transaction_type' => 'validate' ) ) );
+						return $this->failure( __( 'Your saved card could not be verified. Please check your details or use a different card.', 'cardz3n-gateway' ) );
+					}
+					$saved_initial_txn = (string) $fresh['transaction_id'];
+					Recurring::mark_token_initial( $this->saved_token_id, $saved_initial_txn );
+				}
+			}
 			Recurring::store( $order, $vault_id, $saved_initial_txn );
 			$order->add_order_note( __( 'Nothing is due today. The customer\'s saved card will be used for the later payments.', 'cardz3n-gateway' ) );
 			$order->payment_complete();
@@ -1254,12 +1434,15 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			);
 		}
 
-		$response = $this->verify_and_vault_card( $client, $order, $collect_token, $normalized_source, $billing );
+		$response = $this->verify_and_vault_card( $client, $order, $collect_token, $normalized_source, $billing, $three_ds_fields );
 
 		$extra = array(
 			'payment_source_type' => $normalized_source,
 			'transaction_type'    => 'validate',
 		);
+		if ( ! empty( $three_ds_fields ) ) {
+			$order->add_order_note( Three_DS::order_note( $three_ds_fields ) );
+		}
 
 		if ( ! $response['success'] || '' === (string) $response['customer_vault_id'] ) {
 			$order->add_order_note( Order_Service::failure_note( $response, $extra ) );
@@ -1319,6 +1502,40 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	}
 
 	/**
+	 * Give a saved card that has no usable first transaction a fresh one: a $0.00 verification of the existing vault entry
+	 * sent with the first-store flags. ASSUMPTION A9: the gateway accepts `type=validate` with `customer_vault_id`.
+	 * Filter `cardz3n_gw_reinitialise_saved_cards` (default true) switches it off; the card is then stored without a first transaction ID (an unflagged old ID is never reused), and the renewal notes it as missing.
+	 *
+	 * @param Api_Client     $client   Gateway client.
+	 * @param \WC_Order|null $order    Order or subscription the card is for.
+	 * @param string         $vault_id Vault ID of the saved card.
+	 * @param array          $billing  Billing fields.
+	 * @return array|null The gateway reply, or null when switched off.
+	 */
+	private function reinitialise_saved_card( $client, $order, $vault_id, array $billing ) {
+		if ( ! apply_filters( 'cardz3n_gw_reinitialise_saved_cards', true ) ) {
+			return null;
+		}
+		$args = array(
+			'type'              => 'validate',
+			'amount'            => '0.00',
+			'customer_vault_id' => $vault_id,
+			'payment'           => 'creditcard',
+			'billing'           => $billing,
+			'extra'             => array_merge(
+				array( 'merchant_defined_field_10' => 'card_vault' ),
+				Recurring::first_payment_fields( false )
+			),
+		);
+		if ( $order ) {
+			$args['order_id']          = $order->get_id();
+			$args['order_description'] = sprintf( /* translators: order id */ __( 'Order #%s', 'cardz3n-gateway' ), $order->get_order_number() );
+			$args['currency']          = $order->get_currency();
+		}
+		return $client->transaction( $args );
+	}
+
+	/**
 	 * Verify a new card for $0.00 and add it to the vault (never a sale). ASSUMPTIONS A1 to A5, see Recurring.
 	 *
 	 * @param Api_Client     $client            Gateway client.
@@ -1326,9 +1543,10 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	 * @param string         $collect_token     Collect.js token of the new card.
 	 * @param string         $normalized_source card.
 	 * @param array          $billing           Billing fields.
+	 * @param array          $three_ds_fields   3-D Secure values for the request (empty when none).
 	 * @return array Gateway response (see Api_Client::transaction()).
 	 */
-	private function verify_and_vault_card( $client, $order, $collect_token, $normalized_source, array $billing ) {
+	private function verify_and_vault_card( $client, $order, $collect_token, $normalized_source, array $billing, array $three_ds_fields = array() ) {
 		$args = array(
 			'type'          => 'validate',
 			'amount'        => '0.00',
@@ -1337,7 +1555,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			'billing'       => $billing,
 			'extra'         => array_merge(
 				array( 'merchant_defined_field_10' => $normalized_source ),
-				Recurring::first_payment_fields( false )
+				Recurring::first_payment_fields( false ),
+				$three_ds_fields // ASSUMPTION T5: a $0.00 validate accepts the 3-D Secure values (NMI has not answered).
 			),
 		);
 		if ( $order ) {
@@ -1364,8 +1583,9 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			$this->id,
 			$response['customer_vault_id'],
 			array(
-				'initial_txn_id' => (string) $response['transaction_id'],
-				'last4'          => substr( (string) ( $response['raw']['cc_number'] ?? '' ), -4 ),
+				'initial_txn_id'  => (string) $response['transaction_id'],
+				'initial_flagged' => true, // A verification is always sent with the first-store flags.
+				'last4'           => substr( (string) ( $response['raw']['cc_number'] ?? '' ), -4 ),
 				'brand'          => \Cardz3n_Gateway\brand_slug( '' !== $client_brand ? $client_brand : ( $response['raw']['cc_type'] ?? $response['raw']['card_type'] ?? '' ) ),
 				'exp_month'      => \Cardz3n_Gateway\parse_ccexp( $response['raw']['cc_exp'] ?? $response['raw']['ccexp'] ?? '' )['month'],
 				'exp_year'       => \Cardz3n_Gateway\parse_ccexp( $response['raw']['cc_exp'] ?? $response['raw']['ccexp'] ?? '' )['year'],
@@ -1417,6 +1637,18 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		if ( $using_saved ) {
 			$new_vault   = $vault_id;
 			$initial_txn = $saved_initial_txn;
+			if ( '' === $initial_txn ) {
+				// The saved card has no flagged first transaction: give it a fresh one (ASSUMPTION A9).
+				$fresh = $this->reinitialise_saved_card( $client, $subscription, $vault_id, $this->order_billing( $subscription ) );
+				if ( is_array( $fresh ) ) {
+					if ( empty( $fresh['success'] ) || '' === (string) $fresh['transaction_id'] ) {
+						$subscription->add_order_note( Order_Service::failure_note( $fresh, array( 'transaction_type' => 'validate' ) ) );
+						return $this->failure( __( 'Your saved card could not be verified, so your previous payment method has not been changed. Please check your details or use a different card.', 'cardz3n-gateway' ) );
+					}
+					$initial_txn = (string) $fresh['transaction_id'];
+					Recurring::mark_token_initial( $this->saved_token_id, $initial_txn );
+				}
+			}
 		} else {
 			$response = $this->verify_and_vault_card( $client, $subscription, $collect_token, $normalized_source, $this->order_billing( $subscription ) );
 			if ( ! $response['success'] || '' === (string) $response['customer_vault_id'] ) {
