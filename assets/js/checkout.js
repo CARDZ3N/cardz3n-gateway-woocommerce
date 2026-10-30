@@ -685,14 +685,20 @@
 			// '04' on the first-store transaction (a subscription or pre-order cart), as NMI says; otherwise no preference is sent.
 			if (cfg.threeDs.challengeIndicator) { options.challengeIndicator = cfg.threeDs.challengeIndicator; }
 			ui = gateway.get3DSecure().createUI(options);
+			// A challenge on screen means the shopper is taking part. If it is cancelled, closed or never finished, the shopper is NOT
+			// charged silently, in either mode: the payment stops with a plain message (limit: 5 minutes, filter
+			// cardz3n_gw_3ds_challenge_timeout_ms).
 			ui.on('challenge', function () {
 				if (timer) { clearTimeout(timer); }
-				timer = setTimeout(function () { without('timeout'); }, 300000);
+				timer = setTimeout(done(function () { threeDsFailure(cfg.i18n.threeDsFailed); }), cfg.threeDs.challengeTimeout || 300000);
 				$('#cardz3n-3ds-mount').addClass('is-challenge');
 			});
 			ui.on('complete', done(function (e) {
 				$('#cardz3n-3ds-mount').removeClass('is-challenge');
 				e = e || {};
+				// An "incomplete" result (for example the shopper pressed Cancel in the challenge) is not an authentication: stop.
+				var result = String(e.cardHolderAuth || e.cardholder_auth || '').toLowerCase();
+				if (/^(incomplete|cancel+ed|failed|rejected|unavailable)$/.test(result)) { threeDsFailure(cfg.i18n.threeDsFailed); return; }
 				onTokenReceived(response, {
 					status: 'complete',
 					cavv: e.cavv, xid: e.xid, eci: e.eci,

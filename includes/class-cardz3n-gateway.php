@@ -319,6 +319,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 					'publicKey' => $three_ds_on ? Three_DS::public_key( $pk ) : '',
 					'challengeIndicator' => ( $three_ds_on && Three_DS::first_store_cart() ) ? Three_DS::CHALLENGE_FIRST_STORE : '',
 					'mode'               => Three_DS::mode( $this->settings ),
+					'challengeTimeout'   => max( 1000, (int) apply_filters( 'cardz3n_gw_3ds_challenge_timeout_ms', 300000 ) ),
 				),
 				'allowedBrands'   => (array) $this->get_option( 'allowed_card_brands', array() ),
 				'country'         => ( WC()->customer && WC()->customer->get_billing_country() ) ? WC()->customer->get_billing_country() : 'US',

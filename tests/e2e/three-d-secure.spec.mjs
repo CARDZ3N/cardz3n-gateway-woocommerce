@@ -70,6 +70,9 @@ window.Gateway = { create: function (key) {
           if (mode === 'silent') { return; }
           setTimeout(function () {
             if (mode === 'error') { gh.error && gh.error({ message: 'payer authentication is not enabled' }); return; }
+            if (mode === 'cancel-failure') { h.challenge && h.challenge({}); h.failure && h.failure({ code: 'CANCELLED', message: 'The shopper cancelled the challenge' }); return; }
+            if (mode === 'cancel-incomplete') { h.challenge && h.challenge({}); h.complete && h.complete({ cardHolderAuth: 'incomplete' }); return; }
+            if (mode === 'challenge-hang') { h.challenge && h.challenge({}); return; }
             if (mode === 'blocked-rule') { console.error('Gateway.js - ThreeDSecureUI: Payer Authentication Error - Blocked due to Failed Authentication rule REFID: 123456'); return; }
             if (mode === 'console-error') { console.error('Gateway.js - ThreeDSecureUI: A 3DS error occurred: Error Processing PARes'); return; }
             if (mode === 'failure') { h.failure && h.failure({}); return; }
@@ -160,6 +163,10 @@ try {
   check('Attempt: starting 3-D Secure crashes: the payment goes on without 3-D Secure, with the reason', wentOnBecause(aThrow, 'crash'), j({ posts: aThrow.seen.posts.length, errors: aThrow.after.errors }));
   const aSilent = await placeOrder(browser, { mode: 'silent', waitMs: 27000 });
   check('Attempt: nothing answers within 20 seconds: the payment goes on without 3-D Secure, with the reason', wentOnBecause(aSilent, 'timeout'), j({ posts: aSilent.seen.posts.length, errors: aSilent.after.errors }));
+  for (const [mname, mlabel] of [['cancel-failure', 'cancels the challenge (a failure event)'], ['cancel-incomplete', 'cancels the challenge (an incomplete result)'], ['challenge-hang', 'never finishes the challenge']]) {
+    const cx = await placeOrder(browser, { mode: mname, waitMs: 9000 });
+    check(`Attempt: the shopper ${mlabel}: the payment is STOPPED with a plain message, nothing is sent, not charged silently`, stopped(cx, /could not be verified/i), j({ posts: cx.seen.posts.length, errors: cx.after.errors }));
+  }
   const aBlocked = await placeOrder(browser, { mode: 'blocked-rule' });
   check('Attempt: the gateway blocks a failed authentication and Gateway.js only logs it to the console (real behaviour on the demo account): the payment is STOPPED, not taken without 3-D Secure', stopped(aBlocked, /could not be verified/i), j({ posts: aBlocked.seen.posts.length, errors: aBlocked.after.errors }));
   const aConsole = await placeOrder(browser, { mode: 'console-error' });
@@ -181,6 +188,10 @@ try {
   check('Required: starting 3-D Secure crashes: the payment is stopped and the cause is reported', stopped(rThrow, BANK, 'crash'), j({ posts: rThrow.seen.posts.length, errors: rThrow.after.errors }));
   const rSilent = await placeOrder(browser, { mode: 'silent', waitMs: 27000 });
   check('Required: nothing answers within 20 seconds: the payment is stopped and the cause is reported', stopped(rSilent, BANK, 'timeout'), j({ posts: rSilent.seen.posts.length, errors: rSilent.after.errors }));
+  for (const [mname, mlabel] of [['cancel-failure', 'cancels the challenge (a failure event)'], ['cancel-incomplete', 'cancels the challenge (an incomplete result)'], ['challenge-hang', 'never finishes the challenge']]) {
+    const cx = await placeOrder(browser, { mode: mname, waitMs: 9000 });
+    check(`Required: the shopper ${mlabel}: the payment is STOPPED with a plain message, nothing is sent`, stopped(cx, /could not be verified/i), j({ posts: cx.seen.posts.length, errors: cx.after.errors }));
+  }
   const rBlocked = await placeOrder(browser, { mode: 'blocked-rule' });
   check('Required: the gateway blocks a failed authentication (console message only): the payment is stopped with a plain message', stopped(rBlocked, /could not be verified/i), j({ posts: rBlocked.seen.posts.length, errors: rBlocked.after.errors }));
   const rConsole = await placeOrder(browser, { mode: 'console-error' });
@@ -212,6 +223,7 @@ try {
     const tag = m === 'attempt' ? 'Attempt' : 'Required';
     const au = r[m + '_authenticated']; const aus = reqs(au, 'sale')[0] || {};
     check(`Server, ${tag}: an authenticated new card is accepted and the sale carries the six authentication values`, au.result === 'success' && reqs(au, 'sale').length === 1 && aus.cavv === 'CAVV123abc=' && aus.eci === '05' && aus.xid === 'XID.1' && aus.cardholder_auth === 'verified' && aus.three_ds_version === '2.2.0' && aus.directory_server_id === 'DS-1', j(aus));
+    check(`Server, ${tag}: the buyer's email is sent to the gateway exactly as on the order (the plugin never removes it)`, aus.email === 'e2e@example.test', j({ email: aus.email }));
     check(`Server, ${tag}: the order note says the card was authenticated (no card data)`, note(au, /3-D Secure: the card was authenticated.*ECI 05, verified, version 2\.2\.0/), j(au.notes));
     const na = r[m + '_not_authenticated'];
     const ps = r[m + '_status_not_complete'];
@@ -233,16 +245,22 @@ try {
       check('Server, Required: a free trial or pre-order with no authentication is refused and nothing is sent', tn.result === 'failure' && (tn.requests || []).length === 0, j({ result: tn.result, req: tn.requests }));
     }
     // The server decides, not the browser: tampered, failed and not-enrolled results (the gateway accepts a sale without 3-D Secure data).
+    const cn = r[m + '_cancelled'];
+    check(`Server, ${tag}: a posted cancelled or incomplete challenge stops the payment, nothing is sent, not charged silently`, cn.result === 'failure' && (cn.requests || []).length === 0, j({ result: cn.result, req: cn.requests }));
     const tp = r[m + '_tampered']; const fst = r[m + '_failed_status']; const frs = r[m + '_failed_result']; const ne = r[m + '_not_enrolled']; const nc = r[m + '_no_cavv'];
     const FAILED_NOTE = /3-D Secure: the authentication failed, so the payment was not sent to the gateway/;
     check(`Server, ${tag}: a posted failed authentication (status failed) stops the payment, nothing is sent, plain message`, fst.result === 'failure' && (fst.requests || []).length === 0 && note(fst, FAILED_NOTE), j({ result: fst.result, req: fst.requests }));
     check(`Server, ${tag}: values that say the authentication failed (result failed, ECI 07) stop the payment, nothing is sent`, frs.result === 'failure' && (frs.requests || []).length === 0 && note(frs, FAILED_NOTE), j({ result: frs.result, req: frs.requests }));
+    // Not enrolled (nothing to authenticate): accepted in BOTH modes, the values are sent, the order says so.
+    const nes = r[m + '_not_enrolled_sandbox']; const ness = reqs(nes, 'sale')[0] || {};
+    check(`Server, ${tag}: a card that is not enrolled in 3-D Secure (ECI 07, empty CAVV) is accepted with an order note that says there was no authentication result`, ne.result === 'success' && reqs(ne, 'sale').length === 1 && reqs(ne, 'sale')[0].eci === '07' && note(ne, /not enrolled in 3-D Secure \(ECI 07\).*normal card payment/), j({ result: ne.result, req: ne.requests, notes: ne.notes }));
+    check(`Server, ${tag}: the NMI sandbox "Not enrolled" shape (attempted, empty CAVV, ECI 07) is accepted and sent as it is`, nes.result === 'success' && ness.eci === '07' && ness.cardholder_auth === 'attempted' && ness.cavv === undefined, j(ness));
     if (m === 'attempt') {
-      for (const [nm, x] of [['tampered values (bad characters, too long)', tp], ['a card that is not enrolled (ECI 07, no cryptogram)', ne], ['a result without the cryptogram (no cavv)', nc]]) {
+      for (const [nm, x] of [['tampered values (bad characters, too long)', tp], ['an ECI that is not a "not enrolled" value, with no cryptogram', r.attempt_eci_without_cavv], ['a result without the cryptogram (no cavv)', nc]]) {
         check(`Server, Attempt: ${nm}: the payment goes on WITHOUT any 3-D Secure values and the order says so`, x.result === 'success' && reqs(x, 'sale').length === 1 && !has3ds(reqs(x, 'sale')[0]) && note(x, SENT_WITHOUT), j({ result: x.result, req: x.requests }));
       }
     } else {
-      for (const [nm, x] of [['tampered values (bad characters, too long)', tp], ['a card that is not enrolled (ECI 07, no cryptogram)', ne], ['a result without the cryptogram (no cavv)', nc]]) {
+      for (const [nm, x] of [['tampered values (bad characters, too long)', tp], ['an ECI that is not a "not enrolled" value, with no cryptogram', r.required_eci_without_cavv], ['a result without the cryptogram (no cavv)', nc]]) {
         check(`Server, Required: ${nm}: the payment is REFUSED and nothing is sent to the gateway`, x.result === 'failure' && (x.requests || []).length === 0 && note(x, /3-D Secure is required, but no valid authentication was received/), j({ result: x.result, req: x.requests }));
       }
     }

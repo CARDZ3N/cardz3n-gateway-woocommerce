@@ -22,7 +22,7 @@
  * and can be corrected with a filter without changing the plugin:
  *
  * - T1: Gateway.js is served from the same gateway host as Collect.js, at /js/v1/Gateway.js (NMI's own sandbox URL is
- *   https://sandbox.nmi.com/js/v1/Gateway.js). Checked with a real request on 2026-10-27: https://z3n.transactiongateway.com/js/v1/Gateway.js
+ *   the same /js/v1/Gateway.js path). Checked with a real request on 2026-10-27: https://z3n.transactiongateway.com/js/v1/Gateway.js
  *   answers 200 with the script (it contains get3DSecure). The address NMI's support gave (/web/js/v1/gateway.js) answers 403 from the
  *   gateway's edge, with or without a browser user agent, and a lowercase /js/v1/gateway.js answers 404, so the default stays
  *   /js/v1/Gateway.js. Ask NMI which one is meant. Filter `cardz3n_gw_3ds_script_url`.
@@ -230,10 +230,26 @@ class Three_DS {
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
 
 		$result = isset( $fields['cardholder_auth'] ) ? strtolower( $fields['cardholder_auth'] ) : '';
-		if ( in_array( $result, array( 'failed', 'rejected', 'unavailable' ), true ) ) {
+		if ( in_array( $result, array( 'failed', 'rejected', 'unavailable', 'incomplete', 'cancelled', 'canceled' ), true ) ) {
 			return array(
 				'state'  => 'failed',
 				'fields' => array(),
+			);
+		}
+		// "Not enrolled": the card or its bank does not take part in 3-D Secure (ECI 07, or 00 for Mastercard), so there is nothing to
+		// authenticate and no cryptogram. The check ran and the directory reported it, so this is accepted in BOTH modes and the order
+		// note says so (the payment is then an ordinary card payment, with no authentication result). NMI sandbox: "Not enrolled" gives
+		// cardholder_auth 'attempted', an empty CAVV and ECI 07. LIMIT: the server cannot tell a genuine "not enrolled" from a client that
+		// claims it; Required therefore cannot stop a client that deliberately skips 3-D Secure by posting this (ASSUMPTION T11).
+		if ( ! $dropped
+			&& empty( $fields['cavv'] )
+			&& isset( $fields['eci'] ) && in_array( $fields['eci'], array( '07', '00' ), true )
+			&& in_array( $result, array( '', 'attempted' ), true )
+		) {
+			$fields = (array) apply_filters( 'cardz3n_gw_3ds_fields', $fields );
+			return array(
+				'state'  => 'ok',
+				'fields' => $fields,
 			);
 		}
 		$acceptable = ! $dropped
@@ -334,6 +350,13 @@ class Three_DS {
 	 * @return string
 	 */
 	public static function order_note( array $fields ) {
+		if ( isset( $fields['eci'] ) && in_array( $fields['eci'], array( '07', '00' ), true ) && empty( $fields['cavv'] ) ) {
+			return sprintf(
+				/* translators: %s: ECI value such as 07 */
+				__( '3-D Secure: the card is not enrolled in 3-D Secure (ECI %s), so there was no authentication result; the payment was taken as a normal card payment.', 'cardz3n-gateway' ),
+				$fields['eci']
+			);
+		}
 		$parts = array();
 		if ( ! empty( $fields['eci'] ) ) {
 			$parts[] = 'ECI ' . $fields['eci'];
