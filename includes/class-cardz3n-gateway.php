@@ -302,8 +302,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				'tokenizationKey' => $pk,
 				'enableCards'     => 'yes' === $this->get_option( 'enable_cards', 'yes' ),
 				'enableAch'       => 'yes' === $this->get_option( 'enable_ach', 'no' ),
-				'enableApplePay'  => 'yes' === $this->get_option( 'enable_apple_pay', 'no' ),
-				'enableGooglePay' => 'yes' === $this->get_option( 'enable_google_pay', 'no' ),
+				'enableApplePay'  => 'yes' === $this->get_option( 'enable_apple_pay', 'no' ) && $this->wallets_allowed(),
+				'enableGooglePay' => 'yes' === $this->get_option( 'enable_google_pay', 'no' ) && $this->wallets_allowed(),
 				'googlePayOptions' => $this->google_pay_options(),
 				'enableSaved'     => 'yes' === $this->get_option( 'enable_saved_methods', 'no' ),
 				'threeDs'         => array(
@@ -435,6 +435,26 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	}
 
 	/**
+	 * May Apple Pay and Google Pay be offered here? Not on carts, orders to pay or subscription pages that need a stored
+	 * payment method (a subscription or a pre-order): a wallet token has not been proven for the later charges yet.
+	 *
+	 * @return bool
+	 */
+	private function wallets_allowed() {
+		if ( function_exists( 'is_wc_endpoint_url' ) && is_wc_endpoint_url( 'order-pay' ) ) {
+			$order = wc_get_order( absint( get_query_var( 'order-pay' ) ) );
+			if ( $order && ( Recurring::order_needs_stored_method( $order ) || ( function_exists( 'wcs_is_subscription' ) && wcs_is_subscription( $order ) ) ) ) {
+				return false;
+			}
+			return true;
+		}
+		if ( ! function_exists( 'WC' ) || ! WC()->cart ) {
+			return true;
+		}
+		return ! Recurring::cart_needs_stored_method();
+	}
+
+	/**
 	 * Render the embedded checkout UI inside the CARDZ3N gateway panel.
 	 *
 	 * Structure (single gateway, multiple panes):
@@ -477,8 +497,9 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				// configureCollect() for the corrected fields.applePay/googlePay
 				// shapes. REQUIRES live sandbox verification with an eligible
 				// device/browser before this ships to merchants.
-		$enable_apple  = ( 'yes' === $this->get_option( 'enable_apple_pay', 'no' ) );
-		$enable_google = ( 'yes' === $this->get_option( 'enable_google_pay', 'no' ) );
+		$wallets_ok    = $this->wallets_allowed();
+		$enable_apple  = ( 'yes' === $this->get_option( 'enable_apple_pay', 'no' ) ) && $wallets_ok;
+		$enable_google = ( 'yes' === $this->get_option( 'enable_google_pay', 'no' ) ) && $wallets_ok;
 		$test_mode_active = 'yes' === $this->get_option( 'test_mode' );
 		?>
 		<div class="cardz3n-gateway-ui" data-gateway="<?php echo esc_attr( $this->id ); ?>" data-cardz3n-version="<?php echo esc_attr( CARDZ3N_GW_VERSION ); ?>">
@@ -613,13 +634,13 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		// even when the buyer's current device doesn't support the wallet
 		// (the live wallet button still only renders when canMakePayments is
 		// true). This reassures buyers the gateway accepts their wallet.
-		if ( 'yes' === $this->get_option( 'enable_apple_pay', 'no' ) ) {
+		if ( 'yes' === $this->get_option( 'enable_apple_pay', 'no' ) && $this->wallets_allowed() ) {
 			$icons[] = array(
 				'file' => 'icon_wallet_applepay.svg',
 				'alt'  => 'Apple Pay',
 			);
 		}
-		if ( 'yes' === $this->get_option( 'enable_google_pay', 'no' ) ) {
+		if ( 'yes' === $this->get_option( 'enable_google_pay', 'no' ) && $this->wallets_allowed() ) {
 			$icons[] = array(
 				'file' => 'icon_wallet_googlepay.svg',
 				'alt'  => 'Google Pay',
@@ -934,6 +955,20 @@ class Gateway extends \WC_Payment_Gateway_CC {
 					);
 				}
 			}
+		}
+
+		/*
+		 * Apple Pay and Google Pay are not offered for subscriptions or pre-orders until they are proven for the later
+		 * charges. The checkout hides them; this refuses a wallet payment posted anyway (nothing is sent to the gateway).
+		 */
+		if ( in_array( $normalized_source, array( 'apple_pay', 'google_pay' ), true ) && ( $is_subscription || Recurring::order_needs_stored_method( $order ) ) ) {
+			$cardz3n_gw_error_msg = __( 'This payment method is not available for this order. Please pay with a card.', 'cardz3n-gateway' );
+			wc_add_notice( $cardz3n_gw_error_msg, 'error' );
+			return array(
+				'result'   => 'failure',
+				'message'  => $cardz3n_gw_error_msg,
+				'redirect' => '',
+			);
 		}
 
 		/*
