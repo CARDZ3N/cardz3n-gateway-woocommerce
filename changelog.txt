@@ -2,6 +2,12 @@
 
 2026-10-25 - version 1.1.0
 * Add - WooCommerce Subscriptions with card payments: the card is saved at sign-up (no box to tick), renewals are charged from it, free trials save the card with a $0.00 verification instead of a $0.00 sale, customers can change their payment method, failed renewals fail cleanly and can be retried. Bank (ACH) payments are not available for subscriptions.
+* Add - 3-D Secure setting with three choices: Off, Attempt and Required. It applies to new card payments on the classic checkout (including subscription sign-ups that store the card). Attempt asks the bank to check the card and carries on without if the check cannot be done; Required stops the payment instead. Payer Authentication must be switched on for your CARDZ3N account first. Saved cards, bank (ACH) payments, Apple Pay, Google Pay, the My Account pages and renewals are not authenticated, and the native block checkout is switched off while 3-D Secure is Attempt or Required (the classic checkout form is used instead).
+* Add - Apple Pay set-up: a box on the settings page for the domain verification file from the gateway control panel, served at /.well-known/apple-developer-merchantid-domain-association, with step-by-step guidance. Apple Pay itself has not been verified on a real device.
+* Fix - Google Pay is now handed to the card form (Collect.js) whenever it is switched on, with no separate Google script from the plugin. It has not been verified on a real device.
+* Fix - Subscription card payments now send the stored-credential details the gateway expects (first stored payment and later merchant-initiated charges).
+* Fix - Apple Pay and Google Pay are not offered on subscription carts, and a wallet payment for such an order is refused on the server.
+* Tweak - The checkout description no longer promises wallet payments.
 * Add - Native Cart & Checkout Blocks payment method for card payments. On by default for new installs (setting "Native Block Checkout", still visible and switchable); stores installed earlier keep their previous behaviour until they switch it on. `cart_checkout_blocks` is declared compatible whenever it is on.
 * Add - A declined card or failed payment on the block checkout now shows a clear message, and the card form releases the Place Order button if tokenization never answers.
 * Add - Clear admin error on the gateway settings page, and the gateway is hidden at checkout, when Test Mode is on but no test keys are saved.

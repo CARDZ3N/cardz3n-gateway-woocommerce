@@ -109,7 +109,7 @@ The plugin has Apple Pay and Google Pay settings. They are off by default, need 
 
 = Can I use 3D Secure (strong customer authentication)? =
 
-Optional, off by default. The plugin can ask the cardholder's bank to check a new card before it is charged. **Payer Authentication 2.0 must first be enabled on your CARDZ3N gateway account (with an eCommerce processor and your bank enrollment details; ask CARDZ3N support), and this plugin cannot enroll you.** Then choose a mode in the gateway settings: *Attempt* tries 3D Secure and takes the payment without it if it cannot run (the order note says so); *Required* stops every new card payment that cannot be authenticated, so it blocks all card payments until Payer Authentication is enabled; use Attempt until that is confirmed. A card that its bank reports as failed is always stopped. It covers new cards on the classic checkout payment form, including free trials and pre-orders; not saved cards, bank payments, Apple Pay, Google Pay, the My Account pages, the native block checkout or subscription renewals. The flow was verified against NMI's 3D Secure test environment; it has not been verified on CARDZ3N's own gateway host. The plugin makes no promise about liability or about meeting any regulation: ask your bank and CARDZ3N which payments you need to cover.
+Optional, off by default. The plugin can ask the cardholder's bank to check a new card before it is charged. **Payer Authentication 2.0 must first be enabled on your CARDZ3N gateway account (with an eCommerce processor and your bank enrollment details; ask CARDZ3N support), and this plugin cannot enroll you.** Then choose a mode in the gateway settings: *Attempt* tries 3D Secure and takes the payment without it if it cannot run (the order note says so); *Required* stops every new card payment that cannot be authenticated, so it blocks all card payments until Payer Authentication is enabled; use Attempt until that is confirmed. A card that its bank reports as failed is always stopped. It covers new cards on the classic checkout payment form, including free trials; not saved cards, bank payments, Apple Pay, Google Pay, the My Account pages, the native block checkout or subscription renewals. The flow was verified against NMI's 3D Secure test environment; it has not been verified on CARDZ3N's own gateway host. The plugin makes no promise about liability or about meeting any regulation: ask your bank and CARDZ3N which payments you need to cover.
 
 = Does it support WooCommerce Subscriptions? =
 
@@ -142,6 +142,11 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 == Changelog ==
 
 = 1.1.0 =
+* New: 3-D Secure setting (Off, Attempt, Required) for new card payments on the classic checkout. Payer Authentication must be switched on for your CARDZ3N account first. Saved cards, bank payments, Apple Pay, Google Pay, the My Account pages and renewals are not authenticated, and the native block checkout is switched off while the setting is Attempt or Required.
+* New: a box for the Apple Pay domain verification file, with set-up steps. Apple Pay has not been verified on a real device.
+* Fixed: Google Pay is handed to the card form whenever it is switched on. It has not been verified on a real device.
+* Fixed: subscription card payments send the stored-card details the gateway expects.
+* Fixed: Apple Pay and Google Pay are not offered on subscription carts.
 * New: native block checkout for card payments, on by default for new installs. Stores that were set up earlier keep their current behavior until they switch "Native Block Checkout" on. ACH, Apple Pay, Google Pay and saved methods are not in the block checkout yet.
 * Fixed: on the classic checkout the order could be sent before the card details were turned into a token.
 * Fixed: bank (ACH) payments were recorded as card payments.

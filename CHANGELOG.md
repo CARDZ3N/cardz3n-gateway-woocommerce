@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [1.1.0] - 2026-10-25
 ### Added
+- 3-D Secure setting `three_d_secure_mode` (Off, Attempt, Required) for new card payments on the classic checkout, including card-storing subscription sign-ups. Payer Authentication must be enabled on the CARDZ3N account first. Not applied to saved cards, bank (ACH), Apple Pay, Google Pay, My Account pages or renewals; the native block checkout is off while the mode is Attempt or Required. The server checks the returned values in Required mode.
+- Apple Pay domain verification file setting, served at `/.well-known/apple-developer-merchantid-domain-association`, with set-up guidance. Not verified on a real device.
 - WooCommerce Subscriptions with card payments (`Recurring` helper): the card is saved for every subscription order (no checkbox), stored on the first order, every subscription and the customer's saved method; renewals are charged from it with the order currency and never twice; free trials verify and save the card with a $0.00 `validate` request instead of a $0.00 sale; change payment method (customer, admin, My Account add method) without any charge; failed renewals fail cleanly and can be retried; the block checkout offers subscription carts. Bank (ACH) is not available for subscriptions. Card-on-file request fields (`initiated_by`, `stored_credential_indicator`, `initial_transaction_id`, `billing_method`) are based on the gateway's published API and adjustable through the `cardz3n_gw_recurring_fields` filter.
 - Native Cart & Checkout Blocks payment method for CARD payments, **on by default for new installs** (setting `enable_experimental_blocks_checkout`, "Native Block Checkout", still visible and switchable). Stores that already had saved settings are pinned to their previous behaviour (off) once, by `cardz3n_gw_maybe_migrate_settings()`. `cart_checkout_blocks` is declared compatible whenever the integration is on (HPOS stays compatible).
 - Friendly decline message and a 20 s tokenization watchdog on the block checkout.
@@ -13,6 +15,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Playwright end-to-end tests under `tests/e2e/` (excluded from the package); `.gitattributes` (LF line endings).
 
 ### Fixed
+- Google Pay is passed to Collect.js whenever it is switched on (no plugin-side Google script). Not verified on a real device.
+- Subscription card payments send the stored-credential fields (first stored payment, later merchant-initiated charges).
+- Apple Pay and Google Pay are not offered on subscription carts; a posted wallet payment for such an order is refused.
 - Classic checkout: the order request left before the card token existed. The plugin now returns `false` from WooCommerce's `checkout_place_order_<gateway>` hook until tokenization finishes.
 - Bank (ACH) payments were sent and recorded as card payments (Collect.js reports `inline` for both); the source now follows the tab the buyer used.
 - Classic checkout lost ACH, Apple Pay, Google Pay and saved methods in the page settings when the Native Block Checkout setting was on (two `CARDZ3N_GW` objects printed; the Blocks one won).
