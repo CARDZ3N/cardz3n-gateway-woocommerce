@@ -2,7 +2,7 @@
 //
 // What is under test:
 //   - The setting is a three-way choice and defaults to OFF on a fresh install (nothing saved).
-//   - When Required is saved, the settings page shows a plain warning that Required BLOCKS ALL card payments until Payer Authentication is
+//   - When Required is saved, the settings page shows a plain warning that Required BLOCKS ALL new-card payments until Payer Authentication is
 //     enabled on the gateway account, and recommends Attempt; with Attempt or Off that warning is not shown.
 //   - The help text next to the setting says Payer Authentication must be enabled first, that the plugin cannot enroll the merchant, and
 //     promises nothing about liability shift or compliance.
@@ -62,11 +62,12 @@ try {
         text: document.body.innerText,
         value: sel ? sel.value : null,
         options: sel ? Array.from(sel.options).map((o) => o.value) : [],
+        optionLabels: sel ? Array.from(sel.options).map((o) => o.text).join(' | ') : '',
         helper: (sel && sel.closest('td') ? sel.closest('td').innerText : '')
       };
     });
   };
-  const REQUIRED_WARNING = /3D Secure is set to Required\.\s*Every card payment will be BLOCKED until Payer Authentication is enabled on your CARDZ3N gateway account\.\s*Use Attempt until that is confirmed/i;
+  const REQUIRED_WARNING = /3D Secure is set to Required\.\s*Every new-card payment will be BLOCKED until Payer Authentication is enabled on your CARDZ3N gateway account\.\s*Use Attempt until that is confirmed[^.]*\.\s*Required applies to new-card payments only: payments with a saved card are not put through 3D Secure\./i;
 
   // 1) Fresh install: nothing saved.
   await setMode('unset');
@@ -82,11 +83,13 @@ try {
   // 3) Required saved: the plain warning is shown.
   await setMode('required');
   const req = await view();
-  check('Required saved: the page shows the plain warning that Required blocks ALL card payments and recommends Attempt', req.value === 'required' && REQUIRED_WARNING.test(req.text), j({ value: req.value }));
+  check('Required saved: the page shows the plain warning that Required blocks ALL new-card payments and recommends Attempt', req.value === 'required' && REQUIRED_WARNING.test(req.text), j({ value: req.value }));
 
   // 4) The help text next to the setting.
   check('Help text: Payer Authentication must be enabled on the gateway account first, and the plugin cannot enroll the merchant', /Payer Authentication 2\.0 must be enabled on your CARDZ3N gateway account first/.test(req.helper) && /cannot enroll you/.test(req.helper), req.helper.slice(0, 120));
-  check('Help text: says Required blocks all card payments until Payer Authentication is enabled, and recommends Attempt until confirmed', /BLOCKS ALL card payments until Payer Authentication is enabled: use Attempt until that is confirmed/.test(req.helper));
+  check('Help text: says Required blocks all card payments until Payer Authentication is enabled, and recommends Attempt until confirmed', /BLOCKS ALL new-card payments until Payer Authentication is enabled: use Attempt until that is confirmed/.test(req.helper));
+  check('Help text: says plainly that saved cards are NOT put through 3D Secure and that Required applies to new-card payments only', /3D Secure applies to NEW card payments only\. Saved cards are NOT put through 3D Secure, so Required does not stop or check a payment made with a saved card/.test(req.helper), req.helper.slice(0, 160));
+  check('Setting options: the Required label says saved cards are not put through 3D Secure', /Required: stop a new-card payment[^|]*saved cards are not put through 3D Secure/.test(req.optionLabels), req.optionLabels);
   check('Help text: promises nothing about liability shift, compliance or protection from chargebacks', !/liability shift|compliant|compliance guaranteed|chargeback protection|fully protected/i.test(req.helper));
 
   // 5) A stopped payment is reported with a fixed reason and shown to the merchant.
