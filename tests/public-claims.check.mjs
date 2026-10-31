@@ -26,7 +26,7 @@ b.length ? fail('readme.txt claims Pre-Orders: ' + b[0].slice(0, 90)) : ok('read
 b = bad(/compliant|compliance|liability shift|PSD2|guarantee|fully protected/i, /makes no promise about liability or about meeting any regulation/);
 b.length ? fail('readme.txt makes a compliance or protection claim: ' + b[0].slice(0, 90)) : ok('readme.txt: no compliance or protection claim');
 const faq3 = lines.find((l) => /^Optional, off by default\. The plugin can ask the cardholder's bank/.test(l)) || '';
-(/Payer Authentication 2\.0 must first be enabled/.test(faq3) && /verified against NMI's 3D Secure test environment/.test(faq3) && /not been verified on CARDZ3N's own gateway host/.test(faq3) && /makes no promise about liability/.test(faq3) && /not saved cards, bank payments/.test(faq3)) ? ok('readme.txt: the 3-D Secure FAQ states its limits (Payer Authentication first, NMI test environment only, no promise)') : fail('readme.txt: the 3-D Secure FAQ is missing a required limit');
+(/Payer Authentication 2\.0 must first be enabled/.test(faq3) && /verified against NMI's 3D Secure test environment/.test(faq3) && /not been verified on CARDZ3N's own gateway host/.test(faq3) && /makes no promise about liability/.test(faq3) && /not saved cards, bank payments/.test(faq3) && /Saved cards are not put through 3D Secure, so Required applies to new-card payments only/.test(faq3) && !/blocks all card payments/.test(faq3)) ? ok('readme.txt: the 3-D Secure FAQ states its limits (Payer Authentication first, NMI test environment only, no promise)') : fail('readme.txt: the 3-D Secure FAQ is missing a required limit');
 b = bad(/3-?D Secure|3DS|SCA\b/i, /^= Can I use 3D Secure \(strong customer authentication\)\? =$|^Optional, off by default\. The plugin can ask the cardholder's bank/);
 b.length ? fail('readme.txt names 3-D Secure outside its FAQ: ' + b[0].slice(0, 90)) : ok('readme.txt: 3-D Secure appears only in its FAQ');
 b = bad(/card-on-file|stored[- ]credential|initiated_by|initial_transaction/i);
@@ -45,7 +45,7 @@ const headerDesc = main.split('\n').find((l) => /^\s*\* Description:/.test(l)) |
 const cl = read('changelog.txt').split(/\n\d{4}-\d{2}-\d{2} - version /)[1] || '';
 /pre-?orders?\b/i.test(cl.replace(/(Subscriptions or Pre-Orders|Pre-Orders is active|Pre-Orders active)/gi, '')) ? fail('changelog.txt (newest entry) claims Pre-Orders') : ok('changelog.txt: newest entry has no Pre-Orders claim');
 const cl3 = cl.split('\n').filter((l) => /3-?D Secure/i.test(l));
-(cl3.every((l) => /Payer Authentication must be switched on/.test(l) && /are not authenticated/.test(l)) && !/compliant|compliance|liability|verified on CARDZ3N|SCA\b/i.test(cl3.join(' '))) ? ok('changelog.txt: 3-D Secure appears only with its limits, no compliance claim') : fail('changelog.txt (newest entry) overclaims 3-D Secure');
+(cl3.every((l) => /Payer Authentication must be switched on/.test(l) && /are not authenticated/.test(l) && /Required applies to new-card payments only/.test(l) && /Saved cards are not put through 3-D Secure/.test(l)) && !/compliant|compliance|liability|verified on CARDZ3N|SCA\b/i.test(cl3.join(' '))) ? ok('changelog.txt: 3-D Secure appears only with its limits, no compliance claim') : fail('changelog.txt (newest entry) overclaims 3-D Secure');
 
 // README.md
 const md = read('README.md');
