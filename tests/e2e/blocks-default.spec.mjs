@@ -77,12 +77,15 @@ try {
   check('Block checkout description is card-only (no ACH, Apple Pay or Google Pay promised)', desc.length > 0 && !/ACH|Apple|Google/i.test(desc), desc.slice(0, 80));
 
   // The setting stays visible, and is ticked by default.
-  await page.goto(base + '/wp-login.php', { waitUntil: 'domcontentloaded' });
-  if (await page.locator('#user_login').count()) {
+  // The test site already signs the browser in as admin, so go straight to the settings page. The login form is only used if the
+  // site bounces us to it (clicking its button was not reliable on the local test site: no request was sent in some runs).
+  const settingsUrl = base + '/wp-admin/admin.php?page=wc-settings&tab=checkout&section=cardz3n_gateway';
+  await page.goto(settingsUrl, { waitUntil: 'domcontentloaded' });
+  if (/wp-login\.php/.test(page.url())) {
     await page.fill('#user_login', 'admin'); await page.fill('#user_pass', 'password');
-    await Promise.all([page.waitForURL(/wp-admin/), page.click('#wp-submit')]);
+    await Promise.all([page.waitForURL(/wp-admin/), page.press('#user_pass', 'Enter')]);
+    await page.goto(settingsUrl, { waitUntil: 'domcontentloaded' });
   }
-  await page.goto(base + '/wp-admin/admin.php?page=wc-settings&tab=checkout&section=cardz3n_gateway', { waitUntil: 'domcontentloaded' });
   const box = page.locator('#woocommerce_cardz3n_gateway_enable_experimental_blocks_checkout');
   check('The Native Block Checkout setting is visible and ticked by default', (await box.count()) === 1 && (await box.isChecked()));
 
