@@ -1,0 +1,34 @@
+{
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "landingPage": "/",
+  "login": true,
+  "steps": [
+    {
+      "step": "mkdir",
+      "path": "/wordpress/wp-content/mu-plugins"
+    },
+    {
+      "step": "installPlugin",
+      "pluginData": {
+        "resource": "wordpress.org/plugins",
+        "slug": "woocommerce"
+      },
+      "options": {
+        "activate": true
+      }
+    },
+    {
+      "step": "activatePlugin",
+      "pluginPath": "cardz3n-gateway/cardz3n-gateway-woocommerce.php"
+    },
+    {
+      "step": "runPHP",
+      "code": "<?php\nrequire_once '/wordpress/wp-load.php';\nupdate_option( 'woocommerce_coming_soon', 'no' );\nupdate_option( 'woocommerce_currency', 'USD' );\nupdate_option( 'woocommerce_default_country', 'US:CA' );\n// Placeholder values only: the e2e test never talks to the real gateway (Collect.js and the checkout request are stubbed).\nupdate_option( 'woocommerce_cardz3n_gateway_settings', array( 'enabled' => 'yes', 'test_mode' => 'yes', 'enable_cards' => 'yes', 'enable_ach' => 'yes', 'enable_apple_pay' => 'yes', 'enable_google_pay' => 'yes', 'enable_saved_methods' => 'yes', 'enable_experimental_blocks_checkout' => 'yes', 'test_security_key' => 'e2e-placeholder-security-key', 'test_tokenization_key' => 'e2e-placeholder-tokenization-key' ) );\n$p = new WC_Product_Simple(); $p->set_name( 'E2E Test Item' ); $p->set_regular_price( '1.00' ); $p->set_status( 'publish' ); $pid = $p->save();\nupdate_option( 'cardz3n_e2e_product_id', $pid );\nwp_insert_post( array( 'post_title' => 'Checkout Classic', 'post_name' => 'checkout-classic', 'post_status' => 'publish', 'post_type' => 'page', 'post_content' => '[woocommerce_checkout]' ) );\necho 'E2E_SETUP_OK ' . $pid;\n"
+    },
+    {
+      "step": "writeFile",
+      "path": "/wordpress/wp-content/mu-plugins/e2e-3ds-settings-probe.php",
+      "data": "<?php\n// E2E probe (test only): sets the saved 3-D Secure mode, or removes it (a fresh install).\nadd_action( 'wp_loaded', function () {\n\tif ( empty( $_GET['cz3s'] ) || 'mode' !== $_GET['cz3s'] ) { return; }\n\t$s = get_option( 'woocommerce_cardz3n_gateway_settings', array() );\n\tunset( $s['three_d_secure_mode'], $s['enable_3d_secure'], $s['enable_3ds'] );\n\t$v = isset( $_GET['v'] ) ? sanitize_key( $_GET['v'] ) : 'off';\n\tif ( in_array( $v, array( 'off', 'attempt', 'required' ), true ) ) { $s['three_d_secure_mode'] = $v; }\n\tupdate_option( 'woocommerce_cardz3n_gateway_settings', $s );\n\tdelete_option( 'cardz3n_gw_3ds_blocked' );\n\theader( 'Content-Type: application/json' ); echo wp_json_encode( array( 'ok' => true ) ); exit;\n} );\n"
+    }
+  ]
+}

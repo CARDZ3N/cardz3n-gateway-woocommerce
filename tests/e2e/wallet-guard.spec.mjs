@@ -56,6 +56,8 @@ async function configuredFields(browser, applePayScript) {
   page.on('pageerror', (e) => errors.push(String(e.message)));
   await page.addInitScript(applePayScript);
   await page.route(/Collect\.js/, (route) => route.fulfill({ status: 200, contentType: 'application/javascript', body: STUB_COLLECT_JS }));
+  // Google Pay is on in this store: Google's script is requested, so answer it with an empty script (never reach Google).
+  await page.route(/pay\.google\.com\/gp\/p\/js\/pay\.js/, (route) => route.fulfill({ status: 200, contentType: 'application/javascript', body: '' }));
   await page.goto(base + '/', { waitUntil: 'domcontentloaded' });
   const pid = await page.evaluate(() => fetch('/wp-json/wc/store/v1/products').then((r) => r.json()).then((p) => p[0].id));
   await page.goto(`${base}/?add-to-cart=${pid}`, { waitUntil: 'domcontentloaded' });

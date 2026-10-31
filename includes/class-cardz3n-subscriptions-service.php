@@ -22,6 +22,12 @@ defined( 'ABSPATH' ) || exit;
 class Subscriptions_Service {
 
 	/**
+	 * Written on the renewal order the moment the gateway confirms the charge, BEFORE anything else runs, so a later
+	 * error (another plugin's hook, a failed save) can never lead to a second charge of the same renewal.
+	 */
+	const META_CHARGE_TXN = '_cardz3n_renewal_charge_txn';
+
+	/**
 	 * Singleton instance.
 	 *
 	 * @var Subscriptions_Service|null
@@ -149,14 +155,21 @@ class Subscriptions_Service {
 		try {
 			$this->charge_renewal( $amount, $renewal_order );
 		} catch ( \Throwable $e ) {
+			// The error text goes to the log only (it may name internals); the order note says what happened in plain words.
 			Logger::error( 'Subscription renewal error: ' . $e->getMessage() );
-			$renewal_order->add_order_note(
-				sprintf(
-					/* translators: %s: error message */
-					__( 'Subscription renewal failed with an unexpected error: %s', 'cardz3n-gateway' ),
-					$e->getMessage()
-				)
-			);
+			$charged = (string) $renewal_order->get_meta( self::META_CHARGE_TXN );
+			if ( '' !== $charged ) {
+				// The gateway already charged this renewal. Never mark it failed (Subscriptions would retry and charge again).
+				$renewal_order->add_order_note(
+					sprintf(
+						/* translators: %s: gateway transaction ID */
+						__( 'The renewal was charged (transaction %s), but an error happened afterwards, so the order may not be marked paid. It will not be charged again. Please check the order.', 'cardz3n-gateway' ),
+						$charged
+					)
+				);
+				return;
+			}
+			$renewal_order->add_order_note( __( 'Subscription renewal failed with an unexpected error. Details are in the CARDZ3N log.', 'cardz3n-gateway' ) );
 			$renewal_order->update_status( 'failed' );
 		}
 	}
@@ -173,6 +186,19 @@ class Subscriptions_Service {
 		if ( $renewal_order->is_paid() ) {
 			return;
 		}
+		$already_charged = (string) $renewal_order->get_meta( self::META_CHARGE_TXN );
+		if ( '' !== $already_charged ) {
+			// A charge for this renewal already went through but the order was not completed (an error after the charge): finish it, never charge again.
+			$renewal_order->add_order_note(
+				sprintf(
+					/* translators: %s: gateway transaction ID */
+					__( 'A charge for this renewal already went through (transaction %s). It was not charged again.', 'cardz3n-gateway' ),
+					$already_charged
+				)
+			);
+			$renewal_order->payment_complete( $already_charged );
+			return;
+		}
 
 		// The saved card: the subscription, then the first order, then the renewal order, then the customer's saved methods.
 		$found       = Recurring::find_for_renewal( $renewal_order );
@@ -183,6 +209,11 @@ class Subscriptions_Service {
 			$renewal_order->add_order_note( __( 'Subscription renewal failed: no saved payment method was found for this subscription (not on the subscription, its first order, this order or the customer\'s saved methods).', 'cardz3n-gateway' ) );
 			$renewal_order->update_status( 'failed' );
 			return;
+		}
+
+		if ( '' === (string) $initial_txn ) {
+			// ASSUMPTION A11: still charge (do not strand an older subscription), but say that the first transaction ID is missing.
+			$renewal_order->add_order_note( __( 'The first transaction ID of this subscription is not known, so the renewal was sent without it. If the gateway or the card issuer questions it, use "Change payment method" on the subscription to save the card again.', 'cardz3n-gateway' ) );
 		}
 
 		$client = new Api_Client();
@@ -221,6 +252,9 @@ class Subscriptions_Service {
 		);
 
 		if ( $response['success'] ) {
+			// First thing after a confirmed charge: remember it, so nothing that goes wrong next can cause a second charge.
+			$renewal_order->update_meta_data( self::META_CHARGE_TXN, (string) $response['transaction_id'] );
+			$renewal_order->save_meta_data();
 			Order_Service::stamp( $renewal_order, $response, $extra );
 			$renewal_order->payment_complete( $response['transaction_id'] );
 			$renewal_order->add_order_note( Order_Service::success_note( $response, $extra ) );

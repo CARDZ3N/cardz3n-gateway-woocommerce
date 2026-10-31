@@ -60,7 +60,7 @@ trait Settings_Trait {
 				'title'       => __( 'Checkout Description', 'cardz3n-gateway' ),
 				'type'        => 'textarea',
 				'description' => __( 'Short explanation shown beneath the payment option at checkout.', 'cardz3n-gateway' ),
-				'default'     => __( 'Pay securely with a credit/debit card, ACH, Apple Pay, or Google Pay.', 'cardz3n-gateway' ),
+				'default'     => __( 'Pay securely with a credit or debit card.', 'cardz3n-gateway' ), // The old default also named ACH and the wallets, which are optional and not verified on real devices.
 			),
 			'thankyou_instructions'     => array(
 				'title'       => __( 'Thank-you Instructions', 'cardz3n-gateway' ),
@@ -182,6 +182,18 @@ trait Settings_Trait {
 				'description' => __( 'Checking this box only enables the button in checkout. You must also finish Google Pay setup in your CARDZ3N merchant account for it to actually work: <a href="https://z3n.transactiongateway.com/merchants/resources/integration/integration_portal.php?tid=24d698c53e47b00cec19bfba8b20e997#googlepay_variables" target="_blank" rel="noopener noreferrer">Google Pay setup</a> and <a href="https://z3n.transactiongateway.com/merchants/resources/integration/integration_portal.php?tid=24d698c53e47b00cec19bfba8b20e997&rand=75522#cjs_googlePay" target="_blank" rel="noopener noreferrer">Google Pay Collect.js setup</a>.', 'cardz3n-gateway' ),
 				'default' => 'no',
 			),
+			'apple_pay_guide'           => array(
+				'title'       => __( 'Apple Pay and Google Pay setup', 'cardz3n-gateway' ),
+				'type'        => 'title',
+				'description' => Apple_Pay_Service::guide_html(),
+			),
+			'apple_pay_verification_file' => array(
+				'title'       => __( 'Apple Pay domain verification file', 'cardz3n-gateway' ),
+				'type'        => 'textarea',
+				'css'         => 'width:400px;height:110px;font-family:monospace;',
+				'description' => __( 'Paste the whole text of the Domain Verification File downloaded from the CARDZ3N Merchant Portal. The plugin then serves it at /.well-known/apple-developer-merchantid-domain-association on this store. Leave empty if you upload the file to your web server yourself.', 'cardz3n-gateway' ),
+				'default'     => '',
+			),
 			'enable_saved_methods'      => array(
 				'title'   => __( 'Saved Payment Methods', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
@@ -287,12 +299,18 @@ trait Settings_Trait {
 				'label'   => __( 'Also send the gateway-generated receipt email (WooCommerce receipt is primary).', 'cardz3n-gateway' ),
 				'default' => 'no',
 			),
-			'enable_3ds'                => array(
+			// The old `enable_3ds` checkbox did nothing and is gone from this screen; a value saved by an earlier version stays in the stored
+			// settings and is ignored. This is a new, separate setting, so a store that ticked the old box does not get 3-D Secure switched on.
+			'three_d_secure_mode'       => array(
 				'title'       => __( '3D Secure 2.0', 'cardz3n-gateway' ),
-				'type'        => 'checkbox',
-				'label'       => __( 'Enable 3D Secure 2.0', 'cardz3n-gateway' ),
-				'description' => __( '3D Secure 2.0 can help you avoid fraudulent transactions by authenticating transactions before submitting them to the gateway for processing.', 'cardz3n-gateway' ),
-				'default'     => 'no',
+				'type'        => 'select',
+				'default'     => 'off',
+				'options'     => array(
+					'off'      => __( 'Off', 'cardz3n-gateway' ),
+					'attempt'  => __( 'Attempt: try 3D Secure; if it cannot run, take the payment without it', 'cardz3n-gateway' ),
+					'required' => __( 'Required: stop the payment if 3D Secure cannot be completed (blocks all card payments until Payer Authentication is enabled)', 'cardz3n-gateway' ),
+				),
+				'description' => __( 'Before a new card is charged, the cardholder\'s bank checks the card (usually without the shopper seeing anything, sometimes with a one-time code). UK and EU rules normally require this for card payments; ask your bank which payments need it. IMPORTANT: Payer Authentication 2.0 must be enabled on your CARDZ3N gateway account first (with an eCommerce processor and your bank enrollment details; ask CARDZ3N support). This plugin cannot enroll you. Required stops every new card payment that cannot be authenticated, so it BLOCKS ALL card payments until Payer Authentication is enabled: use Attempt until that is confirmed. Attempt tries 3D Secure and, if it cannot run, takes the payment without it (those payments are then not protected by 3D Secure, and the order note says so). A card that its bank reports as failed is always stopped. It applies to new cards on the classic checkout payment form, including free trials and pre-orders; not to saved cards, bank payments, Apple Pay, Google Pay, the My Account pages or subscription renewals. Switching it on turns the native block checkout off. The flow was verified against NMI’s 3D Secure test environment (a shared demo account); it has not been verified on CARDZ3N’s own gateway host, so test it with your own gateway account before relying on it.', 'cardz3n-gateway' ),
 			),
 
 			/* ---------------- Commercial Data ---------------- */
@@ -385,6 +403,18 @@ trait Settings_Trait {
 				'default' => 'no',
 			),
 		);
+	}
+
+	/**
+	 * Clean the pasted Apple Pay verification file text (plain text only, length limited).
+	 *
+	 * @param string $key   Form-field key.
+	 * @param mixed  $value Posted value.
+	 * @return string
+	 * @throws \Exception When the text is too long (WooCommerce shows the message and keeps the old value).
+	 */
+	public function validate_apple_pay_verification_file_field( $key, $value ) {
+		return Apple_Pay_Service::sanitize_file_text( null === $value ? '' : (string) $value );
 	}
 
 	/**

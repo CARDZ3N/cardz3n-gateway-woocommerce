@@ -352,8 +352,18 @@
 		if (!isBlocksMode() && cfg.enableApplePay && applePayAvailable()) {
 			fields.applePay = { selector: '.cardz3n-applepay-button', type: 'buy' };
 		}
-		if (!isBlocksMode() && cfg.enableGooglePay && window.google && window.google.payments && window.google.payments.api) {
+		// Google Pay: Collect.js loads and runs Google's own script inside its integration (NMI, 2026-10-27), so the plugin passes the
+		// wallet to Collect.js and loads nothing from Google itself. Whether the button can show is decided by Collect.js; an empty
+		// container is collapsed by the stylesheet.
+		if (!isBlocksMode() && cfg.enableGooglePay) {
 			fields.googlePay = { selector: '.cardz3n-googlepay-button' };
+			// ASSUMPTION GP1 (see the gateway class): off by default. Only options the store adds through the
+			// cardz3n_gw_google_pay_options filter are passed; Collect.js rejects keys it does not know.
+			if (cfg.googlePayOptions && 'object' === typeof cfg.googlePayOptions) {
+				for (var gk in cfg.googlePayOptions) {
+					if (Object.prototype.hasOwnProperty.call(cfg.googlePayOptions, gk)) { fields.googlePay[gk] = cfg.googlePayOptions[gk]; }
+				}
+			}
 		}
 
 		var collectConfig = {
@@ -525,10 +535,157 @@
 		}
 	}
 
-	function onTokenReceived(response) {
+	/* ------------------------------------------------------------------
+	 * 3-D Secure (classic payment form, new cards only)
+	 *
+	 * After Collect.js returns a card token, Gateway.js authenticates the card (a hidden device check, and a challenge only if the
+	 * issuer asks). The authentication values are posted with the order and the server adds them to the sale. Option names of
+	 * createUI() and the event payload names are ASSUMPTION T7, taken from https://docs.nmi.com/docs/payer-authentication-3ds .
+	 * --------------------------------------------------------------- */
+
+	function threeDsApplies(response) {
+		return !!(cfg.threeDs && cfg.threeDs.enabled) && sourceForToken(response) === 'card' && !isBlocksMode();
+	}
+
+	function billingValue(name) {
+		return $.trim($('form.checkout [name="billing_' + name + '"]').val() || '');
+	}
+
+	function threeDsFailure(message) {
+		submitting = false;
+		setHidden('cardz3n_payment_token', '');
+		setHidden('cardz3n_token_type', '');
+		$('form.checkout').removeClass('cardz3n-tokenized').children('input.cardz3n-mirror[name^="cardz3n_3ds_"]').remove();
+		showError(message);
+	}
+
+	// Tell the server a payment was stopped because 3-D Secure could not run (a reason code only, no card data).
+	function reportThreeDs(reason) {
+		try { $.post(cfg.ajaxUrl, { action: 'cardz3n_gw_3ds_report', nonce: cfg.nonce, reason: reason }); } catch (e) { /* best effort */ }
+	}
+
+	function runThreeDs(response) {
+		/*
+		 * Two modes (cfg.threeDs.mode). If 3-D Secure cannot run (Gateway.js did not load, the gateway is not enrolled for 3-D
+		 * Secure and reports an error, nothing answers within 20 seconds, the cardholder name is missing, or the call throws):
+		 *   - 'attempt': the payment goes on WITHOUT 3-D Secure (the server adds an order note);
+		 *   - 'required': the payment is stopped with a plain message and nothing is sent.
+		 * An authentication that the bank reports as FAILED stops the payment in both modes.
+		 */
+		var finished = false;
+		var timer = null;
+		var required = cfg.threeDs.mode === 'required';
+		var ui = null;
+		var origConsoleError = window.console && console.error;
+		var restore = function () {
+			if (window.console && origConsoleError) { console.error = origConsoleError; }
+			// Gateway.js allows one 3-D Secure instance at a time: unmount it so a retry can start a new one.
+			try { if (ui && typeof ui.unmount === 'function') { ui.unmount(); } } catch (e) { /* best effort */ }
+		};
+		var done = function (fn) { return function () { if (finished) { return; } finished = true; if (timer) { clearTimeout(timer); } restore(); fn.apply(null, arguments); }; };
+		// reason: script_unavailable | gateway_error | timeout | crash | name_missing. Required: report it (no order exists yet, so the
+		// server logs it and shows the merchant a notice) and stop. Attempt: go on, and the order note carries the reason.
+		var without = function (reason) {
+			done(function () {
+				if (required) {
+					reportThreeDs(reason);
+					threeDsFailure(reason === 'name_missing' ? cfg.i18n.threeDsNameRequired : cfg.i18n.threeDsRequired);
+					return;
+				}
+				onTokenReceived(response, { status: 'unavailable', reason: reason });
+			})();
+		};
+		if (!billingValue('first_name') || !billingValue('last_name')) {
+			without('name_missing');
+			return;
+		}
+		// No answer at all within 20 seconds: go on without. A challenge that is on screen replaces this with a longer limit (5 minutes), so
+		// a window that never finishes cannot hold the checkout for ever.
+		timer = setTimeout(function () { without('timeout'); }, 20000);
+		/*
+		 * Gateway.js reports some outcomes ONLY in the browser console, with no event (seen on the NMI demo account): a card that fails
+		 * authentication and is blocked by the gateway's Failed Authentication rule ("Blocked due to Failed Authentication rule"), and a
+		 * 3-D Secure processing error ("A 3DS error occurred"). Waiting for an event that never comes would end in the timeout above and,
+		 * in Attempt mode, a payment WITHOUT 3-D Secure for a card that just failed it. So these two messages are read from the console:
+		 * the first is a bank-reported failure (stops the payment in both modes), the second is an error (reason gateway_error).
+		 * ASSUMPTION T10: the wording of these messages; it is read only inside this check and the page console still shows them.
+		 */
+		if (window.console && origConsoleError) {
+			console.error = function () {
+				try {
+					var msg = Array.prototype.join.call(arguments, ' ');
+					if (/ThreeDSecureUI/.test(msg)) {
+						if (/Blocked due to Failed Authentication/i.test(msg)) { done(function () { threeDsFailure(cfg.i18n.threeDsFailed); })(); }
+						else if (/Payer Authentication Error|A 3DS error occurred|Error Processing/i.test(msg)) { without('gateway_error'); }
+					}
+				} catch (e) { /* never let the check break the console */ }
+				return origConsoleError.apply(console, arguments);
+			};
+		}
+		if (!window.Gateway || typeof window.Gateway.create !== 'function') {
+			without('script_unavailable');
+			return;
+		}
+		try {
+			var gateway = window.Gateway.create(cfg.threeDs.publicKey);
+			var options = {
+				paymentToken: response.token,
+				currency: cfg.currency || 'USD',
+				amount: getCartTotal(),
+				firstName: billingValue('first_name'),
+				lastName: billingValue('last_name'),
+				email: billingValue('email'),
+				phone: billingValue('phone'),
+				address1: billingValue('address_1'),
+				city: billingValue('city'),
+				state: billingValue('state'),
+				country: billingValue('country'),
+				postalCode: billingValue('postcode')
+			};
+			// '04' on the first-store transaction (a subscription or pre-order cart), as NMI says; otherwise no preference is sent.
+			if (cfg.threeDs.challengeIndicator) { options.challengeIndicator = cfg.threeDs.challengeIndicator; }
+			ui = gateway.get3DSecure().createUI(options);
+			// A challenge on screen means the shopper is taking part. If it is cancelled, closed or never finished, the shopper is NOT
+			// charged silently, in either mode: the payment stops with a plain message (limit: 5 minutes, filter
+			// cardz3n_gw_3ds_challenge_timeout_ms).
+			ui.on('challenge', function () {
+				if (timer) { clearTimeout(timer); }
+				timer = setTimeout(done(function () { threeDsFailure(cfg.i18n.threeDsFailed); }), cfg.threeDs.challengeTimeout || 300000);
+				$('#cardz3n-3ds-mount').addClass('is-challenge');
+			});
+			ui.on('complete', done(function (e) {
+				$('#cardz3n-3ds-mount').removeClass('is-challenge');
+				e = e || {};
+				// An "incomplete" result (for example the shopper pressed Cancel in the challenge) is not an authentication: stop.
+				var result = String(e.cardHolderAuth || e.cardholder_auth || '').toLowerCase();
+				if (/^(incomplete|cancel+ed|failed|rejected|unavailable)$/.test(result)) { threeDsFailure(cfg.i18n.threeDsFailed); return; }
+				onTokenReceived(response, {
+					status: 'complete',
+					cavv: e.cavv, xid: e.xid, eci: e.eci,
+					cardholder_auth: e.cardHolderAuth || e.cardholder_auth,
+					version: e.threeDsVersion || e.three_ds_version,
+					directory_server_id: e.directoryServerId || e.directory_server_id
+				});
+			}));
+			ui.on('failure', done(function () { threeDsFailure(cfg.i18n.threeDsFailed); }));
+			if (typeof gateway.on === 'function') {
+				gateway.on('error', function () { without('gateway_error'); });
+			}
+			ui.start('#cardz3n-3ds-mount');
+		} catch (err) {
+			if (window.console && console.warn) { console.warn('[CARDZ3N] 3-D Secure could not start, going on without it:', err && err.message ? err.message : err); }
+			without('crash');
+		}
+	}
+
+	function onTokenReceived(response, authentication) {
 		if (!response || !response.token) {
 			submitting = false;
 			showError(cfg.i18n.invalidFields);
+			return;
+		}
+		if (!authentication && threeDsApplies(response)) {
+			runThreeDs(response);
 			return;
 		}
 
@@ -579,6 +736,18 @@
 		mirror('cardz3n_token_type', sourceForToken(response));
 		mirror('cardz3n_payment_source', sourceForToken(response));
 		mirror('cardz3n_card_brand', cardBrand);
+		if (authentication) {
+			mirror('cardz3n_3ds_status', authentication.status);
+			if (authentication.reason) { mirror('cardz3n_3ds_reason', authentication.reason); }
+			if (authentication.status === 'complete') {
+				mirror('cardz3n_3ds_cavv', authentication.cavv);
+				mirror('cardz3n_3ds_xid', authentication.xid);
+				mirror('cardz3n_3ds_eci', authentication.eci);
+				mirror('cardz3n_3ds_cardholder_auth', authentication.cardholder_auth);
+				mirror('cardz3n_3ds_version', authentication.version);
+				mirror('cardz3n_3ds_directory_server_id', authentication.directory_server_id);
+			}
+		}
 
 		// Trigger the real submission; WC's own handler will send to the server.
 		$form.addClass('cardz3n-tokenized').trigger('submit');
@@ -599,6 +768,8 @@
 		$(document).on('checkout_error', function () {
 			setHidden('cardz3n_payment_token', '');
 			setHidden('cardz3n_token_type', '');
+			// 3-D Secure values belong to the token that was just used: never carry them to the next attempt.
+			$('form.checkout').children('input.cardz3n-mirror[name^="cardz3n_3ds_"]').remove();
 			submitting = false;
 			// 1.0.22 — also strip the cardz3n-tokenized marker so bindCheckoutForm's
 			// fast-path (line ~below) doesn't let a retry through WITHOUT a fresh

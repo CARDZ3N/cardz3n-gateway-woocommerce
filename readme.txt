@@ -79,6 +79,10 @@ This plugin connects to the CARDZ3N payment gateway, a white-labeled instance of
 * Google privacy policy: https://policies.google.com/privacy
 * Google Pay terms: https://payments.developers.google.com/terms/sellertos
 
+4. **Gateway.js, loaded from the CARDZ3N gateway host** (3-D Secure; optional, off by default) — only if the store owner turns on "3D Secure 2.0" in the plugin settings. A JavaScript library loaded in the shopper's browser from the CARDZ3N gateway host on checkout pages, which authenticates a new card with the card's issuer before it is charged. The shopper's browser contacts the gateway host and the card issuer's authentication service; the shopper's IP address, browser details and the card and billing details needed for the check are shared with them. Purpose: to authenticate the card before payment.
+* NMI privacy policy: https://www.nmi.com/policy/privacy/
+* CARDZ3N privacy policy: https://cardz3n.com/privacy-policy
+
 Your private Security Key is stored in WooCommerce gateway settings and is only used server-to-server. Your public Tokenization Key is exposed to the browser, as the Collect.js service requires, to drive Collect.js.
 
 No "powered by" text or promotional link is shown by default. An optional "Powered by CARDZ3N" checkout title can be switched on by the store owner in the plugin settings.
@@ -102,6 +106,10 @@ No. Card, ACH, and wallet data are tokenized by Collect.js, loaded from the CARD
 = Do I need a separate plugin for Apple Pay or Google Pay? =
 
 The plugin has Apple Pay and Google Pay settings. They are off by default, need HTTPS and domain registration set up with CARDZ3N, and have not yet been verified on real devices, so leave them off unless CARDZ3N has confirmed they are ready for your store.
+
+= Can I use 3D Secure (strong customer authentication)? =
+
+Optional, off by default. The plugin can ask the cardholder's bank to check a new card before it is charged. **Payer Authentication 2.0 must first be enabled on your CARDZ3N gateway account (with an eCommerce processor and your bank enrollment details; ask CARDZ3N support), and this plugin cannot enroll you.** Then choose a mode in the gateway settings: *Attempt* tries 3D Secure and takes the payment without it if it cannot run (the order note says so); *Required* stops every new card payment that cannot be authenticated, so it blocks all card payments until Payer Authentication is enabled; use Attempt until that is confirmed. A card that its bank reports as failed is always stopped. It covers new cards on the classic checkout payment form, including free trials and pre-orders; not saved cards, bank payments, Apple Pay, Google Pay, the My Account pages, the native block checkout or subscription renewals. The flow was verified against NMI's 3D Secure test environment; it has not been verified on CARDZ3N's own gateway host. The plugin makes no promise about liability or about meeting any regulation: ask your bank and CARDZ3N which payments you need to cover.
 
 = Does it support WooCommerce Subscriptions? =
 
