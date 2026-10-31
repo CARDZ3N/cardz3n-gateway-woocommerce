@@ -361,9 +361,9 @@ class Gateway extends \WC_Payment_Gateway_CC {
 
 		$warnings = array();
 
-		// 3-D Secure: Required blocks ALL card payments until Payer Authentication is enabled on the gateway account.
+		// 3-D Secure: Required blocks ALL new-card payments until Payer Authentication is enabled on the gateway account.
 		if ( Three_DS::required( $this->settings ) ) {
-			$warnings[] = __( '<strong>3D Secure is set to Required.</strong> Every card payment will be BLOCKED until Payer Authentication is enabled on your CARDZ3N gateway account. Use Attempt until that is confirmed with CARDZ3N support.', 'cardz3n-gateway' );
+			$warnings[] = __( '<strong>3D Secure is set to Required.</strong> Every new-card payment will be BLOCKED until Payer Authentication is enabled on your CARDZ3N gateway account. Use Attempt until that is confirmed with CARDZ3N support. Required applies to new-card payments only: payments with a saved card are not put through 3D Secure.', 'cardz3n-gateway' );
 		}
 		$blocked = Three_DS::recent_blocks();
 		if ( $blocked ) {
