@@ -588,6 +588,91 @@ class Api_Client {
 	}
 
 	/**
+	 * URL of the Query API: next to the transaction endpoint on the same gateway host, unless a filter says otherwise.
+	 */
+	public function query_endpoint() {
+		$endpoint = $this->endpoint();
+		$url      = ( '/api/transact.php' === substr( $endpoint, -strlen( '/api/transact.php' ) ) )
+			? substr( $endpoint, 0, -strlen( 'transact.php' ) ) . 'query.php'
+			: self::QUERY_URL;
+		return (string) apply_filters( 'cardz3n_gw_query_url', $url );
+	}
+
+	/**
+	 * Read the masked card (or bank account) details the gateway holds for a Customer Vault record.
+	 *
+	 * The sale reply does not carry card details, so this is where last4, brand and expiry come from. Read-only. Only the masked
+	 * values the gateway returns are kept (never a full number, never the vault record's other fields). Never throws.
+	 *
+	 * @param string $vault_id Customer vault ID.
+	 * @return array{ok:bool,number:string,exp:string,type:string,account:string,error:string}
+	 */
+	public function lookup_vault( $vault_id ) {
+		$fail = function ( $why ) {
+			return array(
+				'ok'      => false,
+				'number'  => '',
+				'exp'     => '',
+				'type'    => '',
+				'account' => '',
+				'error'   => $why,
+			);
+		};
+		$key = $this->security_key();
+		if ( '' === $key || '' === (string) $vault_id ) {
+			return $fail( 'no key or vault id' );
+		}
+		$response = wp_remote_post(
+			$this->query_endpoint(),
+			array(
+				'timeout'     => 15,
+				'redirection' => 0,
+				'httpversion' => '1.1',
+				'headers'     => array( 'Content-Type' => 'application/x-www-form-urlencoded' ),
+				'body'        => http_build_query(
+					array(
+						'security_key'      => $key,
+						'report_type'       => 'customer_vault',
+						'customer_vault_id' => (string) $vault_id,
+					),
+					'',
+					'&'
+				),
+				'cookies'     => array(),
+			)
+		);
+		if ( is_wp_error( $response ) ) {
+			return $fail( 'transport error' );
+		}
+		if ( 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+			return $fail( 'HTTP ' . (int) wp_remote_retrieve_response_code( $response ) );
+		}
+		$body = (string) wp_remote_retrieve_body( $response );
+		if ( '<' !== substr( ltrim( $body ), 0, 1 ) || ! function_exists( 'simplexml_load_string' ) ) {
+			return $fail( 'unexpected reply' ); // A plain-text reply is an API error (for example a key without Query permission).
+		}
+		$previous = libxml_use_internal_errors( true );
+		$xml      = simplexml_load_string( $body, 'SimpleXMLElement', LIBXML_NONET );
+		libxml_clear_errors();
+		libxml_use_internal_errors( $previous );
+		if ( false === $xml || isset( $xml->error_response ) ) {
+			return $fail( 'gateway returned an error' );
+		}
+		$customer = $xml->customer_vault->customer ?? null;
+		if ( ! $customer ) {
+			return $fail( 'vault record not found' );
+		}
+		return array(
+			'ok'      => true,
+			'number'  => (string) ( $customer->cc_number ?? '' ),
+			'exp'     => (string) ( $customer->cc_exp ?? '' ),
+			'type'    => (string) ( $customer->cc_type ?? '' ),
+			'account' => (string) ( $customer->check_account ?? '' ),
+			'error'   => '',
+		);
+	}
+
+	/**
 	 * Validate credentials (cheap no-op "validate" request).
 	 *
 	 * NMI will respond with code=3 "Invalid security key" when the key is wrong,
