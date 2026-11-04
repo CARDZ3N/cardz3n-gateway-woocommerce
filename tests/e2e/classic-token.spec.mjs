@@ -66,11 +66,13 @@ async function openCheckout(browser, mode) {
     requests.push({ t: Date.now(), body: route.request().postData() || '' });
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ result: 'failure', messages: '<ul class="woocommerce-error" role="alert"><li>e2e stub: request intercepted</li></ul>', refresh: false, reload: false }) });
   });
-  // Playground may log the browser in automatically; sign in only if the form is shown.
-  await page.goto(base + '/wp-login.php', { waitUntil: 'domcontentloaded' });
-  if (await page.locator('#user_login').count()) {
+  // The test site already signs the browser in as admin, so go to an admin page first. The login form is only used if the site bounces us
+  // to it (clicking its button was not reliable on the local test site: no request was sent in some runs).
+  const adminUrl = base + '/wp-admin/';
+  await page.goto(adminUrl, { waitUntil: 'domcontentloaded' });
+  if (/wp-login\.php/.test(page.url())) {
     await page.fill('#user_login', 'admin'); await page.fill('#user_pass', 'password');
-    await Promise.all([page.waitForURL(/wp-admin/), page.click('#wp-submit')]);
+    await Promise.all([page.waitForURL(/wp-admin/), page.press('#user_pass', 'Enter')]);
   }
   const pid = await page.evaluate(() => fetch('/wp-json/wc/store/v1/products').then((r) => r.json()).then((p) => p[0].id));
   await page.goto(`${base}/?add-to-cart=${pid}`);
