@@ -146,6 +146,7 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * New: a box for the Apple Pay domain verification file, with set-up steps. Apple Pay has not been verified on a real device.
 * Fixed: Google Pay is handed to the card form whenever it is switched on. It has not been verified on a real device.
 * Fixed: subscription card payments send the stored-card details the gateway expects.
+* Fixed: a card the customer chose to save is now listed under My Account > Payment methods (the plugin reads the masked card details from the gateway's saved-card record), and each order note says whether the card was saved.
 * Fixed: Apple Pay and Google Pay are not offered on subscription carts.
 * New: native block checkout for card payments, on by default for new installs. Stores that were set up earlier keep their current behavior until they switch "Native Block Checkout" on. ACH, Apple Pay, Google Pay and saved methods are not in the block checkout yet.
 * Fixed: on the classic checkout the order could be sent before the card details were turned into a token.
