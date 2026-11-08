@@ -105,6 +105,17 @@ No "powered by" text or promotional link is shown by default. An optional "Power
 
 No. Card, ACH, and wallet data are tokenized by Collect.js, loaded from the CARDZ3N gateway host, in the buyer's browser. Your WordPress server only receives a short-lived `payment_token` which is exchanged server-side for a charge. Your database stores only non-sensitive metadata (last 4 digits, expiry, brand) and a vault ID for tokenized reuse.
 
+= Merchant PCI notes =
+
+Collect.js loads from the CARDZ3N gateway host, and card data goes from the shopper's browser straight to the gateway, not to your server. This plugin does not make a store PCI compliant.
+
+Two PCI DSS requirements for payment pages are the merchant's responsibility:
+
+* 6.4.3: authorize each script on the payment page, check its integrity, and keep an inventory with a written reason. List Collect.js as the gateway's tokenization library.
+* 11.6.1: detect and alert on unauthorized changes to payment-page content and security-related HTTP headers.
+
+A Content Security Policy that allowlists the gateway host is a common way to support 6.4.3. Each merchant's assessor decides their own PCI validation path.
+
 = Do I need a separate plugin for Apple Pay or Google Pay? =
 
 No. Apple Pay and Google Pay are optional features of this plugin and appear in the same gateway panel when you switch them on. They need HTTPS and domain registration, and only show on supported devices and browsers.
