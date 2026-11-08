@@ -173,6 +173,8 @@
 								cardz3n_token_type     : 'card',
 								cardz3n_payment_token  : response.token,
 								cardz3n_card_brand     : ( response.card && response.card.type ) ? response.card.type : '',
+								cardz3n_card_last4     : ( response.card && /^\d{4}$/.test( String( response.card.number || '' ).slice( -4 ) ) ) ? String( response.card.number ).slice( -4 ) : '',
+								cardz3n_card_exp       : ( response.card && /^\d{4}$/.test( String( response.card.exp || '' ) ) ) ? String( response.card.exp ) : '',
 								cardz3n_saved_token_id : ''
 							}
 						}
