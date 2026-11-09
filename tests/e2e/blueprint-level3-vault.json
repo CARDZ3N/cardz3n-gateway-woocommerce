@@ -1,0 +1,33 @@
+{
+ "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+ "landingPage": "/",
+ "steps": [
+  {
+   "step": "mkdir",
+   "path": "/wordpress/wp-content/mu-plugins"
+  },
+  {
+   "step": "installPlugin",
+   "pluginData": {
+    "resource": "wordpress.org/plugins",
+    "slug": "woocommerce"
+   },
+   "options": {
+    "activate": true
+   }
+  },
+  {
+   "step": "activatePlugin",
+   "pluginPath": "cardz3n-gateway/cardz3n-gateway-woocommerce.php"
+  },
+  {
+   "step": "runPHP",
+   "code": "<?php\nrequire_once '/wordpress/wp-load.php';\nupdate_option( 'woocommerce_coming_soon', 'no' ); update_option( 'woocommerce_currency', 'USD' ); update_option( 'woocommerce_default_country', 'US:CA' );\n// Placeholder values only: this test never talks to the real gateway (Collect.js and the gateway calls are stand-ins).\nupdate_option( 'woocommerce_cardz3n_gateway_settings', array( 'enabled' => 'yes', 'test_mode' => 'yes', 'enable_cards' => 'yes', 'enable_ach' => 'no', 'enable_apple_pay' => 'no', 'enable_google_pay' => 'no', 'enable_saved_methods' => 'yes', 'enable_level3' => 'yes', 'debug_mode' => 'no', 'test_security_key' => 'e2e-placeholder-security-key', 'test_tokenization_key' => 'e2e-placeholder-tokenization-key' ) );\n$p = new WC_Product_Simple(); $p->set_name( 'E2E Test Item' ); $p->set_regular_price( '1.00' ); $p->set_status( 'publish' ); $pid = $p->save();\nwp_insert_post( array( 'post_title' => 'Checkout Classic', 'post_name' => 'checkout-classic', 'post_status' => 'publish', 'post_type' => 'page', 'post_content' => '[woocommerce_checkout]' ) );\nwp_insert_user( array( 'user_login' => 'shopper', 'user_pass' => 'e2e-shopper-pass-1', 'user_email' => 'shopper@example.invalid', 'role' => 'customer' ) );\necho 'E2E_SETUP_OK ' . $pid;"
+  },
+  {
+   "step": "writeFile",
+   "path": "/wordpress/wp-content/mu-plugins/e2e-level3-vault.php",
+   "data": "<?php\n// E2E probe (test only): stands in for the gateway. Records which customer fields the plugin sends (flags only, never a key, token or card number).\n// It declines a request that carries a customer_vault_id AND a customer_id/customerid that differs from it, with the gateway's own wording\n// (shown by the NMI sandbox: \"customer_id conflicts with customer_vault_id!\"). Everything else is approved. The sale reply has a vault id and no card fields.\nadd_filter( 'pre_http_request', function ( $pre, $args, $url ) {\n\t$url = (string) $url;\n\t$is_tx = ( false !== strpos( $url, 'transact.php' ) );\n\t$is_q  = ( false !== strpos( $url, 'query.php' ) );\n\tif ( ! $is_tx && ! $is_q ) { return $pre; }\n\tparse_str( is_string( $args['body'] ) ? $args['body'] : http_build_query( (array) $args['body'] ), $b );\n\t$log = get_option( 'cz_log', array() );\n\t$ok = array( 'headers' => array(), 'response' => array( 'code' => 200, 'message' => 'OK' ), 'cookies' => array(), 'filename' => null );\n\tif ( $is_q ) {\n\t\treturn $ok + array( 'body' => '<?xml version=\"1.0\" encoding=\"UTF-8\"?><nm_response><customer_vault><customer id=\"x\"><customer_vault_id>V1</customer_vault_id><cc_number>4xxxxxxxxxxx1111</cc_number><cc_exp>1230</cc_exp><cc_type>Visa</cc_type></customer></customer_vault></nm_response>' );\n\t}\n\t$cid = $b['customerid'] ?? ( $b['customer_id'] ?? null );\n\t$vid = $b['customer_vault_id'] ?? null;\n\t$conflict = ( null !== $cid && null !== $vid && (string) $cid !== (string) $vid );\n\t$log[] = array( 'call' => 'sale', 'customer_vault' => $b['customer_vault'] ?? null, 'has_vault_id' => null !== $vid, 'has_customerid' => isset( $b['customerid'] ), 'has_customer_id' => isset( $b['customer_id'] ), 'has_token' => ! empty( $b['payment_token'] ), 'type' => $b['type'] ?? null, 'conflict' => $conflict );\n\tupdate_option( 'cz_log', $log, false );\n\tif ( $conflict ) {\n\t\treturn $ok + array( 'body' => 'response=3&responsetext=customer_id conflicts with customer_vault_id! REFID:328220953&response_code=300' );\n\t}\n\t$body = 'response=1&responsetext=SUCCESS&authcode=123456&transactionid=T' . wp_rand( 1000, 9999 ) . '&avsresponse=N&cvvresponse=M&orderid=' . ( $b['orderid'] ?? '' ) . '&type=sale&response_code=100';\n\tif ( ! empty( $b['customer_vault'] ) ) { $body .= '&customer_vault_id=V' . wp_rand( 100000, 999999 ); }\n\treturn $ok + array( 'body' => $body );\n}, 10, 3 );\nadd_action( 'wp_loaded', function () {\n\tif ( isset( $_GET['cz_reset'] ) ) { delete_option( 'cz_log' ); header( 'Content-Type: application/json' ); echo '{\"ok\":true}'; exit; }\n\tif ( empty( $_GET['cz_state'] ) ) { return; }\n\theader( 'Content-Type: application/json' );\n\t$u = get_user_by( 'login', 'shopper' );\n\t$orders = wc_get_orders( array( 'customer_id' => $u->ID, 'limit' => 1, 'orderby' => 'id', 'order' => 'DESC' ) );\n\t$o = $orders ? $orders[0] : null;\n\t$notes = $o ? array_map( function ( $n ) { return preg_replace( '/\\s+/', ' ', wp_strip_all_tags( $n->content ) ); }, wc_get_order_notes( array( 'order_id' => $o->get_id() ) ) ) : array();\n\t$toks = array_map( function ( $t ) { return array( 'id' => $t->get_id(), 'last4' => $t->get_last4() ); }, array_values( WC_Payment_Tokens::get_customer_tokens( $u->ID, 'cardz3n_gateway' ) ) );\n\techo wp_json_encode( array( 'user_id' => $u->ID, 'order_id' => $o ? $o->get_id() : 0, 'order_status' => $o ? $o->get_status() : null, 'notes' => $notes, 'tokens' => $toks, 'gateway_calls' => get_option( 'cz_log', array() ) ) );\n\texit;\n} );\n"
+  }
+ ]
+}

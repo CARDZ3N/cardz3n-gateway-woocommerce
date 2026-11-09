@@ -522,6 +522,16 @@ class Api_Client {
 			}
 		}
 
+		/*
+		 * The gateway declines a request that has a vault field and a customer id that is not the same value as the
+		 * vault id: "customer_id conflicts with customer_vault_id!" (seen on the NMI sandbox). Level 3 data adds
+		 * `customerid` (the WordPress user id) to every sale, so drop it from any request that stores or uses a vault.
+		 * Requests without a vault field keep it.
+		 */
+		if ( isset( $payload['customer_vault'] ) || isset( $payload['customer_vault_id'] ) ) {
+			unset( $payload['customerid'], $payload['customer_id'] );
+		}
+
 		return $this->post( $payload );
 	}
 
