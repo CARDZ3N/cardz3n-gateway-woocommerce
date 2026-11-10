@@ -273,8 +273,8 @@ trait Settings_Trait {
 				'default' => '',
 			),
 			'allowed_card_brands'       => array(
-				'title'    => __( 'Card Brand Logos Shown', 'cardz3n-gateway' ),
-				'description' => __( 'Choose which card brand logos appear under the card fields. This only changes the logos shown: the plugin does not block any card brand.', 'cardz3n-gateway' ),
+				'title'    => __( 'Accepted Card Brands', 'cardz3n-gateway' ),
+				'description' => __( 'The card brands your store accepts. Their logos are shown under the card fields. Cards of other brands are refused only when "Block Other Card Brands" below is ticked; otherwise every card is accepted.', 'cardz3n-gateway' ),
 				'type'     => 'multiselect',
 				'class'    => 'wc-enhanced-select',
 				'options'  => array(
@@ -302,12 +302,8 @@ trait Settings_Trait {
 				'default'     => 'no',
 				'desc_tip'    => true,
 			),
-			'gateway_receipts'          => array(
-				'title'   => __( 'Gateway Receipts', 'cardz3n-gateway' ),
-				'type'    => 'checkbox',
-				'label'   => __( 'Also send the gateway-generated receipt email (WooCommerce receipt is primary).', 'cardz3n-gateway' ),
-				'default' => 'no',
-			),
+			// The old `gateway_receipts` checkbox did nothing (it was saved but never read) and is gone from this screen; a value saved by an
+			// earlier version stays in the stored settings and is ignored.
 			// The old `enable_3ds` checkbox did nothing and is gone from this screen; a value saved by an earlier version stays in the stored
 			// settings and is ignored. This is a new, separate setting, so a store that ticked the old box does not get 3-D Secure switched on.
 			'three_d_secure_mode'       => array(

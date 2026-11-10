@@ -36,6 +36,8 @@ const stubCollect = (card) => `(function(){var cfg=null;window.CollectJS={config
 const results = [];
 const check = (name, ok, detail = '') => { results.push({ name, ok }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  (' + detail + ')' : ''}`); };
 const j = (x) => JSON.stringify(x);
+const only = process.env.CASES ? process.env.CASES.split(',') : null; // optional: run only some of the cases, e.g. CASES=2,8
+const on = (n) => !only || only.includes(String(n));
 const calls = (st) => st.gateway_calls.map((c) => c.call).join(',');
 
 async function state(ctx) { return (await ctx.request.get(base + '/?cz_state=1')).json(); }
@@ -58,13 +60,18 @@ async function checkout(browser, cfg, { brand = 'visa', saved = false } = {}) {
   await page.goto(base + '/checkout-classic/'); await page.waitForSelector('form.checkout');
   for (const [id, v] of Object.entries({ billing_first_name: 'E2E', billing_last_name: 'Tester', billing_address_1: '888', billing_city: 'Los Angeles', billing_postcode: '90001', billing_phone: '5555550100', billing_email: 'e2e@example.com' })) await page.locator('#' + id).fill(v);
   await page.waitForTimeout(4000);
-  if (saved) { await page.locator(`input[name="wc-cardz3n_gateway-payment-token"][value="${seeded}"]`).check(); }
+  if (saved) { // the saved cards sit on their own tab
+    const tab = page.locator('.cardz3n-tabs .cardz3n-tab[data-target="saved"]');
+    if (await tab.count()) { await tab.click(); await page.waitForTimeout(1500); }
+    await page.locator('input[name="wc-cardz3n_gateway-payment-token"]:not([value="new"])').first().check();
+  }
   await page.locator('#place_order').click();
   await Promise.race([page.waitForURL(/order-received/, { timeout: 90000 }), page.locator('.woocommerce-error').first().waitFor({ timeout: 90000 })]).catch(() => {});
   await page.waitForTimeout(1500);
   const reached = page.url().includes('order-received');
-  const shown = (await page.locator('.woocommerce-error').allInnerTexts()).join(' ').replace(/\s+/g, ' ');
   const st = await state(ctx);
+  const shown = (await page.locator('.woocommerce-NoticeGroup, .woocommerce-error, [role="alert"]').allInnerTexts()).join(' ').replace(/\s+/g, ' ');
+  if (process.env.DEBUG_BRAND) { console.log('DEBUG url=' + page.url() + ' notices=' + shown.slice(0, 300) + ' | calls=' + JSON.stringify(st.gateway_calls) + ' | notes=' + JSON.stringify(st.notes).slice(0, 400) + ' | inputs=' + (await page.locator('#payment input[type=radio]').evaluateAll((els) => els.map((e) => e.name + '=' + e.value + (e.checked ? '*' : '')).join(' ')))); }
   await ctx.close();
   return { reached, shown, st };
 }
@@ -75,48 +82,48 @@ try {
   const ONLY = 'cz_enf=yes&cz_allow=visa,mastercard';
 
   // 1) Default: the setting was never saved, so nothing is blocked (a Discover card is accepted).
-  { const r = await checkout(browser, 'cz_set=ok', { brand: 'discover' });
+  if (on(1)) { const r = await checkout(browser, 'cz_set=ok', { brand: 'discover' });
     check('1 Default (not ticked): a Discover card is accepted and the order completes', r.reached && r.st.order_status === 'processing', r.st.order_status);
     check('1 Default: no void is sent', calls(r.st) === 'sale', calls(r.st)); }
 
   // 2) Ticked, only Visa and Mastercard chosen, the browser says Discover: refused before any gateway call.
-  { const r = await checkout(browser, `cz_set=ok&${ONLY}`, { brand: 'discover' });
+  if (on(2)) { const r = await checkout(browser, `cz_set=ok&${ONLY}`, { brand: 'discover' });
     check('2 Blocked brand from the browser: the shopper sees a clear message', /does not accept Discover cards/.test(r.shown), r.shown.slice(0, 160));
     check('2 Nothing is sent to the gateway (no charge, no void)', calls(r.st) === '', calls(r.st));
     check('2 The order is not paid', !r.reached && r.st.order_status !== 'processing' && r.st.order_status !== 'completed', r.st.order_status); }
 
   // 3) Ticked, a chosen brand is accepted.
-  { const r = await checkout(browser, `cz_set=ok&${ONLY}`, { brand: 'visa' });
+  if (on(3)) { const r = await checkout(browser, `cz_set=ok&${ONLY}`, { brand: 'visa' });
     check('3 An accepted brand (Visa) completes the order', r.reached && r.st.order_status === 'processing', r.st.order_status);
     check('3 One sale, no void', calls(r.st) === 'sale', calls(r.st)); }
 
   // 4) Ticked, but the brand is unknown: never blocked on a guess.
-  { const r = await checkout(browser, `cz_set=ok&${ONLY}`, { brand: '' });
+  if (on(4)) { const r = await checkout(browser, `cz_set=ok&${ONLY}`, { brand: '' });
     check('4 An unidentified brand is not blocked', r.reached && r.st.order_status === 'processing', r.st.order_status); }
 
   // 5) Ticked with an empty list: nothing is blocked (never turn away every card).
-  { const r = await checkout(browser, 'cz_set=ok&cz_enf=yes&cz_allow=', { brand: 'discover' });
+  if (on(5)) { const r = await checkout(browser, 'cz_set=ok&cz_enf=yes&cz_allow=', { brand: 'discover' });
     check('5 Ticked with no brand chosen: nothing is blocked', r.reached && r.st.order_status === 'processing', r.st.order_status); }
 
   // 6) The browser says Visa, but the approved reply names Discover: the charge is voided at once.
-  { const r = await checkout(browser, `cz_set=disc_reply&${ONLY}`, { brand: 'visa' });
+  if (on(6)) { const r = await checkout(browser, `cz_set=disc_reply&${ONLY}`, { brand: 'visa' });
     check('6 Brand only known from the reply: the charge is voided (sale, then void)', calls(r.st) === 'sale,void', calls(r.st));
     check('6 The order is not paid and the shopper sees the message', !r.reached && /does not accept Discover cards/.test(r.shown) && r.st.order_status !== 'processing', `${r.st.order_status} | ${r.shown.slice(0, 120)}`);
     check('6 The order note says the payment was voided', r.st.notes.some((n) => /payment was voided: a Discover card is not accepted/.test(n)), j(r.st.notes)); }
 
   // 7) Same, but the void is declined: the order is held with an ACTION NEEDED note.
-  { const r = await checkout(browser, `cz_set=disc_reply_voidfail&${ONLY}`, { brand: 'visa' });
+  if (on(7)) { const r = await checkout(browser, `cz_set=disc_reply_voidfail&${ONLY}`, { brand: 'visa' });
     check('7 A failed void puts the order on hold', r.st.order_status === 'on-hold', r.st.order_status);
     check('7 The note says ACTION NEEDED, names the brand and says to void it by hand', r.st.notes.some((n) => /ACTION NEEDED.*Discover.*Void or refund this transaction at the gateway by hand/.test(n)), j(r.st.notes));
     check('7 The shopper is told to contact the store', /contact the store/.test(r.shown), r.shown.slice(0, 120)); }
 
   // 8) A saved card of a refused brand: refused before any gateway call.
-  { const r = await checkout(browser, `cz_set=ok&${ONLY}`, { saved: true });
+  if (on(8)) { const r = await checkout(browser, `cz_set=ok&${ONLY}`, { saved: true });
     check('8 A saved Discover card is refused with the message', /does not accept Discover cards/.test(r.shown), r.shown.slice(0, 160));
     check('8 Nothing is sent to the gateway', calls(r.st) === '', calls(r.st)); }
 
   // 9) The same saved card when the setting is off: it is used normally.
-  { const r = await checkout(browser, 'cz_set=ok&cz_enf=no', { saved: true });
+  if (on(9)) { const r = await checkout(browser, 'cz_set=ok&cz_enf=no', { saved: true });
     check('9 Setting off: the saved Discover card pays normally', r.reached && r.st.order_status === 'processing', r.st.order_status); }
 
   await browser.close();
