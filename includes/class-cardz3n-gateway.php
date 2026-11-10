@@ -1679,7 +1679,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	/**
 	 * An approved charge turned out to be a refused brand: void it. If the void fails, hold the order and say how to fix it.
 	 *
-	 * @param \WC_Order $order    Order.
+	 * @param \WC_Order  $order    Order.
 	 * @param Api_Client $client   Gateway client.
 	 * @param array      $response Approved gateway response.
 	 * @param string     $brand    Brand the gateway reported.
