@@ -41,6 +41,11 @@ const main = read('cardz3n-gateway-woocommerce.php');
 const headerDesc = main.split('\n').find((l) => /^\s*\* Description:/.test(l)) || '';
 /pre-?order/i.test(headerDesc) ? fail('plugin header Description names pre-orders') : ok('plugin header Description: no pre-order claim');
 
+// Subscriptions: never claim a test with the real WooCommerce Subscriptions plugin; say the behaviour is covered by automated stand-in tests.
+const subLines = lines.filter((l) => /subscriptions/i.test(l) && /(tested|verified|certified)/i.test(l) && !/(not been tested|not tested|not yet tested|stand-in)/i.test(l));
+subLines.length ? fail('readme.txt claims a Subscriptions test: ' + subLines[0].slice(0, 90)) : ok('readme.txt: no claim of a test with the real Subscriptions plugin');
+/automated stand-in tests/.test(claims) && /not been tested with the real WooCommerce Subscriptions plugin/.test(claims) ? ok('readme.txt: Subscriptions say stand-in tests only') : fail('readme.txt: the Subscriptions text must say it is covered by automated stand-in tests and not tested with the real plugin');
+
 // The newest changelog entries.
 const cl = read('changelog.txt').split(/\n\d{4}-\d{2}-\d{2} - version /)[1] || '';
 /pre-?orders?\b/i.test(cl.replace(/(Subscriptions or Pre-Orders|Pre-Orders is active|Pre-Orders active)/gi, '')) ? fail('changelog.txt (newest entry) claims Pre-Orders') : ok('changelog.txt: newest entry has no Pre-Orders claim');

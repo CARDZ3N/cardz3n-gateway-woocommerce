@@ -205,7 +205,7 @@ trait Settings_Trait {
 				'title'   => __( 'Subscriptions Support', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
 				'label'   => __( 'Enable recurring billing when WooCommerce Subscriptions is installed.', 'cardz3n-gateway' ),
-				'description' => __( 'Checking this box only enables the option. WooCommerce Subscriptions must be installed and active, and recurring billing must also be activated in your CARDZ3N account, for this to actually work.', 'cardz3n-gateway' ),
+				'description' => __( 'Checking this box only enables the option. WooCommerce Subscriptions must be installed and active, and recurring billing must also be activated in your CARDZ3N account, for this to actually work. Subscription behaviour is covered by automated stand-in tests; it has not been tested with the real WooCommerce Subscriptions plugin.', 'cardz3n-gateway' ),
 				'default' => 'no',
 			),
 			'enable_preorders'          => array(

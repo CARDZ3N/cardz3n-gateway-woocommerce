@@ -23,7 +23,7 @@ B2B merchants benefit from **automatic Level 2 and Level 3 commercial-card data*
 * Embedded, on-site checkout — no redirect
 * Credit / debit card, ACH / eCheck and saved payment methods, all in one gateway UI
 * Saved payment methods (card + ACH), stored in a secure vault
-* WooCommerce Subscriptions, card payments only: the card is saved at sign-up, renewals are charged from it, free trials save the card without charging it, customers can change their payment method
+* WooCommerce Subscriptions, card payments only: the card is saved at sign-up, renewals are charged from it, free trials save the card without charging it, customers can change their payment method (covered by automated stand-in tests)
 * Authorize-only + manual capture, void, full and partial refunds
 * Auto-capture on order-status change
 * Dynamic descriptor with optional per-order suffix
@@ -124,7 +124,7 @@ Optional, off by default. The plugin can ask the cardholder's bank to check a ne
 
 = Does it support WooCommerce Subscriptions? =
 
-Yes, for card payments, when the WooCommerce Subscriptions extension is installed and the "Subscriptions Support" setting is switched on. The card is saved when the customer signs up (there is no box to tick) and is used for every renewal. A free trial saves the card without charging it. Customers can change their payment method. Bank (ACH) payments are not available for subscriptions. WooCommerce Pre-Orders is not yet verified with this gateway.
+Yes, for card payments, when the WooCommerce Subscriptions extension is installed and the "Subscriptions Support" setting is switched on. The card is saved when the customer signs up (there is no box to tick) and is used for every renewal. A free trial saves the card without charging it. Customers can change their payment method. Bank (ACH) payments are not available for subscriptions. WooCommerce Pre-Orders is not yet verified with this gateway. The subscription behaviour is covered by the plugin's automated stand-in tests; it has not been tested with the real WooCommerce Subscriptions plugin.
 
 = What is Level 3 data and why does it matter? =
 
@@ -167,7 +167,7 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * Fixed: Test Mode no longer uses your live keys. With no test keys the gateway is hidden until you add them.
 * Fixed: Debug Mode no longer logs payment tokens, vault IDs or customer details.
 * Fixed: a declined card on the block checkout shows a clear message; switched-off payment methods are refused on the server; Capture only works on capturable orders; a repeated submit no longer charges twice.
-* New: WooCommerce Subscriptions with card payments. The card is saved at sign-up, renewals are charged from it, free trials save the card without charging it, customers can change their payment method, and failed renewals can be retried. The block checkout offers subscription carts too.
+* New: WooCommerce Subscriptions with card payments. The card is saved at sign-up, renewals are charged from it, free trials save the card without charging it, customers can change their payment method, and failed renewals can be retried. The block checkout offers subscription carts too. This is covered by automated stand-in tests; it has not been tested with the real WooCommerce Subscriptions plugin.
 * Changed: the native block checkout is off by default for new installs that have WooCommerce Subscriptions or Pre-Orders active (a saved choice always wins), and the gateway settings page warns when such a plugin is active but its support switch is off.
 * Changed: the plugin is now named "CARDZ3N for WooCommerce", and the readme Privacy and External services sections were rewritten.
 
