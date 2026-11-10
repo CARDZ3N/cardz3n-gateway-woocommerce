@@ -2,7 +2,8 @@
 //
 // Claims that are NOT yet proven stay out of the public text (see the register kept by the maintainers):
 //   - WooCommerce Pre-Orders at release (only "not yet verified" may appear),
-//   - Apple Pay / Google Pay working (they may appear only in the FAQ, as off-by-default settings not yet verified on real devices),
+//   - Apple Pay / Google Pay beyond what is proven: single purchases on the classic checkout, not on subscription or pre-order carts, tested once
+//     each in Test Mode from a mobile device (never "real devices", never production or certified),
 //   - 3-D Secure beyond what is proven: it may be named only with its limits (new cards on the classic checkout, Payer Authentication first,
 //     verified on a 3-D Secure test environment, not on CARDZ3N's own host) and never as compliance, liability protection or SCA cover,
 //   - the gateway using card-on-file / stored-credential fields (internal detail, never a public claim).
@@ -21,18 +22,24 @@ const lines = claims.split('\n');
 
 const bad = (re, allow) => lines.filter((l) => re.test(l) && !(allow && allow.test(l)));
 
-let b = bad(/pre-?orders?/i, /not yet verified/i);
+let b = bad(/pre-?orders?/i, /not yet verified|not offered on subscription or pre-order carts|not on subscription or pre-order carts/i);
 b.length ? fail('readme.txt claims Pre-Orders: ' + b[0].slice(0, 90)) : ok('readme.txt: no Pre-Orders claim (only "not yet verified")');
 b = bad(/compliant|compliance|liability shift|PSD2|guarantee|fully protected/i, /makes no promise about liability or about meeting any regulation|does not make a store PCI compliant/);
 b.length ? fail('readme.txt makes a compliance or protection claim: ' + b[0].slice(0, 90)) : ok('readme.txt: no compliance or protection claim');
 const faq3 = lines.find((l) => /^Optional, off by default\. The plugin can ask the cardholder's bank/.test(l)) || '';
 (/Payer Authentication 2\.0 must first be enabled/.test(faq3) && /verified against a 3D Secure test environment \(a shared demo account\)/.test(faq3) && /not been verified on CARDZ3N's own gateway host/.test(faq3) && /makes no promise about liability/.test(faq3) && /not saved cards, bank payments/.test(faq3) && /Saved cards are not put through 3D Secure, so Required applies to new-card payments only/.test(faq3) && !/blocks all card payments/.test(faq3)) ? ok('readme.txt: the 3-D Secure FAQ states its limits (Payer Authentication first, NMI test environment only, no promise)') : fail('readme.txt: the 3-D Secure FAQ is missing a required limit');
-b = bad(/3-?D Secure|3DS|SCA\b/i, /^= Can I use 3D Secure \(strong customer authentication\)\? =$|^Optional, off by default\. The plugin can ask the cardholder's bank/);
+b = bad(/3-?D Secure|3DS|SCA\b/i, /^= Can I use 3D Secure \(strong customer authentication\)\? =$|^Optional, off by default\. The plugin can ask the cardholder's bank|^\* Optional 3-D Secure \(Off, Attempt or Required\) for new card payments on the classic checkout$/);
 b.length ? fail('readme.txt names 3-D Secure outside its FAQ: ' + b[0].slice(0, 90)) : ok('readme.txt: 3-D Secure appears only in its FAQ');
 b = bad(/card-on-file|stored[- ]credential|initiated_by|initial_transaction/i);
 b.length ? fail('readme.txt shows an internal card-on-file detail: ' + b[0].slice(0, 90)) : ok('readme.txt: no card-on-file claim');
-b = bad(/apple pay|google pay/i, /^= Do I need a separate plugin for Apple Pay or Google Pay\? =$|^The plugin has Apple Pay and Google Pay settings\. .*have not yet been verified on real devices|^Optional, off by default\. The plugin can ask the cardholder's bank/); // only the FAQ may name wallets, and only with the caveat
-b.length ? fail('readme.txt names a wallet outside the FAQ caveat: ' + b[0].slice(0, 90)) : ok('readme.txt: Apple Pay / Google Pay appear only in the FAQ, with the "not yet verified on real devices" caveat');
+b = bad(/apple pay|google pay/i, /^= Do I need a separate plugin for Apple Pay or Google Pay\? =$|single purchases on the classic checkout|^Optional, off by default\. The plugin can ask the cardholder's bank/); // a wallet may only be named with its limits
+b.length ? fail('readme.txt names a wallet without its limits: ' + b[0].slice(0, 90)) : ok('readme.txt: Apple Pay / Google Pay are named only with their limits (single purchases, classic checkout)');
+const walletFaq = lines.find((l) => /^The plugin has Apple Pay and Google Pay settings\./.test(l)) || '';
+(/single purchases on the classic checkout, not on subscription or pre-order carts, and were tested once each in Test Mode from a mobile device/.test(walletFaq) && !/real device|production|certified/i.test(walletFaq)) ? ok('readme.txt: the wallet FAQ states single purchases, classic checkout, no subscription or pre-order carts, tested once each in Test Mode from a mobile device') : fail('readme.txt: the wallet FAQ is missing a required limit or overclaims');
+b = bad(/real device|production[- ]verified|certified/i);
+b.length ? fail('readme.txt makes a real-device or certification claim: ' + b[0].slice(0, 90)) : ok('readme.txt: no real-device or certification claim');
+b = bad(/Level 2|Level II|\bL2\b|every transaction|secure vault|no card data|card-brand restriction/i);
+b.length ? fail('readme.txt uses retired or unproven wording: ' + b[0].slice(0, 90)) : ok('readme.txt: no "Level 2", "every transaction", "secure vault", "no card data" or card-brand restriction wording');
 
 // Short description and header: no wallet or pre-order claim.
 const short = (readme.match(/^Embedded WooCommerce checkout[^\n]*/m) || [''])[0];
@@ -48,13 +55,19 @@ subLines.length ? fail('readme.txt claims a Subscriptions test: ' + subLines[0].
 
 // The newest changelog entries.
 const cl = read('changelog.txt').split(/\n\d{4}-\d{2}-\d{2} - version /)[1] || '';
-/pre-?orders?\b/i.test(cl.replace(/(Subscriptions or Pre-Orders|Pre-Orders is active|Pre-Orders active)/gi, '')) ? fail('changelog.txt (newest entry) claims Pre-Orders') : ok('changelog.txt: newest entry has no Pre-Orders claim');
+/pre-?orders?\b/i.test(cl.replace(/(Subscriptions or Pre-Orders|Pre-Orders is active|Pre-Orders active|not on subscription or pre-order carts)/gi, '')) ? fail('changelog.txt (newest entry) claims Pre-Orders') : ok('changelog.txt: newest entry has no Pre-Orders claim');
 const cl3 = cl.split('\n').filter((l) => /3-?D Secure/i.test(l));
 (cl3.every((l) => /Payer Authentication must be switched on/.test(l) && /are not authenticated/.test(l) && /Required applies to new-card payments only/.test(l) && /Saved cards are not put through 3-D Secure/.test(l)) && !/compliant|compliance|liability|verified on CARDZ3N|SCA\b/i.test(cl3.join(' '))) ? ok('changelog.txt: 3-D Secure appears only with its limits, no compliance claim') : fail('changelog.txt (newest entry) overclaims 3-D Secure');
 
 // README.md
 const md = read('README.md');
-/pre-?order/i.test(md.split('\n').filter((l) => !/\.php/.test(l)).join('\n')) ? fail('README.md names pre-orders') : ok('README.md: no pre-order claim');
+/pre-?order/i.test(md.split('\n').filter((l) => !/\.php|single purchases on the classic checkout/.test(l)).join('\n')) ? fail('README.md names pre-orders') : ok('README.md: no pre-order claim (only the wallet limit "not offered on subscription or pre-order carts")');
+/Level 2|Level II|\bL2\b|every transaction|secure vault|no card data/i.test(md) ? fail('README.md uses retired wording (Level 2, every transaction, secure vault, no card data)') : ok('README.md: no "Level 2", "every transaction", "secure vault" or "no card data" wording');
+/Level 2|Level II|\bL2\b/i.test(headerDesc) ? fail('plugin header Description names Level 2') : ok('plugin header Description: no Level 2');
+const settingsPhp = read('includes/traits/trait-cardz3n-settings.php');
+/Visa retired|every transaction when applicable|Accepted Card Brands/.test(settingsPhp) ? fail('settings text still has the Level 2 sentence, "every transaction" or the "Accepted Card Brands" label') : ok('settings text: no Level 2 sentence, no "every transaction", brand setting is logos only');
+const wl = cl.split('\n').filter((l) => /apple pay|google pay/i.test(l) && /(verified|tested)/i.test(l) && !/3-?D Secure/i.test(l)); // entries that say what was verified or tested
+(wl.length > 0 && wl.every((l) => /single purchases on the classic checkout, not on subscription or pre-order carts, and was tested once in Test Mode from a mobile device/.test(l) && !/real device/i.test(l))) ? ok('changelog.txt: wallet entries state their limits, no real-device wording') : fail('changelog.txt (newest entry): a wallet entry is missing its limits or says "real device"');
 
 console.log(`\n${failed} problem(s)`);
 process.exit(failed ? 1 : 0);

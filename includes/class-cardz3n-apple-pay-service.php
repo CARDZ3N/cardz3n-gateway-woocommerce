@@ -143,7 +143,7 @@ class Apple_Pay_Service {
 		$have  = '' !== self::stored_file();
 		$url   = self::url();
 
-		$html  = '<strong>' . esc_html__( 'Apple Pay and Google Pay are optional and have not yet been verified on real devices.', 'cardz3n-gateway' ) . '</strong> ';
+		$html  = '<strong>' . esc_html__( 'Apple Pay and Google Pay are optional. They are offered for single purchases on the classic checkout, not on subscription or pre-order carts, and were tested once each in Test Mode from a mobile device.', 'cardz3n-gateway' ) . '</strong> ';
 		$html .= esc_html__( 'Apple Pay only appears for a shopper on an iPhone, iPad or Mac using Safari with a card in Apple Wallet. You set it up yourself in the gateway control panel, in these steps:', 'cardz3n-gateway' );
 		$html .= '<ol style="margin:8px 0 8px 20px;list-style:decimal;">';
 		$html .= '<li>' . esc_html__( 'The store address must start with https://.', 'cardz3n-gateway' ) . '</li>';

@@ -8,7 +8,7 @@ Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Embedded WooCommerce checkout via the CARDZ3N payment gateway. Card and ACH payments, subscriptions (card payments), saved methods, refunds, and Level 2/3 data.
+Embedded WooCommerce checkout via the CARDZ3N payment gateway. Card and ACH payments, subscriptions (card payments), saved methods, refunds, and optional Commercial Enhanced Data Program (CEDP)/Level 3 data.
 
 == Description ==
 
@@ -16,19 +16,20 @@ CARDZ3N for WooCommerce turns your WooCommerce store into a full-featured embedd
 
 Buyers stay on your site — no visible redirect — and can choose between **credit/debit cards, ACH bank payments, or a saved payment method** inside a single gateway UI. All sensitive payment data is tokenized in the browser by Collect.js, loaded from the CARDZ3N gateway host, so card numbers and bank account numbers never touch your WordPress server.
 
-B2B merchants benefit from **automatic Level 2 and Level 3 commercial-card data** — freight, tax, line-item, UPC, commodity code, PO number, and destination fields are populated from WooCommerce order data on every transaction when Level 3 is switched on.
+B2B merchants can switch on **Commercial Enhanced Data Program (CEDP)/Level 3 data** — freight, tax, line-item, UPC, commodity code, PO number, and destination fields are populated from WooCommerce order data when it is switched on.
 
 = Key features =
 
 * Embedded, on-site checkout — no redirect
 * Credit / debit card, ACH / eCheck and saved payment methods, all in one gateway UI
-* Saved payment methods (card + ACH), stored in a secure vault
+* Saved payment methods (card + ACH): your site never stores full card numbers
+* Apple Pay and Google Pay for single purchases on the classic checkout (not offered on subscription or pre-order carts)
+* Optional 3-D Secure (Off, Attempt or Required) for new card payments on the classic checkout
 * WooCommerce Subscriptions, card payments only: the card is saved at sign-up, renewals are charged from it, free trials save the card without charging it, customers can change their payment method (covered by automated stand-in tests)
 * Authorize-only + manual capture, void, full and partial refunds
 * Auto-capture on order-status change
 * Dynamic descriptor with optional per-order suffix
-* Card-brand restrictions
-* Automatic Level 2 / Level 3 data pass-through
+* Commercial Enhanced Data Program (CEDP)/Level 3 data on orders, when switched on
 * Optional checkout Purchase Order (PO) number field
 * Merchant-visible diagnostics in WooCommerce → Status → Logs
 
@@ -52,7 +53,7 @@ This plugin processes payment data on behalf of the store owner. Here is exactly
 
 * To Collect.js, loaded from the CARDZ3N gateway host (browser-side): your public Tokenization Key, order total, buyer billing info as entered at checkout. Collect.js returns a one-time payment token.
 * The shopper's IP address and browser details are visible to the CARDZ3N gateway host as soon as Collect.js loads on a checkout, Add Payment Method or My Account page, before any payment is submitted.
-* To the gateway Transaction API (server-side): your Security Key, the payment token or vault ID, order amount, buyer billing/shipping address, line items, and Level 2/3 commercial-card fields when enabled.
+* To the gateway Transaction API (server-side): your Security Key, the payment token or vault ID, order amount, buyer billing/shipping address, line items, and Commercial Enhanced Data Program (CEDP)/Level 3 commercial-card fields when enabled.
 
 **Controller relationship:** The store owner is the data controller. Payment processing is provided through the NMI platform, using the CARDZ3N gateway. Buyers should be informed via the store's own privacy policy that card and ACH data is transmitted to the payment gateway for processing.
 
@@ -116,7 +117,7 @@ A Content Security Policy that allowlists the gateway host is a common way to su
 
 = Do I need a separate plugin for Apple Pay or Google Pay? =
 
-The plugin has Apple Pay and Google Pay settings. They are off by default, need HTTPS and domain registration set up with CARDZ3N, and have not yet been verified on real devices, so leave them off unless CARDZ3N has confirmed they are ready for your store.
+The plugin has Apple Pay and Google Pay settings. They are off by default and need HTTPS and domain registration set up with CARDZ3N. Apple Pay and Google Pay are offered for single purchases on the classic checkout, not on subscription or pre-order carts, and were tested once each in Test Mode from a mobile device.
 
 = Can I use 3D Secure (strong customer authentication)? =
 
@@ -126,9 +127,9 @@ Optional, off by default. The plugin can ask the cardholder's bank to check a ne
 
 Yes, for card payments, when the WooCommerce Subscriptions extension is installed and the "Subscriptions Support" setting is switched on. The card is saved when the customer signs up (there is no box to tick) and is used for every renewal. A free trial saves the card without charging it. Customers can change their payment method. Bank (ACH) payments are not available for subscriptions. WooCommerce Pre-Orders is not yet verified with this gateway. The subscription behaviour is covered by the plugin's automated stand-in tests; it has not been tested with the real WooCommerce Subscriptions plugin.
 
-= What is Level 3 data and why does it matter? =
+= What is Commercial Enhanced Data Program (CEDP)/Level 3 data and why does it matter? =
 
-Level 3 is the enhanced transaction data (line items, freight, tax, destination, commodity codes, UPC, PO number) that Visa and Mastercard commercial-card programs use. This plugin maps WooCommerce order data to the CARDZ3N Level 3 payload automatically on every transaction when Level 3 is switched on.
+Commercial Enhanced Data Program (CEDP)/Level 3 data is the enhanced transaction data (line items, freight, tax, destination, commodity codes, UPC, PO number) that Visa and Mastercard commercial-card programs use. This plugin maps WooCommerce order data to the CARDZ3N Level 3 payload when it is switched on.
 
 = Does it work with HPOS (High-Performance Order Storage)? =
 
@@ -147,15 +148,15 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 3. Mobile checkout.
 4. Saved payment methods — returning customers pick a stored card or bank account.
 5. Gateway settings — Security Key, Tokenization Key, environment, and Test Credentials button.
-6. Commercial data settings — Level 2/3 defaults for UOM, commodity code, tax, and freight.
+6. Commercial data settings — CEDP/Level 3 defaults for UOM, commodity code, tax, and freight.
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
 
 = 1.1.0 =
 * New: 3-D Secure setting (Off, Attempt, Required) for new card payments on the classic checkout. Payer Authentication must be switched on for your CARDZ3N account first. Saved cards, bank payments, Apple Pay, Google Pay, the My Account pages and renewals are not authenticated, and the native block checkout is switched off while the setting is Attempt or Required.
-* New: a box for the Apple Pay domain verification file, with set-up steps. Apple Pay has not been verified on a real device.
-* Fixed: Google Pay is handed to the card form whenever it is switched on. It has not been verified on a real device.
+* New: a box for the Apple Pay domain verification file, with set-up steps. Apple Pay is offered for single purchases on the classic checkout, not on subscription or pre-order carts, and was tested once in Test Mode from a mobile device.
+* Fixed: Google Pay is handed to the card form whenever it is switched on. Google Pay is offered for single purchases on the classic checkout, not on subscription or pre-order carts, and was tested once in Test Mode from a mobile device.
 * Fixed: subscription card payments send the stored-card details the gateway expects.
 * Fixed: a card the customer chose to save is now listed under My Account > Payment methods (the plugin reads the masked card details from the gateway's saved-card record), and each order note says whether the card was saved.
 * Fixed: with Level 3 data switched on, paying with a saved card was declined by the gateway. The customer id is no longer sent together with a saved-card ID.

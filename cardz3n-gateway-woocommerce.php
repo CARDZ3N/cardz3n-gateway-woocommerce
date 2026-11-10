@@ -2,7 +2,7 @@
 /**
  * Plugin Name: CARDZ3N for WooCommerce
  * Plugin URI: https://cardz3n.com/woocommerce
- * Description: Embedded on-site checkout for WooCommerce using the CARDZ3N payment gateway. Cards, ACH, Apple Pay, Google Pay, saved methods, subscriptions, refunds, captures, voids, and automatic Level 2/3 commercial-card data in a single gateway UI.
+ * Description: Embedded on-site checkout for WooCommerce using the CARDZ3N payment gateway. Cards, ACH, Apple Pay, Google Pay, saved methods, subscriptions, refunds, captures, voids, and optional Commercial Enhanced Data Program (CEDP)/Level 3 data in a single gateway UI.
  * Version: 1.1.0
  * Requires at least: 6.4
  * Requires PHP: 7.4

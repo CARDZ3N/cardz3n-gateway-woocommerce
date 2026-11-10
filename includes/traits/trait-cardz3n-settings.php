@@ -60,7 +60,7 @@ trait Settings_Trait {
 				'title'       => __( 'Checkout Description', 'cardz3n-gateway' ),
 				'type'        => 'textarea',
 				'description' => __( 'Short explanation shown beneath the payment option at checkout.', 'cardz3n-gateway' ),
-				'default'     => __( 'Pay securely with a credit or debit card.', 'cardz3n-gateway' ), // The old default also named ACH and the wallets, which are optional and not verified on real devices.
+				'default'     => __( 'Pay securely with a credit or debit card.', 'cardz3n-gateway' ), // The old default also named ACH and the wallets, which are optional and offered for single purchases on the classic checkout only.
 			),
 			'thankyou_instructions'     => array(
 				'title'       => __( 'Thank-you Instructions', 'cardz3n-gateway' ),
@@ -273,7 +273,8 @@ trait Settings_Trait {
 				'default' => '',
 			),
 			'allowed_card_brands'       => array(
-				'title'    => __( 'Accepted Card Brands', 'cardz3n-gateway' ),
+				'title'    => __( 'Card Brand Logos Shown', 'cardz3n-gateway' ),
+				'description' => __( 'Choose which card brand logos appear under the card fields. This only changes the logos shown: the plugin does not block any card brand.', 'cardz3n-gateway' ),
 				'type'     => 'multiselect',
 				'class'    => 'wc-enhanced-select',
 				'options'  => array(
@@ -317,13 +318,13 @@ trait Settings_Trait {
 			'section_commercial'        => array(
 				'title'       => __( 'Level 3 / CEDP', 'cardz3n-gateway' ),
 				'type'        => 'title',
-				'description' => __( 'Send Level 3 Commercial/Corporate Card Enhanced Data (CEDP) on qualifying transactions to earn lower interchange rates. Visa retired its separate Level 2 program in 2026 -- Level 3 / CEDP is now the only path to reduced interchange on Visa commercial cards. <strong>All applicable fields below must be present together for a transaction to qualify for the discounted rate; partial data will not qualify and may be rejected outright by the card brand.</strong> Fields marked auto-pulled below are populated automatically from the order and your store profile; anything not available is omitted, not fabricated.', 'cardz3n-gateway' ),
+				'description' => __( 'Send Level 3 Commercial/Corporate Card Enhanced Data (CEDP) on qualifying transactions to earn lower interchange rates. <strong>All applicable fields below must be present together for a transaction to qualify for the discounted rate; partial data will not qualify and may be rejected outright by the card brand.</strong> Fields marked auto-pulled below are populated automatically from the order and your store profile; anything not available is omitted, not fabricated.', 'cardz3n-gateway' ),
 			),
 			'enable_level3'             => array(
 				'title'   => __( 'Enable Level 3 / CEDP Transmission', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
-				'label'   => __( 'Attach enhanced commercial data to every transaction when applicable.', 'cardz3n-gateway' ),
-				/* 1.0.21: opt-in. Level 2/3 is a commercial-card feature most merchants don’t need; enabling it requires meaningful catalog metadata (UPC, commodity code, tax amount) and misconfigured fields can DOWNGRADE interchange rather than improve it. Off by default; merchants who know they qualify enable it intentionally. */
+				'label'   => __( 'Attach enhanced commercial data to qualifying transactions.', 'cardz3n-gateway' ),
+				/* 1.0.21: opt-in. CEDP/Level 3 is a commercial-card feature most merchants don’t need; enabling it requires meaningful catalog metadata (UPC, commodity code, tax amount) and misconfigured fields can DOWNGRADE interchange rather than improve it. Off by default; merchants who know they qualify enable it intentionally. */
 				'default' => 'no',
 			),
 			'section_commercial_auto' => array(
