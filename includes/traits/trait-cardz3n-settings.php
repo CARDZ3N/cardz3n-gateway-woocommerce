@@ -294,6 +294,14 @@ trait Settings_Trait {
 				'default'  => array( 'visa', 'mastercard', 'amex', 'discover', 'maestro', 'jcb', 'diners', 'unionpay' ),
 				'desc_tip' => true,
 			),
+			'enforce_card_brands'       => array(
+				'title'       => __( 'Block Other Card Brands', 'cardz3n-gateway' ),
+				'type'        => 'checkbox',
+				'label'       => __( 'Refuse a card whose brand is not selected above.', 'cardz3n-gateway' ),
+				'description' => __( 'Off by default, so every card is accepted. When ticked, a card of a brand that is not selected above is refused with a message, before any charge where the brand is known; if the brand is only known after the gateway approves it, the charge is voided at once. Saved subscription renewals are not affected.', 'cardz3n-gateway' ),
+				'default'     => 'no',
+				'desc_tip'    => true,
+			),
 			'gateway_receipts'          => array(
 				'title'   => __( 'Gateway Receipts', 'cardz3n-gateway' ),
 				'type'    => 'checkbox',
