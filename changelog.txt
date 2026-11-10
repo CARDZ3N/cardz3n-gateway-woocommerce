@@ -1,5 +1,32 @@
 *** CARDZ3N for WooCommerce Changelog ***
 
+2026-11-09 - version 1.1.0
+* Add - WooCommerce Subscriptions with card payments: the card is saved at sign-up (no box to tick), renewals are charged from it, free trials save the card with a $0.00 verification instead of a $0.00 sale, customers can change their payment method, failed renewals fail cleanly and can be retried. Bank (ACH) payments are not available for subscriptions. This is covered by automated stand-in tests; it has not been tested with the real WooCommerce Subscriptions plugin.
+* Add - 3-D Secure setting with three choices: Off, Attempt and Required. It applies to new card payments on the classic checkout (including subscription sign-ups that store the card). Attempt asks the bank to check the card and carries on without if the check cannot be done; Required stops the payment instead, so Required applies to new-card payments only. Saved cards are not put through 3-D Secure (this is planned for 1.1.1). Payer Authentication must be switched on for your CARDZ3N account first. Bank (ACH) payments, Apple Pay, Google Pay, the My Account pages and renewals are not authenticated either, and the native block checkout is switched off while 3-D Secure is Attempt or Required (the classic checkout form is used instead).
+* Add - Apple Pay set-up: a box on the settings page for the domain verification file from the gateway control panel, served at /.well-known/apple-developer-merchantid-domain-association, with step-by-step guidance. Apple Pay itself has not been verified on a real device.
+* Fix - Google Pay is now handed to the card form (Collect.js) whenever it is switched on, with no separate Google script from the plugin. It has not been verified on a real device.
+* Fix - Subscription card payments now send the stored-credential details the gateway expects (first stored payment and later merchant-initiated charges).
+* Fix - Saved cards: the gateway's sale reply carries no card details, so a card the customer asked to save was stored at the gateway but never appeared under My Account > Payment methods. The plugin now reads the masked last four digits, brand and expiry from the gateway's own saved-card record (falling back to the masked values the checkout page posts), and every order gets a note saying whether the card was saved. A failed bank-account save can no longer stop an order after the charge.
+* Fix - With Level 3 / CEDP data switched on, paying with a saved card was declined by the gateway with "customer_id conflicts with customer_vault_id", because the customer id was sent together with the saved-card ID. The customer id is now left out of any request that stores or uses a saved card.
+* Fix - Apple Pay and Google Pay are not offered on subscription carts, and a wallet payment for such an order is refused on the server.
+* Tweak - The checkout description no longer promises wallet payments.
+* Add - Native Cart & Checkout Blocks payment method for card payments. On by default for new installs (setting "Native Block Checkout", still visible and switchable); stores installed earlier keep their previous behaviour until they switch it on. `cart_checkout_blocks` is declared compatible whenever it is on.
+* Add - A declined card or failed payment on the block checkout now shows a clear message, and the card form releases the Place Order button if tokenization never answers.
+* Add - Clear admin error on the gateway settings page, and the gateway is hidden at checkout, when Test Mode is on but no test keys are saved.
+* Fix - Classic checkout sent the order to the server before the card token existed; WooCommerce's own checkout hook is now used to wait for the token.
+* Fix - Payments made from the Bank (ACH) tab were sent and recorded as card payments; they are now sent and recorded as ACH.
+* Fix - On the classic checkout, ACH, Apple Pay, Google Pay and saved methods were switched off in the page settings when Native Block Checkout was on.
+* Fix - A throwing Apple Pay availability check no longer stops the card and bank fields from appearing.
+* Fix - Test Mode no longer falls back to your live keys; with no test keys the gateway is hidden until they are added.
+* Fix - Debug Mode now logs a short whitelist of non-sensitive fields only; payment tokens, vault IDs and customer details are never written to the log, and no part of a key or token is logged.
+* Fix - A fatal error when a card token was missing (wrong logger class name), and `process_payment()` returning nothing on error paths in the block checkout.
+* Fix - Payment sources that are switched off in the settings are refused on the server; Capture only works on this gateway's orders that are not yet captured; a repeated submit of a paid order no longer charges twice; the delete-saved-method action only touches this gateway's methods.
+* Add - Warning on the gateway settings page when WooCommerce Subscriptions or Pre-Orders is active but its support switch is off: carts with those products cannot be paid on the block checkout until it is switched on.
+* Tweak - Native Block Checkout is off by default for new installs that have WooCommerce Subscriptions or Pre-Orders active (a saved choice always wins).
+* Tweak - Product name is now "CARDZ3N for WooCommerce". Merchant-facing text refers to the "CARDZ3N payment gateway"; readme Privacy and External services sections rewritten to be accurate about what leaves your server and when.
+* Tweak - Key-type messages say "checkout-only key" instead of naming a vendor product.
+* Dev - Playwright end-to-end tests for the classic checkout token, settings, ACH source, wallet guard, test-mode keys, debug log, hardening guards and the Blocks default (excluded from the plugin package). `.gitattributes` keeps line endings consistent.
+
 2026-10-22 - version 1.0.43
 * Add - Advisory PHP security patch-level check (PHP2Shell, CVE-2026-109618 / CVE-2026-109619): a Site Health test and a notice on the gateway settings screen when the server's PHP is older than the first fixed release. It never blocks checkout.
 * Dev - Code checks now run on PHP 7.4 through 8.5.

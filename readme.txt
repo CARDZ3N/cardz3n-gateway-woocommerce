@@ -1,33 +1,31 @@
 === CARDZ3N for WooCommerce ===
 Contributors: jbenedetti, cardz3n
-Tags: payment gateway, credit card, ach, apple pay, google pay
+Tags: payment gateway, credit card, ach, subscriptions
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.68
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Embedded WooCommerce checkout via the CARDZ3N payment gateway. Card, ACH, Apple Pay, Google Pay, saved methods, subscriptions, refunds, and Level 2/3 data.
+Embedded WooCommerce checkout via the CARDZ3N payment gateway. Card and ACH payments, subscriptions (card payments), saved methods, refunds, and Level 2/3 data.
 
 == Description ==
 
 CARDZ3N for WooCommerce turns your WooCommerce store into a full-featured embedded checkout using the CARDZ3N payment gateway.
 
-Buyers stay on your site — no visible redirect — and can choose between **credit/debit cards, ACH bank payments, Apple Pay, Google Pay, or a saved payment method** inside a single gateway UI. All sensitive payment data is tokenized in the browser by Collect.js, loaded from the CARDZ3N gateway host, so card numbers and bank account numbers never touch your WordPress server.
+Buyers stay on your site — no visible redirect — and can choose between **credit/debit cards, ACH bank payments, or a saved payment method** inside a single gateway UI. All sensitive payment data is tokenized in the browser by Collect.js, loaded from the CARDZ3N gateway host, so card numbers and bank account numbers never touch your WordPress server.
 
-B2B merchants benefit from **automatic Level 2 and Level 3 commercial-card data** — freight, tax, line-item, UPC, commodity code, PO number, and destination fields are populated from WooCommerce order data on every transaction.
+B2B merchants benefit from **automatic Level 2 and Level 3 commercial-card data** — freight, tax, line-item, UPC, commodity code, PO number, and destination fields are populated from WooCommerce order data on every transaction when Level 3 is switched on.
 
 = Key features =
 
 * Embedded, on-site checkout — no redirect
-* Credit / debit card, ACH / eCheck, and optional Apple Pay and Google Pay — all in one gateway UI
+* Credit / debit card, ACH / eCheck and saved payment methods, all in one gateway UI
 * Saved payment methods (card + ACH), stored in a secure vault
-* WooCommerce Subscriptions compatibility (if installed)
-* WooCommerce Pre-Orders compatibility (if installed)
+* WooCommerce Subscriptions, card payments only: the card is saved at sign-up, renewals are charged from it, free trials save the card without charging it, customers can change their payment method (covered by automated stand-in tests)
 * Authorize-only + manual capture, void, full and partial refunds
 * Auto-capture on order-status change
-* 3-D Secure 2 / SCA
 * Dynamic descriptor with optional per-order suffix
 * Card-brand restrictions
 * Automatic Level 2 / Level 3 data pass-through
@@ -95,7 +93,7 @@ No "powered by" text or promotional link is shown by default. An optional "Power
 2. Activate the plugin.
 3. Go to **WooCommerce → Settings → Payments** and click **CARDZ3N for WooCommerce**.
 4. Enter your sandbox or live **Security Key** and **Tokenization Key** from your CARDZ3N Merchant Portal (Settings → Security Keys).
-5. Enable the payment methods you want — Cards, ACH, Apple Pay, Google Pay — and save.
+5. Enable the payment methods you want (Cards, ACH) and save.
 6. Click **Test Credentials** to confirm the gateway accepts your keys.
 7. Run a sandbox transaction end-to-end before going live.
 
@@ -118,19 +116,19 @@ A Content Security Policy that allowlists the gateway host is a common way to su
 
 = Do I need a separate plugin for Apple Pay or Google Pay? =
 
-No. Apple Pay and Google Pay are optional features of this plugin and appear in the same gateway panel when you switch them on. They need HTTPS and domain registration, and only show on supported devices and browsers.
+The plugin has Apple Pay and Google Pay settings. They are off by default, need HTTPS and domain registration set up with CARDZ3N, and have not yet been verified on real devices, so leave them off unless CARDZ3N has confirmed they are ready for your store.
 
 = Can I use 3D Secure (strong customer authentication)? =
 
-Optional, off by default. The plugin can ask the cardholder's bank to check a new card before it is charged. **Payer Authentication 2.0 must first be enabled on your CARDZ3N gateway account (with an eCommerce processor and your bank enrollment details; ask CARDZ3N support), and this plugin cannot enroll you.** Then choose a mode in the gateway settings: *Attempt* tries 3D Secure and takes the payment without it if it cannot run (the order note says so); *Required* stops every new card payment that cannot be authenticated, so it blocks all new-card payments until Payer Authentication is enabled; use Attempt until that is confirmed. **Saved cards are not put through 3D Secure, so Required applies to new-card payments only and does not stop or check a payment made with a saved card.** A card that its bank reports as failed is always stopped. It covers new cards on the classic checkout payment form, including free trials and pre-orders; not saved cards, bank payments, Apple Pay, Google Pay, the My Account pages, the native block checkout or subscription renewals. The flow was verified against NMI's 3D Secure test environment; it has not been verified on CARDZ3N's own gateway host. The plugin makes no promise about liability or about meeting any regulation: ask your bank and CARDZ3N which payments you need to cover.
+Optional, off by default. The plugin can ask the cardholder's bank to check a new card before it is charged. **Payer Authentication 2.0 must first be enabled on your CARDZ3N gateway account (with an eCommerce processor and your bank enrollment details; ask CARDZ3N support), and this plugin cannot enroll you.** Then choose a mode in the gateway settings: *Attempt* tries 3D Secure and takes the payment without it if it cannot run (the order note says so); *Required* stops every new card payment that cannot be authenticated, so it blocks all new-card payments until Payer Authentication is enabled; use Attempt until that is confirmed. **Saved cards are not put through 3D Secure, so Required applies to new-card payments only and does not stop or check a payment made with a saved card.** A card that its bank reports as failed is always stopped. It covers new cards on the classic checkout payment form, including free trials; not saved cards, bank payments, Apple Pay, Google Pay, the My Account pages, the native block checkout or subscription renewals. The flow was verified against a 3D Secure test environment (a shared demo account); it has not been verified on CARDZ3N's own gateway host. The plugin makes no promise about liability or about meeting any regulation: ask your bank and CARDZ3N which payments you need to cover.
 
 = Does it support WooCommerce Subscriptions? =
 
-Yes, when the WooCommerce Subscriptions extension is installed. Renewals are charged server-side against the saved payment method (vault ID) stored on the parent order.
+Yes, for card payments, when the WooCommerce Subscriptions extension is installed and the "Subscriptions Support" setting is switched on. The card is saved when the customer signs up (there is no box to tick) and is used for every renewal. A free trial saves the card without charging it. Customers can change their payment method. Bank (ACH) payments are not available for subscriptions. WooCommerce Pre-Orders is not yet verified with this gateway. The subscription behaviour is covered by the plugin's automated stand-in tests; it has not been tested with the real WooCommerce Subscriptions plugin.
 
 = What is Level 3 data and why does it matter? =
 
-Level 3 is the enhanced transaction data (line items, freight, tax, destination, commodity codes, UPC, PO number) that Visa and Mastercard commercial-card programs use. This plugin maps WooCommerce order data to the CARDZ3N Level 3 payload automatically on every transaction.
+Level 3 is the enhanced transaction data (line items, freight, tax, destination, commodity codes, UPC, PO number) that Visa and Mastercard commercial-card programs use. This plugin maps WooCommerce order data to the CARDZ3N Level 3 payload automatically on every transaction when Level 3 is switched on.
 
 = Does it work with HPOS (High-Performance Order Storage)? =
 
@@ -144,15 +142,34 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Screenshots ==
 
-1. Embedded checkout — Card, ACH, Apple Pay, Google Pay, and saved methods in one gateway panel.
+1. Embedded checkout — Card, ACH and saved methods in one gateway panel.
 2. ACH / eCheck tab — routing + account number fields tokenized by Collect.js.
-3. Mobile checkout — Apple Pay and Google Pay wallet buttons above the card form.
+3. Mobile checkout.
 4. Saved payment methods — returning customers pick a stored card or bank account.
 5. Gateway settings — Security Key, Tokenization Key, environment, and Test Credentials button.
 6. Commercial data settings — Level 2/3 defaults for UOM, commodity code, tax, and freight.
 7. Order edit screen — capture, void, and refund directly from the WooCommerce order.
 
 == Changelog ==
+
+= 1.1.0 =
+* New: 3-D Secure setting (Off, Attempt, Required) for new card payments on the classic checkout. Payer Authentication must be switched on for your CARDZ3N account first. Saved cards, bank payments, Apple Pay, Google Pay, the My Account pages and renewals are not authenticated, and the native block checkout is switched off while the setting is Attempt or Required.
+* New: a box for the Apple Pay domain verification file, with set-up steps. Apple Pay has not been verified on a real device.
+* Fixed: Google Pay is handed to the card form whenever it is switched on. It has not been verified on a real device.
+* Fixed: subscription card payments send the stored-card details the gateway expects.
+* Fixed: a card the customer chose to save is now listed under My Account > Payment methods (the plugin reads the masked card details from the gateway's saved-card record), and each order note says whether the card was saved.
+* Fixed: with Level 3 data switched on, paying with a saved card was declined by the gateway. The customer id is no longer sent together with a saved-card ID.
+* Fixed: Apple Pay and Google Pay are not offered on subscription carts.
+* New: native block checkout for card payments, on by default for new installs. Stores that were set up earlier keep their current behavior until they switch "Native Block Checkout" on. ACH, Apple Pay, Google Pay and saved methods are not in the block checkout yet.
+* Fixed: on the classic checkout the order could be sent before the card details were turned into a token.
+* Fixed: bank (ACH) payments were recorded as card payments.
+* Fixed: ACH, Apple Pay, Google Pay and saved methods were switched off on the classic checkout when the native block checkout was on.
+* Fixed: Test Mode no longer uses your live keys. With no test keys the gateway is hidden until you add them.
+* Fixed: Debug Mode no longer logs payment tokens, vault IDs or customer details.
+* Fixed: a declined card on the block checkout shows a clear message; switched-off payment methods are refused on the server; Capture only works on capturable orders; a repeated submit no longer charges twice.
+* New: WooCommerce Subscriptions with card payments. The card is saved at sign-up, renewals are charged from it, free trials save the card without charging it, customers can change their payment method, and failed renewals can be retried. The block checkout offers subscription carts too. This is covered by automated stand-in tests; it has not been tested with the real WooCommerce Subscriptions plugin.
+* Changed: the native block checkout is off by default for new installs that have WooCommerce Subscriptions or Pre-Orders active (a saved choice always wins), and the gateway settings page warns when such a plugin is active but its support switch is off.
+* Changed: the plugin is now named "CARDZ3N for WooCommerce", and the readme Privacy and External services sections were rewritten.
 
 = 1.0.68 =
 * New, experimental and OFF by default: a "Native Block Checkout" setting. When switched on, the block-based Checkout shows this gateway as a native block payment method for card payments. ACH, Apple Pay, Google Pay and saved payment methods are not available in the block checkout yet, and carts containing subscriptions or pre-orders will not offer this method there. Stores that leave the setting off see no change.
@@ -290,6 +307,9 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * Initial release. Embedded Collect.js checkout -- Card, ACH, Apple Pay, Google Pay, saved methods, Subscriptions/Pre-Orders, refunds, Level 2/3 data, 3DS2/SCA, HPOS.
 
 == Upgrade Notice ==
+
+= 1.1.0 =
+Test Mode now never uses live keys: a store in Test Mode with only live keys sees the gateway hidden until test keys are added. Adds card subscriptions and a native block checkout for new installs. Fixes the classic checkout and ACH.
 
 = 1.0.68 =
 Adds an optional, off-by-default "Native Block Checkout" setting (card payments only) and makes declined or failed payments on the block checkout show a clear message instead of an error. No change to checkout unless you turn the setting on.

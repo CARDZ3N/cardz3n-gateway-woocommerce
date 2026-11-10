@@ -301,7 +301,7 @@ class Api_Client {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			Logger::error( 'NMI transport error', array( 'error' => $response->get_error_message() ) );
+			Logger::error( 'Gateway transport error', array( 'error' => $response->get_error_message() ) );
 			return $this->error_result( $response->get_error_message() );
 		}
 
