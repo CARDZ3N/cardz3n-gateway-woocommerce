@@ -125,7 +125,7 @@ Optional, off by default. The plugin can ask the cardholder's bank to check a ne
 
 = Does it support WooCommerce Subscriptions? =
 
-Yes, for card payments, when the WooCommerce Subscriptions extension is installed and the "Subscriptions Support" setting is switched on. The card is saved when the customer signs up (there is no box to tick) and is used for every renewal. A free trial saves the card without charging it. Customers can change their payment method. Bank (ACH) payments are not available for subscriptions. WooCommerce Pre-Orders is not yet verified with this gateway. The subscription behaviour is covered by the plugin's automated stand-in tests; it has not been tested with the real WooCommerce Subscriptions plugin.
+Yes, for card payments, when the WooCommerce Subscriptions extension is installed and the "Subscriptions Support" setting is switched on. The card is saved when the customer signs up (there is no box to tick) and is used for every renewal. A free trial saves the card without charging it. Customers can change their payment method. Bank (ACH) payments are not available for subscriptions. Supports WooCommerce Pre-Orders (card payments): the card is saved at checkout and charged when the pre-order is released. Covered by automated stand-in tests; not yet tested with the real extension. The subscription behaviour is covered by the plugin's automated stand-in tests; it has not been tested with the real WooCommerce Subscriptions plugin.
 
 = What is Commercial Enhanced Data Program (CEDP)/Level 3 data and why does it matter? =
 

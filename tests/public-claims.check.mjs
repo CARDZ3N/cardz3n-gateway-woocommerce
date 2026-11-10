@@ -22,8 +22,11 @@ const lines = claims.split('\n');
 
 const bad = (re, allow) => lines.filter((l) => re.test(l) && !(allow && allow.test(l)));
 
-let b = bad(/pre-?orders?/i, /not yet verified|not offered on subscription or pre-order carts|not on subscription or pre-order carts/i);
-b.length ? fail('readme.txt claims Pre-Orders: ' + b[0].slice(0, 90)) : ok('readme.txt: no Pre-Orders claim (only "not yet verified")');
+let b = bad(/pre-?orders?/i, /Supports WooCommerce Pre-Orders \(card payments\): the card is saved at checkout and charged when the pre-order is released\. Covered by automated stand-in tests; not yet tested with the real extension\.|not offered on subscription or pre-order carts|not on subscription or pre-order carts/i);
+b.length ? fail('readme.txt makes a Pre-Orders claim beyond the allowed sentence: ' + b[0].slice(0, 90)) : ok('readme.txt: Pre-Orders appear only in the allowed sentence (card payments, stand-in tests, not tested with the real extension)');
+// Never claim the real Pre-Orders or Subscriptions extension was tested (anywhere in the public text).
+b = bad(/(pre-?orders?|subscriptions)[^.]*\b(tested|verified)\b|\b(tested|verified)\b[^.]*(pre-?orders?|subscriptions)/i, /not (yet )?(been )?(tested|verified)|stand-in|Apple Pay|Google Pay|3-?D Secure|3D Secure|test environment/i);
+b.length ? fail('readme.txt claims the real Pre-Orders or Subscriptions extension was tested: ' + b[0].slice(0, 90)) : ok('readme.txt: no claim that the real Pre-Orders or Subscriptions extension was tested');
 b = bad(/compliant|compliance|liability shift|PSD2|guarantee|fully protected/i, /makes no promise about liability or about meeting any regulation|does not make a store PCI compliant/);
 b.length ? fail('readme.txt makes a compliance or protection claim: ' + b[0].slice(0, 90)) : ok('readme.txt: no compliance or protection claim');
 const faq3 = lines.find((l) => /^Optional, off by default\. The plugin can ask the cardholder's bank/.test(l)) || '';
