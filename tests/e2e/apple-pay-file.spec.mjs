@@ -74,7 +74,7 @@ try {
   const v1 = await page.evaluate((sel) => ({ text: document.body.innerText, box: document.querySelectorAll(sel).length }), FIELD);
   check('Settings page: the Apple Pay file box is there', v1.box === 1, 'boxes: ' + v1.box);
   check('Settings page: plain-language steps in NMI\'s order (HTTPS first, then the control panel, the file, Allowed Domains, the test)', /must start with https:\/\//i.test(v1.text) && /Options, then Settings, then Apple Pay/i.test(v1.text) && /paste its whole text into the box/i.test(v1.text) && /Allowed Domains/i.test(v1.text) && /iPhone in Safari/i.test(v1.text));
-  check('Settings page: says wallets are optional and not yet verified on real devices', /optional and have not yet been verified on real devices/i.test(v1.text));
+  check('Settings page: says wallets are optional, for single purchases on the classic checkout, and were tested once each in Test Mode from a mobile device', /optional\. They are offered for single purchases on the classic checkout, not on subscription or pre-order carts, and were tested once each in Test Mode from a mobile device/i.test(v1.text));
   check('Settings page: status "Store address is HTTPS: no" and "Verification file: not set"', /Store address is HTTPS:\s*no/i.test(v1.text) && /Verification file:\s*not set/i.test(v1.text));
   check('Settings page: Apple Pay on without HTTPS shows an admin warning', /does not start with https:\/\//i.test(v1.text) && /shoppers see no error/i.test(v1.text));
 

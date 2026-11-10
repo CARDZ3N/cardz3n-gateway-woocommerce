@@ -1,5 +1,5 @@
 // End-to-end check: the text shown under the payment option on the classic checkout does not tell shoppers that ACH, Apple Pay or
-// Google Pay are offered (they are optional and not verified on real devices), unless the merchant wrote that text.
+// Google Pay are offered (they are optional and offered for single purchases on the classic checkout only), unless the merchant wrote that text.
 //
 // Why: the old default description read "Pay securely with a credit/debit card, ACH, Apple Pay, or Google Pay." and was shown to every
 // shopper even when those methods were off. The default is now card-only, and the old default text, if it was saved by an earlier

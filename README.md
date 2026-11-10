@@ -6,7 +6,9 @@ Embedded, on-site WooCommerce checkout using the CARDZ3N payment gateway.
 
 - **Embedded UX** — no redirect. Buyers stay on-site.
 - **Everything in one gateway** — credit/debit cards, ACH and saved methods inside a single gateway UI.
-- **B2B-ready** — automatic Level 2 / Level 3 commercial-card data on every transaction when Level 3 is switched on.
+- **B2B-ready** — optional Commercial Enhanced Data Program (CEDP)/Level 3 commercial-card data, when switched on.
+- **Apple Pay and Google Pay** — for single purchases on the classic checkout (not offered on subscription or pre-order carts).
+- **3-D Secure** — optional (Off, Attempt or Required) for new card payments on the classic checkout.
 - **Subscriptions** — card payments, when WooCommerce Subscriptions is installed and "Subscriptions Support" is switched on.
 - **HPOS-ready** — Custom Order Tables compatibility declared.
 - **White-label** — single codebase, CARDZ3N + AerospacePay variants via a constant.
@@ -39,7 +41,7 @@ cardz3n-gateway-woocommerce/
 ├── includes/
 │   ├── class-cardz3n-gateway.php         # WC_Payment_Gateway_CC
 │   ├── class-cardz3n-api-client.php      # gateway transact.php client
-│   ├── class-cardz3n-level3-mapper.php   # L2/L3 payload builder
+│   ├── class-cardz3n-level3-mapper.php   # CEDP/Level 3 payload builder
 │   ├── class-cardz3n-token-service.php   # saved methods
 │   ├── class-cardz3n-order-service.php   # order meta + auto-capture
 │   ├── class-cardz3n-wallet-service.php
