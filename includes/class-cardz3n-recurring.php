@@ -182,6 +182,29 @@ class Recurring {
 	}
 
 	/**
+	 * Does the cart being checked out need a stored payment method (a subscription, or a pre-order)?
+	 *
+	 * Used to keep Apple Pay and Google Pay away from those carts until a wallet token has been proven for later charges.
+	 * ASSUMPTION W1: Subscriptions' `WC_Subscriptions_Cart::cart_contains_subscription()` and Pre-Orders'
+	 * `WC_Pre_Orders_Cart::cart_contains_pre_order()` are the plugins' own cart checks (a pre-order that is charged up front is
+	 * treated the same, which is the cautious choice). The server refuses a wallet payment for such an order anyway
+	 * (Gateway::process_payment()), so a wrong guess here only shows the wallet area when it should be hidden. Filter
+	 * `cardz3n_gw_cart_needs_stored_method` can correct it.
+	 *
+	 * @return bool
+	 */
+	public static function cart_needs_stored_method() {
+		$needs = false;
+		if ( class_exists( 'WC_Subscriptions_Cart' ) && method_exists( 'WC_Subscriptions_Cart', 'cart_contains_subscription' ) ) {
+			$needs = (bool) \WC_Subscriptions_Cart::cart_contains_subscription();
+		}
+		if ( ! $needs && class_exists( 'WC_Pre_Orders_Cart' ) && method_exists( 'WC_Pre_Orders_Cart', 'cart_contains_pre_order' ) ) {
+			$needs = (bool) \WC_Pre_Orders_Cart::cart_contains_pre_order();
+		}
+		return (bool) apply_filters( 'cardz3n_gw_cart_needs_stored_method', $needs );
+	}
+
+	/**
 	 * Is this a pre-order that is charged when it is released (so nothing may be charged at checkout)?
 	 *
 	 * ASSUMPTION P3: Pre-Orders' `order_requires_payment_tokenization()` is true exactly for pre-orders charged upon

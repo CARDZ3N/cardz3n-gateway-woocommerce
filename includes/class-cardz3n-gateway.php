@@ -302,8 +302,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				'tokenizationKey' => $pk,
 				'enableCards'     => 'yes' === $this->get_option( 'enable_cards', 'yes' ),
 				'enableAch'       => 'yes' === $this->get_option( 'enable_ach', 'no' ),
-				'enableApplePay'  => 'yes' === $this->get_option( 'enable_apple_pay', 'no' ),
-				'enableGooglePay' => 'yes' === $this->get_option( 'enable_google_pay', 'no' ),
+				'enableApplePay'  => 'yes' === $this->get_option( 'enable_apple_pay', 'no' ) && $this->wallets_allowed(),
+				'enableGooglePay' => 'yes' === $this->get_option( 'enable_google_pay', 'no' ) && $this->wallets_allowed(),
 				'googlePayOptions' => $this->google_pay_options(),
 				'enableSaved'     => 'yes' === $this->get_option( 'enable_saved_methods', 'no' ),
 				'threeDs'         => array(
@@ -361,9 +361,9 @@ class Gateway extends \WC_Payment_Gateway_CC {
 
 		$warnings = array();
 
-		// 3-D Secure: Required blocks ALL card payments until Payer Authentication is enabled on the gateway account.
+		// 3-D Secure: Required blocks ALL new-card payments until Payer Authentication is enabled on the gateway account.
 		if ( Three_DS::required( $this->settings ) ) {
-			$warnings[] = __( '<strong>3D Secure is set to Required.</strong> Every card payment will be BLOCKED until Payer Authentication is enabled on your CARDZ3N gateway account. Use Attempt until that is confirmed with CARDZ3N support.', 'cardz3n-gateway' );
+			$warnings[] = __( '<strong>3D Secure is set to Required.</strong> Every new-card payment will be BLOCKED until Payer Authentication is enabled on your CARDZ3N gateway account. Use Attempt until that is confirmed with CARDZ3N support. Required applies to new-card payments only: payments with a saved card are not put through 3D Secure.', 'cardz3n-gateway' );
 		}
 		$blocked = Three_DS::recent_blocks();
 		if ( $blocked ) {
@@ -435,6 +435,26 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	}
 
 	/**
+	 * May Apple Pay and Google Pay be offered here? Not on carts, orders to pay or subscription pages that need a stored
+	 * payment method (a subscription or a pre-order): a wallet token has not been proven for the later charges yet.
+	 *
+	 * @return bool
+	 */
+	private function wallets_allowed() {
+		if ( function_exists( 'is_wc_endpoint_url' ) && is_wc_endpoint_url( 'order-pay' ) ) {
+			$order = wc_get_order( absint( get_query_var( 'order-pay' ) ) );
+			if ( $order && ( Recurring::order_needs_stored_method( $order ) || ( function_exists( 'wcs_is_subscription' ) && wcs_is_subscription( $order ) ) ) ) {
+				return false;
+			}
+			return true;
+		}
+		if ( ! function_exists( 'WC' ) || ! WC()->cart ) {
+			return true;
+		}
+		return ! Recurring::cart_needs_stored_method();
+	}
+
+	/**
 	 * Render the embedded checkout UI inside the CARDZ3N gateway panel.
 	 *
 	 * Structure (single gateway, multiple panes):
@@ -477,8 +497,9 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				// configureCollect() for the corrected fields.applePay/googlePay
 				// shapes. REQUIRES live sandbox verification with an eligible
 				// device/browser before this ships to merchants.
-		$enable_apple  = ( 'yes' === $this->get_option( 'enable_apple_pay', 'no' ) );
-		$enable_google = ( 'yes' === $this->get_option( 'enable_google_pay', 'no' ) );
+		$wallets_ok    = $this->wallets_allowed();
+		$enable_apple  = ( 'yes' === $this->get_option( 'enable_apple_pay', 'no' ) ) && $wallets_ok;
+		$enable_google = ( 'yes' === $this->get_option( 'enable_google_pay', 'no' ) ) && $wallets_ok;
 		$test_mode_active = 'yes' === $this->get_option( 'test_mode' );
 		?>
 		<div class="cardz3n-gateway-ui" data-gateway="<?php echo esc_attr( $this->id ); ?>" data-cardz3n-version="<?php echo esc_attr( CARDZ3N_GW_VERSION ); ?>">
@@ -516,6 +537,8 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			<input type="hidden" name="cardz3n_payment_token" value="" />
 			<input type="hidden" name="cardz3n_token_type" value="" />
 			<input type="hidden" name="cardz3n_card_brand" value="" />
+			<input type="hidden" name="cardz3n_card_last4" value="" />
+			<input type="hidden" name="cardz3n_card_exp" value="" />
 			<?php if ( Three_DS::enabled( $this->settings ) ) : ?>
 			<div id="cardz3n-3ds-mount" class="cardz3n-3ds-mount"></div>
 			<?php endif; ?>
@@ -613,13 +636,13 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		// even when the buyer's current device doesn't support the wallet
 		// (the live wallet button still only renders when canMakePayments is
 		// true). This reassures buyers the gateway accepts their wallet.
-		if ( 'yes' === $this->get_option( 'enable_apple_pay', 'no' ) ) {
+		if ( 'yes' === $this->get_option( 'enable_apple_pay', 'no' ) && $this->wallets_allowed() ) {
 			$icons[] = array(
 				'file' => 'icon_wallet_applepay.svg',
 				'alt'  => 'Apple Pay',
 			);
 		}
-		if ( 'yes' === $this->get_option( 'enable_google_pay', 'no' ) ) {
+		if ( 'yes' === $this->get_option( 'enable_google_pay', 'no' ) && $this->wallets_allowed() ) {
 			$icons[] = array(
 				'file' => 'icon_wallet_googlepay.svg',
 				'alt'  => 'Google Pay',
@@ -937,6 +960,20 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		}
 
 		/*
+		 * Apple Pay and Google Pay are not offered for subscriptions or pre-orders until they are proven for the later
+		 * charges. The checkout hides them; this refuses a wallet payment posted anyway (nothing is sent to the gateway).
+		 */
+		if ( in_array( $normalized_source, array( 'apple_pay', 'google_pay' ), true ) && ( $is_subscription || Recurring::order_needs_stored_method( $order ) ) ) {
+			$cardz3n_gw_error_msg = __( 'This payment method is not available for this order. Please pay with a card.', 'cardz3n-gateway' );
+			wc_add_notice( $cardz3n_gw_error_msg, 'error' );
+			return array(
+				'result'   => 'failure',
+				'message'  => $cardz3n_gw_error_msg,
+				'redirect' => '',
+			);
+		}
+
+		/*
 		 * "Change payment method" on a subscription: Subscriptions hands us the SUBSCRIPTION as the order. It must never be
 		 * charged: verify the new card for $0.00 (or take the chosen saved card) and store it on that subscription only.
 		 */
@@ -1242,25 +1279,31 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		Order_Service::apply_payment_method_title( $order, $normalized_source, $response, $vault_brand, $client_brand );
 		$order->add_order_note( Order_Service::success_note( $response, $extra ) );
 
+		// The shopper asked to save the card (or the order needs it saved) but the gateway returned no vault id: say so.
+		if ( empty( $response['customer_vault_id'] ) && $should_vault_card && ! $needs_stored && is_user_logged_in() ) {
+			Logger::warning( 'The card was to be saved but the gateway returned no vault ID' );
+			$order->add_order_note( __( 'The customer asked to save the card, but the gateway did not return a saved-card (vault) ID, so the card was not saved.', 'cardz3n-gateway' ) );
+		}
+
 		// Save token if the gateway returned a vault id and we requested vaulting.
 		if ( ! empty( $response['customer_vault_id'] ) && ( $should_vault_card || $should_vault_ach ) && is_user_logged_in() ) {
 			if ( $should_vault_card ) {
-				Token_Service::save_card_token(
+				Token_Service::save_card_from_gateway(
 					get_current_user_id(),
 					$this->id,
 					$response['customer_vault_id'],
 					array(
 						'initial_txn_id'  => (string) $response['transaction_id'],
 						'initial_flagged' => (bool) $needs_stored, // Only a recurring order's payment was sent with the first-store flags.
-						'last4'     => substr( (string) ( $response['raw']['cc_number'] ?? '' ), -4 ),
-						'brand'     => \Cardz3n_Gateway\brand_slug( '' !== $client_brand ? $client_brand : ( $response['raw']['cc_type'] ?? $response['raw']['card_type'] ?? '' ) ),
-						'exp_month' => \Cardz3n_Gateway\parse_ccexp( $response['raw']['cc_exp'] ?? $response['raw']['ccexp'] ?? '' )['month'],
-						'exp_year'  => \Cardz3n_Gateway\parse_ccexp( $response['raw']['cc_exp'] ?? $response['raw']['ccexp'] ?? '' )['year'],
-					)
+					),
+					$client,
+					$response['raw'],
+					$this->browser_card_details( $client_brand ),
+					$order
 				);
 			}
 			if ( $should_vault_ach ) {
-				Token_Service::save_ach_token(
+				$ach_saved = Token_Service::save_ach_token(
 					get_current_user_id(),
 					$this->id,
 					$response['customer_vault_id'],
@@ -1269,6 +1312,9 @@ class Gateway extends \WC_Payment_Gateway_CC {
 						'account_type' => ( isset( $_POST['cardz3n_ach_account_type'] ) && 'savings' === sanitize_text_field( wp_unslash( $_POST['cardz3n_ach_account_type'] ) ) ) ? 'savings' : 'checking', // phpcs:ignore WordPress.Security.NonceVerification.Missing
 					)
 				);
+				if ( ! $ach_saved ) {
+					$order->add_order_note( __( 'The bank account was stored at the gateway, but it could not be saved as a WooCommerce saved payment method. It will not appear under My Account > Payment methods.', 'cardz3n-gateway' ) );
+				}
 			}
 		}
 
@@ -1433,7 +1479,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			)
 		);
 
-		$this->save_verified_card( $response, $client_brand );
+		$this->save_verified_card( $response, $client_brand, $client, $order );
 
 		$order->payment_complete( $response['transaction_id'] );
 		WC()->cart->empty_cart();
@@ -1533,28 +1579,45 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	}
 
 	/**
+	 * Masked card details the browser posted next to the token (last four digits, expiry, brand). They are only a fallback:
+	 * Token_Service validates them strictly, and the gateway's own vault record is preferred.
+	 *
+	 * @param string $client_brand Card brand reported by the browser.
+	 * @return array{last4:string,exp:string,brand:string}
+	 */
+	private function browser_card_details( $client_brand ) {
+		return array(
+			'last4' => isset( $_POST['cardz3n_card_last4'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_card_last4'] ) ) : '', // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			'exp'   => isset( $_POST['cardz3n_card_exp'] ) ? sanitize_text_field( wp_unslash( $_POST['cardz3n_card_exp'] ) ) : '', // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			'brand' => (string) $client_brand,
+		);
+	}
+
+	/**
 	 * Keep a verified card as a WooCommerce saved method of the signed-in customer.
 	 *
-	 * @param array  $response     Gateway response of the verification.
-	 * @param string $client_brand Card brand reported by the browser.
+	 * @param array          $response     Gateway response of the verification.
+	 * @param string         $client_brand Card brand reported by the browser.
+	 * @param Api_Client     $client       Gateway client (for the vault lookup).
+	 * @param \WC_Order|null $order        Order or subscription to add the outcome note to.
 	 * @return int|false Saved method ID.
 	 */
-	private function save_verified_card( $response, $client_brand ) {
+	private function save_verified_card( $response, $client_brand, $client, $order = null ) {
 		if ( ! is_user_logged_in() ) {
 			return false;
 		}
-		return Token_Service::save_card_token(
+		return Token_Service::save_card_from_gateway(
 			get_current_user_id(),
 			$this->id,
 			$response['customer_vault_id'],
 			array(
 				'initial_txn_id'  => (string) $response['transaction_id'],
 				'initial_flagged' => true, // A verification is always sent with the first-store flags.
-				'last4'           => substr( (string) ( $response['raw']['cc_number'] ?? '' ), -4 ),
-				'brand'          => \Cardz3n_Gateway\brand_slug( '' !== $client_brand ? $client_brand : ( $response['raw']['cc_type'] ?? $response['raw']['card_type'] ?? '' ) ),
-				'exp_month'      => \Cardz3n_Gateway\parse_ccexp( $response['raw']['cc_exp'] ?? $response['raw']['ccexp'] ?? '' )['month'],
-				'exp_year'       => \Cardz3n_Gateway\parse_ccexp( $response['raw']['cc_exp'] ?? $response['raw']['ccexp'] ?? '' )['year'],
-			)
+			),
+			$client,
+			$response['raw'],
+			$this->browser_card_details( $client_brand ),
+			$order
 		);
 	}
 
@@ -1626,7 +1689,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			}
 			$new_vault   = (string) $response['customer_vault_id'];
 			$initial_txn = (string) $response['transaction_id'];
-			$this->save_verified_card( $response, $client_brand );
+			$this->save_verified_card( $response, $client_brand, $client, $subscription );
 		}
 
 		Recurring::replace( $subscription, $new_vault, $initial_txn );
@@ -1661,7 +1724,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		}
 
 		$response = $this->verify_and_vault_card( $client, null, $collect_token, $source, array() );
-		if ( ! $response['success'] || '' === (string) $response['customer_vault_id'] || ! $this->save_verified_card( $response, $client_brand ) ) {
+		if ( ! $response['success'] || '' === (string) $response['customer_vault_id'] || ! $this->save_verified_card( $response, $client_brand, $client ) ) {
 			return $this->failure( __( 'Your card could not be verified and saved. Please check your details or use a different card.', 'cardz3n-gateway' ) );
 		}
 

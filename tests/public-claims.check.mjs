@@ -4,7 +4,7 @@
 //   - WooCommerce Pre-Orders at release (only "not yet verified" may appear),
 //   - Apple Pay / Google Pay working (they may appear only in the FAQ, as off-by-default settings not yet verified on real devices),
 //   - 3-D Secure beyond what is proven: it may be named only with its limits (new cards on the classic checkout, Payer Authentication first,
-//     verified on NMI's test environment, not on CARDZ3N's own host) and never as compliance, liability protection or SCA cover,
+//     verified on a 3-D Secure test environment, not on CARDZ3N's own host) and never as compliance, liability protection or SCA cover,
 //   - the gateway using card-on-file / stored-credential fields (internal detail, never a public claim).
 import { readFileSync } from 'node:fs';
 
@@ -23,10 +23,10 @@ const bad = (re, allow) => lines.filter((l) => re.test(l) && !(allow && allow.te
 
 let b = bad(/pre-?orders?/i, /not yet verified/i);
 b.length ? fail('readme.txt claims Pre-Orders: ' + b[0].slice(0, 90)) : ok('readme.txt: no Pre-Orders claim (only "not yet verified")');
-b = bad(/compliant|compliance|liability shift|PSD2|guarantee|fully protected/i, /makes no promise about liability or about meeting any regulation/);
+b = bad(/compliant|compliance|liability shift|PSD2|guarantee|fully protected/i, /makes no promise about liability or about meeting any regulation|does not make a store PCI compliant/);
 b.length ? fail('readme.txt makes a compliance or protection claim: ' + b[0].slice(0, 90)) : ok('readme.txt: no compliance or protection claim');
 const faq3 = lines.find((l) => /^Optional, off by default\. The plugin can ask the cardholder's bank/.test(l)) || '';
-(/Payer Authentication 2\.0 must first be enabled/.test(faq3) && /verified against NMI's 3D Secure test environment/.test(faq3) && /not been verified on CARDZ3N's own gateway host/.test(faq3) && /makes no promise about liability/.test(faq3) && /not saved cards, bank payments/.test(faq3) && /Saved cards are not put through 3D Secure, so Required applies to new-card payments only/.test(faq3) && !/blocks all card payments/.test(faq3)) ? ok('readme.txt: the 3-D Secure FAQ states its limits (Payer Authentication first, NMI test environment only, no promise)') : fail('readme.txt: the 3-D Secure FAQ is missing a required limit');
+(/Payer Authentication 2\.0 must first be enabled/.test(faq3) && /verified against a 3D Secure test environment \(a shared demo account\)/.test(faq3) && /not been verified on CARDZ3N's own gateway host/.test(faq3) && /makes no promise about liability/.test(faq3) && /not saved cards, bank payments/.test(faq3) && /Saved cards are not put through 3D Secure, so Required applies to new-card payments only/.test(faq3) && !/blocks all card payments/.test(faq3)) ? ok('readme.txt: the 3-D Secure FAQ states its limits (Payer Authentication first, NMI test environment only, no promise)') : fail('readme.txt: the 3-D Secure FAQ is missing a required limit');
 b = bad(/3-?D Secure|3DS|SCA\b/i, /^= Can I use 3D Secure \(strong customer authentication\)\? =$|^Optional, off by default\. The plugin can ask the cardholder's bank/);
 b.length ? fail('readme.txt names 3-D Secure outside its FAQ: ' + b[0].slice(0, 90)) : ok('readme.txt: 3-D Secure appears only in its FAQ');
 b = bad(/card-on-file|stored[- ]credential|initiated_by|initial_transaction/i);

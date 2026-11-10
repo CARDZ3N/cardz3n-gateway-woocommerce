@@ -17,6 +17,7 @@
 /tests
 /docs
 /CODE_OF_CONDUCT.md
+/CHANGELOG.md
 /CONTRIBUTING.md
 /SECURITY.md
 /composer.lock

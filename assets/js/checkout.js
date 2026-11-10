@@ -706,6 +706,11 @@
 		setHidden('cardz3n_payment_source', sourceForToken(response));
 		var cardBrand = (response.card && response.card.type) ? response.card.type : '';
 		setHidden('cardz3n_card_brand', cardBrand);
+		// Masked details only (last four digits and expiry): a fallback for the saved-card record, validated again on the server.
+		var cardLast4 = (response.card && /^\d{4}$/.test(String(response.card.number || '').slice(-4))) ? String(response.card.number).slice(-4) : '';
+		var cardExp = (response.card && /^\d{4}$/.test(String(response.card.exp || ''))) ? String(response.card.exp) : '';
+		setHidden('cardz3n_card_last4', cardLast4);
+		setHidden('cardz3n_card_exp', cardExp);
 
 		// Make sure no saved-token radio is checked (the Collect.js token beats
 		// the vault lookup in process_payment() only if the saved radio is not
@@ -736,6 +741,8 @@
 		mirror('cardz3n_token_type', sourceForToken(response));
 		mirror('cardz3n_payment_source', sourceForToken(response));
 		mirror('cardz3n_card_brand', cardBrand);
+		mirror('cardz3n_card_last4', cardLast4);
+		mirror('cardz3n_card_exp', cardExp);
 		if (authentication) {
 			mirror('cardz3n_3ds_status', authentication.status);
 			if (authentication.reason) { mirror('cardz3n_3ds_reason', authentication.reason); }
