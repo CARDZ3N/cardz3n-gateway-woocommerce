@@ -361,16 +361,16 @@ class Gateway extends \WC_Payment_Gateway_CC {
 
 		$warnings = array();
 
-		// 3-D Secure: Required blocks ALL new-card payments until Payer Authentication is enabled on the gateway account.
+		// 3-D Secure: Required blocks ALL new-card payments until the gateway account is enrolled for 3-D Secure.
 		if ( Three_DS::required( $this->settings ) ) {
-			$warnings[] = __( '<strong>3D Secure is set to Required.</strong> Every new-card payment will be BLOCKED until Payer Authentication is enabled on your CARDZ3N gateway account. Use Attempt until that is confirmed with CARDZ3N support. Required applies to new-card payments only: payments with a saved card are not put through 3D Secure.', 'cardz3n-gateway' );
+			$warnings[] = __( '<strong>3D Secure is set to Required.</strong> Every new-card payment will be BLOCKED until your merchant account is enrolled for 3D Secure (enrollment can take a few business days; contact CARDZ3N support). Leave 3D Secure set to Off until then. Required applies to new-card payments only: payments with a saved card are not put through 3D Secure.', 'cardz3n-gateway' );
 		}
 		$blocked = Three_DS::recent_blocks();
 		if ( $blocked ) {
 			$last      = end( $blocked );
 			$warnings[] = sprintf(
 				/* translators: 1: number of stopped payments, 2: cause in plain words */
-				_n( '<strong>%1$d card payment was stopped in the last 7 days because 3D Secure could not run.</strong> Cause: %2$s. Check that Payer Authentication is enabled on your CARDZ3N gateway account.', '<strong>%1$d card payments were stopped in the last 7 days because 3D Secure could not run.</strong> Most recent cause: %2$s. Check that Payer Authentication is enabled on your CARDZ3N gateway account.', count( $blocked ), 'cardz3n-gateway' ),
+				_n( '<strong>%1$d card payment was stopped in the last 7 days because 3D Secure could not run.</strong> Cause: %2$s. Check that your merchant account is enrolled for 3D Secure (enrollment can take a few business days).', '<strong>%1$d card payments were stopped in the last 7 days because 3D Secure could not run.</strong> Most recent cause: %2$s. Check that your merchant account is enrolled for 3D Secure (enrollment can take a few business days).', count( $blocked ), 'cardz3n-gateway' ),
 				count( $blocked ),
 				Three_DS::REASONS[ $last['reason'] ]
 			);
@@ -974,6 +974,17 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		}
 
 		/*
+		 * Card brand blocking (only when the merchant switched "Block Other Card Brands" on): refuse a card of a brand that is not
+		 * accepted before anything is sent to the gateway. A saved card uses its stored brand, a new card the brand the browser reported.
+		 */
+		if ( in_array( $normalized_source, array( 'card', 'card_vault', 'apple_pay', 'google_pay' ), true ) ) {
+			$brand_to_check = $using_saved ? $vault_brand : $client_brand;
+			if ( $this->brand_is_blocked( $brand_to_check ) ) {
+				return $this->failure( $this->brand_refusal_message( $brand_to_check ) );
+			}
+		}
+
+		/*
 		 * "Change payment method" on a subscription: Subscriptions hands us the SUBSCRIPTION as the order. It must never be
 		 * charged: verify the new card for $0.00 (or take the chosen saved card) and store it on that subscription only.
 		 */
@@ -1223,6 +1234,17 @@ class Gateway extends \WC_Payment_Gateway_CC {
 				'message'  => $user_msg,
 				'redirect' => '',
 			);
+		}
+
+		/*
+		 * Card brand blocking, second check: the browser's brand can be missing, so when the gateway reports the brand
+		 * of an approved charge and it is not accepted, void the charge at once and tell the shopper.
+		 */
+		if ( 'check' !== $payment_kind ) {
+			$charged_brand = (string) ( $response['raw']['cc_type'] ?? $response['raw']['card_type'] ?? '' );
+			if ( $this->brand_is_blocked( $charged_brand ) ) {
+				return $this->void_blocked_brand( $order, $client, $response, $charged_brand );
+			}
 		}
 
 		/*
@@ -1622,6 +1644,77 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	}
 
 	/**
+	 * Is this card brand refused? Only when "Block Other Card Brands" is ticked and some (not all) brands are chosen.
+	 * A brand that cannot be identified is never refused, and an empty choice never turns away every card.
+	 *
+	 * @param string $brand Raw brand or card type.
+	 * @return bool
+	 */
+	private function brand_is_blocked( $brand ) {
+		if ( 'yes' !== $this->get_option( 'enforce_card_brands', 'no' ) ) {
+			return false;
+		}
+		$allowed = array_values( array_filter( array_map( 'strval', (array) $this->get_option( 'allowed_card_brands', array() ) ) ) );
+		$slug    = \Cardz3n_Gateway\brand_slug( $brand );
+		if ( empty( $allowed ) || 'credit' === $slug ) {
+			return false;
+		}
+		return ! in_array( $slug, $allowed, true );
+	}
+
+	/**
+	 * Shopper-facing message for a refused brand.
+	 *
+	 * @param string $brand Raw brand or card type.
+	 * @return string
+	 */
+	private function brand_refusal_message( $brand ) {
+		return sprintf(
+			/* translators: %s: card brand, e.g. Discover */
+			__( 'Sorry, this store does not accept %s cards. Please use a different card.', 'cardz3n-gateway' ),
+			\Cardz3n_Gateway\brand_label( \Cardz3n_Gateway\brand_slug( $brand ) )
+		);
+	}
+
+	/**
+	 * An approved charge turned out to be a refused brand: void it. If the void fails, hold the order and say how to fix it.
+	 *
+	 * @param \WC_Order  $order    Order.
+	 * @param Api_Client $client   Gateway client.
+	 * @param array      $response Approved gateway response.
+	 * @param string     $brand    Brand the gateway reported.
+	 * @return array{result:string,message:string,redirect:string}
+	 */
+	private function void_blocked_brand( $order, $client, array $response, $brand ) {
+		$label = \Cardz3n_Gateway\brand_label( \Cardz3n_Gateway\brand_slug( $brand ) );
+		$void  = $client->void( $response['transaction_id'] );
+		if ( empty( $void['success'] ) ) {
+			$order->update_meta_data( '_cardz3n_unvoided_txn', (string) $response['transaction_id'] );
+			$order->set_transaction_id( (string) $response['transaction_id'] );
+			$order->save();
+			$order->update_status(
+				'on-hold',
+				sprintf(
+					/* translators: 1: card brand, 2: transaction ID, 3: gateway message */
+					__( 'ACTION NEEDED: the customer paid with a %1$s card, which this store does not accept, and the automatic void failed (transaction %2$s: %3$s). Void or refund this transaction at the gateway by hand.', 'cardz3n-gateway' ),
+					$label,
+					$response['transaction_id'],
+					$void['text']
+				)
+			);
+			return $this->failure( __( 'There was a problem finishing your order. Please contact the store before trying again.', 'cardz3n-gateway' ) );
+		}
+		$order->add_order_note(
+			sprintf(
+				/* translators: %s: card brand */
+				__( 'The payment was voided: a %s card is not accepted by this store.', 'cardz3n-gateway' ),
+				$label
+			)
+		);
+		return $this->failure( $this->brand_refusal_message( $brand ) );
+	}
+
+	/**
 	 * Failure result with a notice.
 	 *
 	 * @param string $message Shopper-facing message.
@@ -1723,7 +1816,14 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			return $this->failure( __( 'Only a card can be saved here. Please enter a card.', 'cardz3n-gateway' ) );
 		}
 
+		if ( $this->brand_is_blocked( $client_brand ) ) {
+			return $this->failure( $this->brand_refusal_message( $client_brand ) );
+		}
+
 		$response = $this->verify_and_vault_card( $client, null, $collect_token, $source, array() );
+		if ( $response['success'] && $this->brand_is_blocked( (string) ( $response['raw']['cc_type'] ?? $response['raw']['card_type'] ?? '' ) ) ) {
+			return $this->failure( $this->brand_refusal_message( (string) ( $response['raw']['cc_type'] ?? $response['raw']['card_type'] ?? '' ) ) ); // Nothing is charged by a $0.00 check, and the card is not saved here.
+		}
 		if ( ! $response['success'] || '' === (string) $response['customer_vault_id'] || ! $this->save_verified_card( $response, $client_brand, $client ) ) {
 			return $this->failure( __( 'Your card could not be verified and saved. Please check your details or use a different card.', 'cardz3n-gateway' ) );
 		}
