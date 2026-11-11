@@ -361,16 +361,16 @@ class Gateway extends \WC_Payment_Gateway_CC {
 
 		$warnings = array();
 
-		// 3-D Secure: Required blocks ALL new-card payments until Payer Authentication is enabled on the gateway account.
+		// 3-D Secure: Required blocks ALL new-card payments until the gateway account is enrolled for 3-D Secure.
 		if ( Three_DS::required( $this->settings ) ) {
-			$warnings[] = __( '<strong>3D Secure is set to Required.</strong> Every new-card payment will be BLOCKED until Payer Authentication is enabled on your CARDZ3N gateway account. Use Attempt until that is confirmed with CARDZ3N support. Required applies to new-card payments only: payments with a saved card are not put through 3D Secure.', 'cardz3n-gateway' );
+			$warnings[] = __( '<strong>3D Secure is set to Required.</strong> Every new-card payment will be BLOCKED until your merchant account is enrolled for 3D Secure (enrollment can take a few business days; contact CARDZ3N support). Leave 3D Secure set to Off until then. Required applies to new-card payments only: payments with a saved card are not put through 3D Secure.', 'cardz3n-gateway' );
 		}
 		$blocked = Three_DS::recent_blocks();
 		if ( $blocked ) {
 			$last      = end( $blocked );
 			$warnings[] = sprintf(
 				/* translators: 1: number of stopped payments, 2: cause in plain words */
-				_n( '<strong>%1$d card payment was stopped in the last 7 days because 3D Secure could not run.</strong> Cause: %2$s. Check that Payer Authentication is enabled on your CARDZ3N gateway account.', '<strong>%1$d card payments were stopped in the last 7 days because 3D Secure could not run.</strong> Most recent cause: %2$s. Check that Payer Authentication is enabled on your CARDZ3N gateway account.', count( $blocked ), 'cardz3n-gateway' ),
+				_n( '<strong>%1$d card payment was stopped in the last 7 days because 3D Secure could not run.</strong> Cause: %2$s. Check that your merchant account is enrolled for 3D Secure (enrollment can take a few business days).', '<strong>%1$d card payments were stopped in the last 7 days because 3D Secure could not run.</strong> Most recent cause: %2$s. Check that your merchant account is enrolled for 3D Secure (enrollment can take a few business days).', count( $blocked ), 'cardz3n-gateway' ),
 				count( $blocked ),
 				Three_DS::REASONS[ $last['reason'] ]
 			);

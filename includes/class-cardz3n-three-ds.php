@@ -295,7 +295,7 @@ class Three_DS {
 	 */
 	const REASONS = array(
 		'script_unavailable' => 'Gateway.js could not be loaded from the gateway host',
-		'gateway_error'      => 'the gateway reported an error starting 3-D Secure (Payer Authentication is probably not enabled on this gateway account)',
+		'gateway_error'      => 'the gateway reported an error starting 3-D Secure (your merchant account is probably not enrolled for 3-D Secure)',
 		'timeout'            => '3-D Secure did not answer within 20 seconds',
 		'crash'              => '3-D Secure could not start in the browser',
 		'name_missing'       => 'the cardholder\'s first and last name were missing',
