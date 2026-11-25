@@ -69,7 +69,7 @@ try {
   await probe('migrate_fresh');
   const subs = await probe('state');
   check('Subscriptions active, new install: resolves to OFF', subs.enabled === false && subs.saved_value === null, JSON.stringify({ enabled: subs.enabled, saved: subs.saved_value }));
-  check('Subscriptions active, new install: cart_checkout_blocks is not declared compatible', subs.blocks.compatible === false, JSON.stringify(subs.blocks));
+  check('Subscriptions active, new install, Checkout block page: the setting resolves to OFF but the method is still offered, so cart_checkout_blocks is declared compatible', subs.offered === true && subs.blocks.compatible === true, JSON.stringify({ offered: subs.offered, blocks: subs.blocks }));
   await page.goto(gateway, { waitUntil: 'domcontentloaded' });
   const box = page.locator('#woocommerce_cardz3n_gateway_enable_experimental_blocks_checkout');
   check('The setting is still visible, and unticked by default', (await box.count()) === 1 && (await box.isChecked()) === false);
