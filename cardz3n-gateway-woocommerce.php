@@ -141,11 +141,10 @@ add_action(
 			 * enable_experimental_blocks_checkout), which is the default for new installs.
 			 *
 			 * A store that has switched it off (or that was installed before it became
-			 * the default, see cardz3n_gw_maybe_migrate_settings()) renders this gateway in
-			 * the block checkout through WooCommerce's classic-shortcode compatibility
-			 * layer (payment_fields()/process_payment()), exactly as before, so for that
-			 * store the declaration stays FALSE rather than claiming something it is not
-			 * using.
+			 * the default, see cardz3n_gw_maybe_migrate_settings()) does not offer this
+			 * gateway on a Checkout block page at all (shoppers see "There are no payment
+			 * methods available"; the classic checkout is unaffected), so for that store
+			 * the declaration stays FALSE rather than claiming something it is not using.
 			 */
 			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', CARDZ3N_GW_FILE, cardz3n_gw_native_blocks_enabled() );
 		}
@@ -156,8 +155,8 @@ add_action(
  * --------------------------------------------------------------------------
  * Native Blocks Checkout registration (default on for new installs, can be
  * switched off — see setting above). Only wires up while the setting is on;
- * otherwise this is a no-op and the classic-shortcode compatibility layer
- * handles the block checkout exactly as it has since 1.0.14.
+ * otherwise this is a no-op and the gateway is simply not offered on a Checkout
+ * block page (the classic checkout is unaffected).
  * --------------------------------------------------------------------------
  */
 add_action(
@@ -268,31 +267,21 @@ function cardz3n_gw_bootstrap() {
 	add_filter( 'plugin_action_links_' . CARDZ3N_GW_BASENAME, 'cardz3n_gw_action_links' );
 
 	/*
-	 * Cart/Checkout Blocks integration intentionally disabled. See
-	 * `declare_compatibility('cart_checkout_blocks', …, false)` above. The
-	 * Block checkout renders our classic payment_fields() output via Woo's
-	 * built-in shortcode-compatibility layer, which is materially simpler
-	 * and avoids the early-boot PaymentMethodRegistry timing problems we
-	 * spent 1.0.11–1.0.13 chasing.
+	 * Cart/Checkout Blocks: the native block payment method is registered by the woocommerce_blocks_loaded hook above
+	 * when "Native Block Checkout" is on. When it is off, the Checkout block shows no payment method for this gateway
+	 * (there is no classic fallback inside the Checkout block); the classic [woocommerce_checkout] page is unaffected.
 	 */
 }
 
 /*
- * NOTE: 1.0.11–1.0.13 attempted a native WooCommerce Blocks PaymentMethodType
- * integration via includes/class-cardz3n-blocks-support.php. 1.0.14 switched
- * to the classic-shortcode compatibility layer because Woo Blocks was failing
- * to enqueue our PaymentMethodType bundle on the test stack at the time
- * (empty `cardz3n_gateway_data` setting, empty blocksRegistry) despite three
- * different registration strategies (nested-hook, direct DI-container,
- * early-boot is_active() fallback) — the underlying cause was never
- * conclusively identified.
+ * NOTE: 1.0.11–1.0.13 first tried a native WooCommerce Blocks PaymentMethodType integration; 1.0.14 dropped it for a
+ * "classic-shortcode compatibility layer". Testing on 2026-11-25 (WooCommerce 11.2.1, Checkout block page, native method off)
+ * showed that layer does not exist for the Checkout block: the shopper sees "There are no payment methods available".
  *
- * The integration is on by default for new installs (setting
- * enable_experimental_blocks_checkout, see the `woocommerce_blocks_loaded`
- * hook above), for card payments only; stores installed earlier keep their
- * previous behaviour until they switch it on. Merchants can roll it back
- * instantly by turning the setting off. ACH, wallet and saved-method support
- * in the block checkout is not part of it yet.
+ * The native integration (includes/class-cardz3n-blocks-support.php) is on by default for new installs, for card payments
+ * only (setting enable_experimental_blocks_checkout, see the `woocommerce_blocks_loaded` hook above). Stores installed earlier,
+ * stores with Subscriptions or Pre-Orders active, and stores with 3-D Secure on keep it off until they switch it on.
+ * ACH, wallets, saved methods and 3-D Secure are not part of it.
  */
 
 /**

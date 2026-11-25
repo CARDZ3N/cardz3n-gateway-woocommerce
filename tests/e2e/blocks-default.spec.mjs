@@ -88,6 +88,7 @@ try {
   }
   const box = page.locator('#woocommerce_cardz3n_gateway_enable_experimental_blocks_checkout');
   check('The Native Block Checkout setting is visible and ticked by default', (await box.count()) === 1 && (await box.isChecked()));
+  check('Native block method on: no "not offered on the Checkout block" warning on the settings page', !/Your checkout page uses the Checkout block, but this gateway is not offered on it/.test(await page.evaluate(() => document.body.innerText)));
 
   // Existing store and fresh-install migration.
   const existing = await probe('migrate_existing');
@@ -102,6 +103,12 @@ try {
   check('Switched off: cart_checkout_blocks is not declared compatible', !off.blocks.compatible, JSON.stringify(off.blocks));
   check('Switched off: HPOS stays compatible', off.hpos.compatible && !off.hpos.incompatible);
   check('Switched off: the native method is not registered on the block checkout', (await blockData()) === false);
+  // What the shopper sees today (measured 2026-11-25): no payment method at all, no card form. The settings page says so.
+  const shopperText = await page.evaluate(() => document.body.innerText);
+  check('Switched off: a shopper on the Checkout block page sees "There are no payment methods available" and no card form', /There are no payment methods available/i.test(shopperText) && (await page.locator('.wc-block-components-radio-control__input').count()) === 0);
+  await page.goto(settingsUrl, { waitUntil: 'domcontentloaded' });
+  const offSettingsText = await page.evaluate(() => document.body.innerText);
+  check('Switched off: the gateway settings page warns that the Checkout block page shows no payment method for this gateway', /Your checkout page uses the Checkout block, but this gateway is not offered on it/.test(offSettingsText) && /Native Block Checkout.{0,3} is switched off/.test(offSettingsText));
 
   await browser.close();
 } catch (e) {
