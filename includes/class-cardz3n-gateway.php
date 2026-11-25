@@ -365,16 +365,13 @@ class Gateway extends \WC_Payment_Gateway_CC {
 		if ( Three_DS::required( $this->settings ) ) {
 			$warnings[] = __( '<strong>3D Secure is set to Required.</strong> Every new-card payment will be BLOCKED until your merchant account is enrolled for 3D Secure (enrollment can take a few business days; contact CARDZ3N support). Leave 3D Secure set to Off until then. Required applies to new-card payments only: payments with a saved card are not put through 3D Secure.', 'cardz3n-gateway' );
 		}
-		// Checkout block page with the native block method off: WooCommerce shows shoppers "There are no payment methods available".
-		if ( 'yes' === $this->get_option( 'enabled' ) && $this->checkout_page_uses_block() && ! cardz3n_gw_native_blocks_enabled() ) {
-			$cause = Three_DS::enabled( $this->settings )
-				? __( '3D Secure is set to Attempt or Required, and 3D Secure runs on the classic checkout only.', 'cardz3n-gateway' )
-				: __( '"Native Block Checkout" is switched off.', 'cardz3n-gateway' );
-			$warnings[] = sprintf(
-				/* translators: %s: why the native block method is off */
-				__( '<strong>Your checkout page uses the Checkout block, but this gateway is not offered on it, so shoppers see "There are no payment methods available".</strong> Cause: %s To fix it, either put the classic checkout on your checkout page (the [woocommerce_checkout] shortcode), or switch 3D Secure to Off and tick "Native Block Checkout" (card payments only).', 'cardz3n-gateway' ),
-				$cause
-			);
+		// 3-D Secure on a Checkout block page: the Checkout block does not run 3-D Secure.
+		if ( 'yes' === $this->get_option( 'enabled' ) && cardz3n_gw_checkout_page_uses_block() ) {
+			if ( Three_DS::required( $this->settings ) ) {
+				$warnings[] = __( '<strong>3D Secure is set to Required, and your checkout page uses the Checkout block, so this gateway is not offered there and shoppers see "There are no payment methods available".</strong> 3D Secure runs on the classic checkout only. To fix it, either put the classic checkout on your checkout page (the [woocommerce_checkout] shortcode), or set 3D Secure to Attempt or Off (card payments on the Checkout block are then taken without 3D Secure).', 'cardz3n-gateway' );
+			} elseif ( Three_DS::enabled( $this->settings ) ) {
+				$warnings[] = __( '<strong>3D Secure is set to Attempt, and your checkout page uses the Checkout block.</strong> The Checkout block does not run 3D Secure, so card payments made on it are taken without it (the order note says so). Put the classic checkout on your checkout page (the [woocommerce_checkout] shortcode) if you want 3D Secure to run.', 'cardz3n-gateway' );
+			}
 		}
 		$blocked = Three_DS::recent_blocks();
 		if ( $blocked ) {
@@ -1652,23 +1649,6 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			$this->browser_card_details( $client_brand ),
 			$order
 		);
-	}
-
-	/**
-	 * Does the store's checkout page use the Checkout block (and not the classic shortcode)?
-	 *
-	 * @return bool
-	 */
-	private function checkout_page_uses_block() {
-		if ( ! function_exists( 'wc_get_page_id' ) ) {
-			return false;
-		}
-		$page_id = wc_get_page_id( 'checkout' );
-		if ( $page_id < 1 ) {
-			return false;
-		}
-		$page = get_post( $page_id );
-		return $page instanceof \WP_Post && has_block( 'woocommerce/checkout', $page->post_content );
 	}
 
 	/**

@@ -296,7 +296,7 @@ try {
   const sb = r.subscription_first_then_renewal; const fs = reqs({ requests: sb.first_requests }, 'sale')[0] || {}; const rs = reqs({ requests: sb.renewal_requests }, 'sale')[0] || {};
   check('Subscription (Required): the first payment is authenticated and the card is saved for the renewals', sb.first_result === 'success' && fs.eci === '05' && fs.customer_vault === 'add_customer' && fs.initiated_by === 'customer', j(fs));
   check('Subscription: the renewal is merchant-initiated, sent from the saved card with the first transaction ID and NO 3-D Secure values (ASSUMPTION T4)', ['processing', 'completed'].includes(sb.renewal_status) && !!rs.customer_vault_id && rs.initiated_by === 'merchant' && !!rs.initial_transaction_id && !has3ds(rs), j(rs));
-  check('The native block checkout is switched off while 3-D Secure is on (Attempt or Required), and back on when it is Off', r.native_blocks.attempt === false && r.native_blocks.required === false && r.native_blocks.off === true, j(r.native_blocks));
+  check('The native block method is offered on a Checkout block page with 3-D Secure Off or Attempt (the Checkout block cannot run 3-D Secure), and not offered while it is Required', r.native_blocks.attempt === true && r.native_blocks.required === false && r.native_blocks.off === true, j(r.native_blocks));
   await ctx.close();
 
   await browser.close();

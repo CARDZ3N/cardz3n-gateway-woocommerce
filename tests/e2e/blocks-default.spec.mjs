@@ -96,19 +96,42 @@ try {
   const fresh2 = await probe('migrate_fresh');
   check('Fresh install: the migration leaves the default (ON) and records that it ran', fresh2.saved_value === null && fresh2.enabled === true && fresh2.flag === true, JSON.stringify(fresh2));
 
-  // Switched off.
+  // Switched off, store with a Checkout block page: the method is STILL offered (before 1.1.1 the shopper saw "There are no payment methods available").
+  await probe('restore');
   await probe('switch_off');
   const off = await probe('state');
-  check('Switched off: the setting is OFF', off.enabled === false && off.saved_value === 'no');
-  check('Switched off: cart_checkout_blocks is not declared compatible', !off.blocks.compatible, JSON.stringify(off.blocks));
+  check('Switched off: the setting is OFF', off.saved_value === 'no');
+  check('Switched off, Checkout block page: the native method is still offered and cart_checkout_blocks is declared compatible', off.offered === true && off.blocks.compatible && !off.blocks.incompatible, JSON.stringify(off.blocks));
   check('Switched off: HPOS stays compatible', off.hpos.compatible && !off.hpos.incompatible);
-  check('Switched off: the native method is not registered on the block checkout', (await blockData()) === false);
-  // What the shopper sees today (measured 2026-11-25): no payment method at all, no card form. The settings page says so.
-  const shopperText = await page.evaluate(() => document.body.innerText);
-  check('Switched off: a shopper on the Checkout block page sees "There are no payment methods available" and no card form', /There are no payment methods available/i.test(shopperText) && (await page.locator('.wc-block-components-radio-control__input').count()) === 0);
+  check('Switched off, Checkout block page: the native method is registered on the block checkout', (await blockData()) === true);
+  { const shopperText = await page.evaluate(() => document.body.innerText);
+    check('Switched off, Checkout block page: the shopper sees the card payment option and no "no payment methods" message', /Pay securely with a credit or debit card/.test(shopperText) && !/There are no payment methods available/i.test(shopperText)); }
   await page.goto(settingsUrl, { waitUntil: 'domcontentloaded' });
-  const offSettingsText = await page.evaluate(() => document.body.innerText);
-  check('Switched off: the gateway settings page warns that the Checkout block page shows no payment method for this gateway', /Your checkout page uses the Checkout block, but this gateway is not offered on it/.test(offSettingsText) && /Native Block Checkout.{0,3} is switched off/.test(offSettingsText));
+  check('Switched off, 3-D Secure Off: no Checkout-block warning on the settings page', !/your checkout page uses the Checkout block/.test(await page.evaluate(() => document.body.innerText)));
+
+  // 3-D Secure Attempt: still offered; the settings page says the Checkout block takes card payments without 3-D Secure.
+  await probe('set_3ds&m=attempt');
+  const att = await probe('state');
+  check('3-D Secure Attempt, Checkout block page: the native method is offered and compatible', att.offered === true && att.blocks.compatible, JSON.stringify(att.blocks));
+  await page.goto(settingsUrl, { waitUntil: 'domcontentloaded' });
+  check('3-D Secure Attempt: the settings page says the Checkout block takes card payments without 3-D Secure', /3D Secure is set to Attempt, and your checkout page uses the Checkout block/.test(await page.evaluate(() => document.body.innerText)));
+
+  // 3-D Secure Required: not offered (even with the setting ticked); the shopper sees no method and the settings page says why.
+  await probe('set_3ds&m=required');
+  const req = await probe('state');
+  check('3-D Secure Required, Checkout block page: the native method is not offered and not declared compatible', req.offered === false && !req.blocks.compatible, JSON.stringify(req.blocks));
+  check('3-D Secure Required, Checkout block page: the native method is not registered', (await blockData()) === false);
+  await page.goto(settingsUrl, { waitUntil: 'domcontentloaded' });
+  check('3-D Secure Required: the settings page says the gateway is not offered on the Checkout block', /3D Secure is set to Required, and your checkout page uses the Checkout block, so this gateway is not offered there/.test(await page.evaluate(() => document.body.innerText)));
+
+  // Classic checkout page, setting off, 3-D Secure Off: nothing registered, as before.
+  await probe('set_3ds&m=off');
+  await probe('classic_page');
+  const cl = await probe('state');
+  check('Classic checkout page, setting OFF: the native method is not offered and not declared compatible (unchanged)', cl.offered === false && !cl.blocks.compatible && cl.blocks.incompatible, JSON.stringify(cl.blocks));
+  await page.goto(settingsUrl, { waitUntil: 'domcontentloaded' });
+  check('Classic checkout page: no Checkout-block warning on the settings page', !/your checkout page uses the Checkout block/.test(await page.evaluate(() => document.body.innerText)));
+  await probe('block_page');
 
   await browser.close();
 } catch (e) {
