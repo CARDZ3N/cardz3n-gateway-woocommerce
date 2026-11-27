@@ -3,7 +3,7 @@
 2026-11-27 - version 1.1.1
 * Fix - The card payment method is now offered on every Checkout block page, even if "Native Block Checkout" is off. Before, those stores showed shoppers "There are no payment methods available". Card payments only.
 * Tweak - With 3-D Secure set to Attempt, card payments on the Checkout block are taken without 3-D Secure (the order note says so). With 3-D Secure set to Required, the payment method is not offered on Checkout block pages. The settings page explains both.
-* Tweak - 3-D Secure enrollment is described as taking about 4 to 7 business days. "Level 2" wording removed from the plugin text; the setting is named Level 3 / CEDP.
+* Tweak - 3-D Secure enrollment is described as taking about 4 to 7 business days. Commercial-card data is named "Commercial Enhanced Data Program (CEDP)/Level 3" throughout the plugin text (the setting is named Level 3 / CEDP).
 * Tweak - Correction to the 1.0.14 entry: the classic-shortcode compatibility layer does not work for the Checkout block.
 
 2026-11-09 - version 1.1.0
@@ -69,7 +69,7 @@
 * Tweak - The payment method shows the real card brand instead of the generic "Credit Card" label, on classic and block checkout, including saved cards.
 
 2026-09-02 - version 1.0.31
-* Tweak - Order screens, emails and admin show the actual payment method used; real logo option; Level 2/3 renamed Level 3/CEDP with new fields.
+* Tweak - Order screens, emails and admin show the actual payment method used; real logo option; commercial-card data renamed Commercial Enhanced Data Program (CEDP)/Level 3 data, with new fields.
 * Fix - Credential fields no longer cross-filled by browser autofill.
 
 2026-08-30 - version 1.0.29
@@ -84,7 +84,7 @@
 
 2026-04-20 - version 1.0.21
 * Fix - ACH fields not accepting input because of overlapping iframes.
-* Tweak - Level 2/3 and PO fields default off.
+* Tweak - Commercial Enhanced Data Program (CEDP)/Level 3 data and PO fields default off.
 
 2026-04-20 - version 1.0.20
 * Fix - Card and ACH fields rejecting input because of an invalid wallet configuration.
@@ -152,4 +152,4 @@
 * Dev - Minor WordPress.org compliance fixes. No merchant-facing changes.
 
 2026-04-18 - version 1.0.0
-* Add - Initial release. Embedded checkout with card, ACH, Apple Pay, Google Pay, saved methods, subscriptions and pre-orders, refunds, Level 2/3 data, 3D Secure and HPOS support.
+* Add - Initial release. Embedded checkout with card, ACH, Apple Pay, Google Pay, saved methods, subscriptions and pre-orders, refunds, Commercial Enhanced Data Program (CEDP)/Level 3 data, 3D Secure and HPOS support.

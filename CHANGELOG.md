@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ### Changed
 - 3-D Secure Attempt: card payments on the Checkout block are taken without 3-D Secure (order note "3-D Secure was not available for this payment ... sent without it"). 3-D Secure Required: the method is not offered on Checkout block pages. New settings-page notices explain both.
-- 3-D Secure enrollment is described as "about 4 to 7 business days". "Level 2" removed from the plugin text and developer docs (historic changelog entries are left as they are). "Payer Authentication" wording replaced in code comments with 3-D Secure wording.
+- 3-D Secure enrollment is described as "about 4 to 7 business days". Commercial-card data is named "Commercial Enhanced Data Program (CEDP)/Level 3" throughout the plugin text, code comments, developer docs and the history lines of the changelogs. "Payer Authentication" wording replaced in code comments with 3-D Secure wording.
 - Corrected the 1.0.14 changelog line and Upgrade Notice in readme.txt.
 - Tests: `recurring-blocks` split into two specs; the add-to-cart helper retries once on `net::ERR_ABORTED`.
 
@@ -138,7 +138,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Live/Test credential fields no longer get cross-filled by browser password-manager autofill -- `autocomplete="off"` added to all four key fields.
 ### Changed
 - Real CARDZ3N logo now renders for the "Show CARDZ3N logo only" gateway icon style (previously a placeholder).
-- "Level 2 / Level 3 Commercial Data" settings section renamed to "Level 3 / CEDP", with an updated description noting Visa's 2026 retirement of Level 2 and that all applicable fields must be present together to qualify for the discount. Settings page now groups fields into "Auto-Pulled from Order & Profile" and "Merchant Overrides" subsections.
+- The commercial-card data settings section (titled with two program levels until then) renamed to "Level 3 / CEDP" (Commercial Enhanced Data Program (CEDP)/Level 3), with an updated description noting Visa's 2026 retirement of its separate lower-level program and that all applicable fields must be present together to qualify for the discount. Settings page now groups fields into "Auto-Pulled from Order & Profile" and "Merchant Overrides" subsections.
 ### Added
 - New Level 3/CEDP payload fields: `customerid` (Customer Code), `summary_commodity_code`, `duty_amount`, `vat_tax_amount`, `vat_tax_rate`, `vat_invoice_reference_number`. Field names confirmed against NMI's own Integration Portal (Retail Data reference), not guessed. `customerid` is auto-pulled from the order's WooCommerce customer ID; the rest are read from dedicated order meta keys and omitted (never fabricated) when absent.
 ### CI
@@ -195,7 +195,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - **`data-cardz3n-version` attribute on `.cardz3n-gateway-ui`** was dropped between 1.0.19 and 1.0.20. Restored. Support can now confirm the running build at the checkout via that attribute AND via the localized `CARDZ3N_GW.version`.
 
 ### Changed
-- **`enable_level3` default is now `no`.** Level 2/3 commercial-card interchange optimization requires meaningful catalog metadata (UPC, commodity code, tax amount). When enabled without that metadata, the processor can DOWNGRADE interchange rather than improve it. Merchants who know they qualify enable it intentionally on `WooCommerce → Payments → CARDZ3N`.
+- **`enable_level3` default is now `no`.** Commercial Enhanced Data Program (CEDP)/Level 3 commercial-card interchange optimization requires meaningful catalog metadata (UPC, commodity code, tax amount). When enabled without that metadata, the processor can DOWNGRADE interchange rather than improve it. Merchants who know they qualify enable it intentionally on `WooCommerce → Payments → CARDZ3N`.
 - **`enable_po_field` default is now `no`.** Purchase Order number is a B2B/procurement feature that adds clutter to a retail checkout. Off by default; B2B stores enable it intentionally.
 
 ### Reference — How stored cards are retrieved and used
@@ -554,7 +554,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Dynamic descriptor with optional per-order suffix.
 - Card-brand restriction controls.
 - Gateway receipts toggle.
-- Level 2 / Level 3 commercial-data mapper with merchant-configurable UOM, commodity source, UPC key, and PO field.
+- Commercial Enhanced Data Program (CEDP)/Level 3 commercial-data mapper with merchant-configurable UOM, commodity source, UPC key, and PO field.
 - Optional checkout Purchase Order (PO) number field.
 - Credential validation "Test" button.
 - WooCommerce logger-backed diagnostics (redacted — never logs sensitive payment data).

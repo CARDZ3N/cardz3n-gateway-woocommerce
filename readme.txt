@@ -156,7 +156,7 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 = 1.1.1 =
 * Fixed: the card payment method is now offered on every Checkout block page, even if "Native Block Checkout" is off. Before, those stores showed shoppers "There are no payment methods available". It is card payments only; ACH, Apple Pay, Google Pay and saved methods stay on the classic checkout.
 * Changed: with 3-D Secure set to Attempt, card payments on the Checkout block are taken without 3-D Secure (the order note says so), because 3-D Secure runs on the classic checkout only. With 3-D Secure set to Required, the payment method is not offered on Checkout block pages. The gateway settings page explains both cases and how to fix them.
-* Changed: 3-D Secure enrollment is described as taking about 4 to 7 business days, and the "Level 2" wording was removed from the plugin text (the setting is named Level 3 / CEDP).
+* Changed: 3-D Secure enrollment is described as taking about 4 to 7 business days, and commercial-card data is now named "Commercial Enhanced Data Program (CEDP)/Level 3" throughout the plugin text (the setting is named Level 3 / CEDP).
 
 = 1.1.0 =
 * New: a "Block Other Card Brands" tickbox (off by default, so nothing changes for existing stores). When ticked, a card whose brand is not in "Accepted Card Brands" is refused at checkout, before any charge where the brand is known, or voided at once if the brand is only known after approval. Saved-card renewals are not affected.
@@ -219,7 +219,7 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * Payment method now shows the real card brand instead of the generic "Credit Card" label, on classic and Block checkout, including saved cards.
 
 = 1.0.31 =
-* Order screens/emails/admin now show the actual payment method used; fixed credential autofill cross-fill; real logo option; renamed Level 2/3 to Level 3/CEDP with new fields.
+* Order screens/emails/admin now show the actual payment method used; fixed credential autofill cross-fill; real logo option; commercial-card data renamed Commercial Enhanced Data Program (CEDP)/Level 3 data, with new fields.
 
 = 1.0.30 =
 * Merged the 1.0.29 wallet fix forward; repo-wide coding-standards cleanup. No merchant-facing change.
@@ -249,7 +249,7 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * Critical: fixed tokenize failures from duplicate submit handlers, a credential-mixing bug, and ACH lockup after failed submit; refreshed brand artwork.
 
 = 1.0.21 =
-* Critical: fixed ACH fields not accepting input from overlapping iframes (fixed with `inert`); Level 2/3 and PO fields default off.
+* Critical: fixed ACH fields not accepting input from overlapping iframes (fixed with `inert`); Commercial Enhanced Data Program (CEDP)/Level 3 data and PO fields default off.
 
 = 1.0.20 =
 * Critical: fixed card/ACH fields rejecting input from an invalid wallet config; added "save this card/bank" checkboxes and a version-mismatch banner.
@@ -312,7 +312,7 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * Minor WP.org compliance fixes. No merchant-facing changes.
 
 = 1.0.0 =
-* Initial release. Embedded Collect.js checkout -- Card, ACH, Apple Pay, Google Pay, saved methods, Subscriptions/Pre-Orders, refunds, Level 2/3 data, 3DS2/SCA, HPOS.
+* Initial release. Embedded Collect.js checkout -- Card, ACH, Apple Pay, Google Pay, saved methods, Subscriptions/Pre-Orders, refunds, Commercial Enhanced Data Program (CEDP)/Level 3 data, 3DS2/SCA, HPOS.
 
 == Upgrade Notice ==
 
