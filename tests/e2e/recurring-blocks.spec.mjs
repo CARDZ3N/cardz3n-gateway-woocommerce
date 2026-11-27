@@ -1,3 +1,6 @@
+// PART 1 of 2 (phases 1-4: the recurring features advertised, and the carts, with the store switches off / on / only Subscriptions on /
+// plugins not active). Part 2 is recurring-blocks-pinned-3ds.spec.mjs (pinned stores, 3-D Secure, classic page). Split in two because one
+// long run was interrupted by the local test browser.
 // End-to-end (local stand-in) check: subscription and pre-order carts on the native block checkout, card only.
 //
 // Before this change the native block method advertised only 'products' and 'refunds'. WooCommerce Subscriptions / Pre-Orders add a payment
@@ -68,7 +71,9 @@ try {
     const pid = await page.evaluate((n) => fetch('/wp-json/wc/store/v1/products?search=' + encodeURIComponent(n)).then((r) => r.json()).then((p) => (p.find((x) => x.name === n) || p[0] || {}).id), productName);
     // Playground logs in as admin and WooCommerce keeps a signed-in user's cart, so start every page from an empty cart.
     await page.evaluate(async () => { const c = await fetch('/wp-json/wc/store/v1/cart'); await fetch('/wp-json/wc/store/v1/cart/items', { method: 'DELETE', headers: { Nonce: c.headers.get('nonce') } }); });
-    await page.goto(`${base}/?add-to-cart=${pid}`, { waitUntil: 'domcontentloaded' });
+    // Test helper only: the local browser sometimes aborts this page load (net::ERR_ABORTED) on a long run; try once more.
+    try { await page.goto(`${base}/?add-to-cart=${pid}`, { waitUntil: 'domcontentloaded' }); }
+    catch (e) { if (!/ERR_ABORTED/.test(String(e.message))) { throw e; } await page.waitForTimeout(3000); await page.goto(`${base}/?add-to-cart=${pid}`, { waitUntil: 'domcontentloaded' }); }
     // Fill the billing address through the Store API so the Checkout block form is complete.
     await page.evaluate(async () => {
       const c = await fetch('/wp-json/wc/store/v1/cart');
@@ -106,8 +111,6 @@ try {
     return /cannot be paid with this gateway yet/.test(t) ? t : '';
   };
 
-  // ONLY_NEW=1 runs just the phases from 5 on (a shorter run when the long one is interrupted by the local browser).
-  if (!process.env.ONLY_NEW) {
   // ---------------------------------------------------------------- Phase 1: plugins active, switches OFF
   await cfg('stub_subs=yes&stub_pre=yes&http=yes&sw_subs=no&sw_pre=no&reset_reqs=1');
   { const f = await probe('features');
@@ -196,74 +199,6 @@ try {
   { const f = await probe('features');
     check('Switches on but Subscriptions / Pre-Orders not active: nothing recurring is advertised', j(f.features) === j(['products', 'refunds']), j(f.features)); }
 
-  }
-
-  // ---------------------------------------------------------------- Phase 5: pinned stores (setting saved OFF before 1.1.0), Checkout block page
-  // Before this change such a store's Checkout block page showed "There are no payment methods available" (measured 2026-11-25). The native
-  // method is now offered on every Checkout block page, except while 3-D Secure is Required.
-  const noticeText = async () => { await warns(); return admin.evaluate(() => { const t = Array.from(document.querySelectorAll('.notice-warning, .notice-error')).map((n) => n.innerText).join('\n'); return t || '[no notices on the page] ' + document.body.innerText.replace(/\s+/g, ' ').slice(0, 200); }); };
-  await cfg('stub_subs=yes&stub_pre=yes&http=yes&sw_subs=yes&sw_pre=yes&native=no&tds=off&chk=block&reset_reqs=1');
-  { const st = await probe('state2');
-    check('Pinned store (setting OFF), Checkout block page: the native method is offered and cart_checkout_blocks is declared compatible', st.enabled === true && st.setting_on === false && st.page_is_block === true && st.saved_value === 'no' && st.compatible === true && st.incompatible === false, j(st)); }
-  { const { ctx, page } = await cartPage('E2E Test Item'); const t = await paymentText(page);
-    check('Pinned store, normal cart: the card method is offered (no "no payment methods")', offered(t), t.slice(0, 90)); await ctx.close(); }
-  for (const [label, name] of [['subscription', 'E2E Subscription Item'], ['pre-order', 'E2E Preorder Item']]) {
-    const { ctx, page } = await cartPage(name); const t = await paymentText(page);
-    check(`Pinned store, switches on, ${label} cart: the card method is offered`, offered(t), t.slice(0, 90));
-    await cfg('reset_reqs=1');
-    const po = await placeOrder(page);
-    check(`Pinned store, switches on, ${label} cart: the block checkout succeeds`, po.status === 200 && po.json.payment_result && po.json.payment_result.payment_status === 'success', `${po.status} ${j(po.json.payment_result || po.json).slice(0, 120)}`);
-    const o = await probe('order&id=' + po.json.order_id); const q = (o.requests || [])[0] || {};
-    check(`Pinned store, switches on, ${label} cart: the card is saved for the later payments`, q.customer_vault === 'add_customer' && /^V-/.test(o.order_vault), j(q));
-    await ctx.close(); }
-  // Pinned store, plugins active, switches OFF: subscription and pre-order carts are still refused (the gateway does not take what it cannot renew).
-  await cfg('sw_subs=no&sw_pre=no&reset_reqs=1');
-  { const { ctx, page } = await cartPage('E2E Test Item'); const t = await paymentText(page);
-    check('Pinned store, switches off, normal cart: the card method is offered', offered(t), t.slice(0, 80)); await ctx.close(); }
-  for (const [label, name] of [['subscription', 'E2E Subscription Item'], ['pre-order', 'E2E Preorder Item']]) {
-    const { ctx, page } = await cartPage(name); const t = await paymentText(page);
-    check(`Pinned store, switches off, ${label} cart: the method is NOT offered`, refused(t), t.slice(0, 90)); await ctx.close(); }
-
-  // ---------------------------------------------------------------- Phase 6: 3-D Secure Attempt on the Checkout block
-  await cfg('sw_subs=yes&sw_pre=yes&native=unset&tds=attempt&chk=block&reset_reqs=1');
-  { const st = await probe('state2');
-    check('3-D Secure Attempt, Checkout block page: the native method is offered and compatible (the Checkout block cannot run 3-D Secure)', st.enabled === true && st.tds === 'attempt' && st.compatible === true, j(st)); }
-  { const { ctx, page } = await cartPage('E2E Test Item'); const t = await paymentText(page);
-    check('3-D Secure Attempt, normal cart: the card method is offered', offered(t), t.slice(0, 90));
-    await cfg('reset_reqs=1');
-    const po = await placeOrder(page);
-    check('3-D Secure Attempt, normal cart: the block checkout succeeds (the payment is taken without 3-D Secure)', po.status === 200 && po.json.payment_result && po.json.payment_result.payment_status === 'success', `${po.status} ${j(po.json.payment_result || po.json).slice(0, 120)}`);
-    const o = await probe('order&id=' + po.json.order_id);
-    check('3-D Secure Attempt, normal cart: the order note says 3-D Secure was not available and the payment was sent without it', (o.notes || []).some((n) => /3-D Secure was not available for this payment/.test(n) && /sent without it/.test(n)), j(o.notes));
-    check('3-D Secure Attempt, normal cart: the payment reached the gateway (a sale was sent)', (o.requests || []).length === 1, j((o.requests || []).map((r) => r.type)));
-    await ctx.close(); }
-  { const { ctx, page } = await cartPage('E2E Subscription Item'); const t = await paymentText(page);
-    check('3-D Secure Attempt, subscription cart (switch on): the card method is offered', offered(t), t.slice(0, 90));
-    await cfg('reset_reqs=1');
-    const po = await placeOrder(page);
-    const o = await probe('order&id=' + po.json.order_id); const q = (o.requests || [])[0] || {};
-    check('3-D Secure Attempt, subscription cart: succeeds and the card is saved for renewals', po.status === 200 && po.json.payment_result && po.json.payment_result.payment_status === 'success' && q.customer_vault === 'add_customer' && /^V-/.test(o.order_vault), j(q));
-    await ctx.close(); }
-  { const w = await noticeText();
-    check('3-D Secure Attempt: the settings page says the Checkout block takes card payments without 3-D Secure', /3D Secure is set to Attempt, and your checkout page uses the Checkout block/.test(w) && /taken without it/.test(w), w.slice(0, 200)); }
-
-  // ---------------------------------------------------------------- Phase 7: 3-D Secure Required: not offered on the Checkout block (a payment without 3-D Secure would be stopped)
-  await cfg('native=yes&tds=required&reset_reqs=1');
-  { const st = await probe('state2');
-    check('3-D Secure Required, Checkout block page (even with the setting ticked): the native method is not offered and not declared compatible', st.enabled === false && st.tds === 'required' && st.compatible === false && st.incompatible === true, j(st)); }
-  for (const [label, name] of [['normal', 'E2E Test Item'], ['subscription', 'E2E Subscription Item']]) {
-    const { ctx, page } = await cartPage(name); const t = await paymentText(page);
-    check(`3-D Secure Required, ${label} cart: the method is NOT offered`, refused(t), t.slice(0, 90)); await ctx.close(); }
-  { const w = await noticeText();
-    check('3-D Secure Required: the settings page says the gateway is not offered on the Checkout block and how to fix it', /3D Secure is set to Required, and your checkout page uses the Checkout block, so this gateway is not offered there/.test(w) && /classic checkout/.test(w), w.slice(0, 200)); }
-
-  // ---------------------------------------------------------------- Phase 8: classic checkout page and the setting off: nothing registered (as before)
-  await cfg('native=no&tds=off&chk=classic');
-  { const st = await probe('state2');
-    check('Classic checkout page, setting OFF: the native method is not offered and not declared compatible (unchanged)', st.enabled === false && st.page_is_block === false && st.setting_on === false && st.compatible === false && st.incompatible === true, j(st)); }
-  { const w = await noticeText();
-    check('Classic checkout page: no Checkout-block warning on the settings page', !/your checkout page uses the Checkout block/.test(w), w.slice(0, 120)); }
-  await cfg('native=unset&tds=off&chk=block');
 
   await browser.close();
 } catch (e) {
