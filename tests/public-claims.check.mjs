@@ -31,7 +31,7 @@ b = bad(/compliant|compliance|liability shift|PSD2|guarantee|fully protected/i, 
 b.length ? fail('readme.txt makes a compliance or protection claim: ' + b[0].slice(0, 90)) : ok('readme.txt: no compliance or protection claim');
 const faq3 = lines.find((l) => /^Optional, off by default\. The plugin can ask the cardholder's bank/.test(l)) || '';
 (/3-D Secure must be enabled and enrolled for your merchant account before it can work, and enrollment can take about 4 to 7 business days/.test(faq3) && /leave 3-D Secure set to Off/.test(faq3) && !/Payer Authentication/.test(faq3) && /verified against a 3D Secure test environment \(a shared demo account\)/.test(faq3) && /not been verified on CARDZ3N's own gateway host/.test(faq3) && /makes no promise about liability/.test(faq3) && /not saved cards, bank payments/.test(faq3) && /Saved cards are not put through 3D Secure, so Required applies to new-card payments only/.test(faq3) && !/blocks all card payments/.test(faq3)) ? ok('readme.txt: the 3-D Secure FAQ states its limits (Payer Authentication first, NMI test environment only, no promise)') : fail('readme.txt: the 3-D Secure FAQ is missing a required limit');
-b = bad(/3-?D Secure|3DS|SCA\b/i, /^= Can I use 3D Secure \(strong customer authentication\)\? =$|^Optional, off by default\. The plugin can ask the cardholder's bank|^\* Optional 3-D Secure \(Off, Attempt or Required\) for new card payments on the classic checkout$/);
+b = bad(/3-?D Secure|3DS|SCA\b/i, /^= Can I use 3D Secure \(strong customer authentication\)\? =$|^Optional, off by default\. The plugin can ask the cardholder's bank|^\* Optional 3-D Secure \(Off, Attempt or Required\) for new card payments on the classic checkout; your merchant account must be enrolled for 3-D Secure first$/);
 b.length ? fail('readme.txt names 3-D Secure outside its FAQ: ' + b[0].slice(0, 90)) : ok('readme.txt: 3-D Secure appears only in its FAQ');
 b = bad(/card-on-file|stored[- ]credential|initiated_by|initial_transaction/i);
 b.length ? fail('readme.txt shows an internal card-on-file detail: ' + b[0].slice(0, 90)) : ok('readme.txt: no card-on-file claim');
@@ -45,7 +45,8 @@ b = bad(/Level 2|Level II|\bL2\b|every transaction|secure vault|no card data|car
 b.length ? fail('readme.txt uses retired or unproven wording: ' + b[0].slice(0, 90)) : ok('readme.txt: no "Level 2", "every transaction", "secure vault", "no card data" or card-brand restriction wording');
 
 // Short description and header: no wallet or pre-order claim.
-const short = (readme.match(/^Embedded WooCommerce checkout[^\n]*/m) || [''])[0];
+const short = (readme.split(/\n\s*\n/)[1] || '').trim(); // the short description: the paragraph after the header block (it must be 150 characters or fewer)
+short.length > 0 && short.length <= 150 ? ok('readme.txt short description is ' + short.length + ' characters (150 or fewer)') : fail('readme.txt short description is missing or longer than 150 characters (' + short.length + ')');
 /apple pay|google pay|pre-?order/i.test(short) ? fail('readme.txt short description names wallets or pre-orders') : ok('readme.txt short description: no wallet or pre-order claim');
 const main = read('cardz3n-gateway-woocommerce.php');
 const headerDesc = main.split('\n').find((l) => /^\s*\* Description:/.test(l)) || '';

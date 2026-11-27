@@ -1,6 +1,6 @@
 === CARDZ3N for WooCommerce ===
 Contributors: jbenedetti, cardz3n
-Tags: payment gateway, credit card, ach, subscriptions
+Tags: payment gateway, credit card, ach, subscriptions, b2b
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
@@ -8,11 +8,11 @@ Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Embedded WooCommerce checkout via the CARDZ3N payment gateway. Card and ACH payments, subscriptions (card payments), saved methods, refunds, and optional Commercial Enhanced Data Program (CEDP)/Level 3 data.
+Embedded checkout on the CARDZ3N payment gateway: cards, ACH, Apple Pay, Google Pay, subscriptions and B2B Level 3 data. US, Canada, UK, EU.
 
 == Description ==
 
-CARDZ3N for WooCommerce turns your WooCommerce store into a full-featured embedded checkout using the CARDZ3N payment gateway.
+CARDZ3N for WooCommerce turns your WooCommerce store into a full-featured embedded checkout using the CARDZ3N payment gateway. It supports B2B merchants with optional Commercial Enhanced Data Program (CEDP)/Level 3 data on orders.
 
 Buyers stay on your site — no visible redirect — and can choose between **credit/debit cards, ACH bank payments, or a saved payment method** inside a single gateway UI. All sensitive payment data is tokenized in the browser by Collect.js, loaded from the CARDZ3N gateway host, so card numbers and bank account numbers never touch your WordPress server.
 
@@ -24,7 +24,7 @@ B2B merchants can switch on **Commercial Enhanced Data Program (CEDP)/Level 3 da
 * Credit / debit card, ACH / eCheck and saved payment methods, all in one gateway UI
 * Saved payment methods (card + ACH): your site never stores full card numbers
 * Apple Pay and Google Pay for single purchases on the classic checkout (not offered on subscription or pre-order carts)
-* Optional 3-D Secure (Off, Attempt or Required) for new card payments on the classic checkout
+* Optional 3-D Secure (Off, Attempt or Required) for new card payments on the classic checkout; your merchant account must be enrolled for 3-D Secure first
 * WooCommerce Subscriptions, card payments only: the card is saved at sign-up, renewals are charged from it, free trials save the card without charging it, customers can change their payment method (covered by automated stand-in tests)
 * Authorize-only + manual capture, void, full and partial refunds
 * Auto-capture on order-status change
