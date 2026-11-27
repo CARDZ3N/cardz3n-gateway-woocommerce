@@ -1,6 +1,6 @@
 <?php
 /**
- * Level 2 / Level 3 commercial-data mapper.
+ * Level 3 (CEDP) commercial-data mapper.
  *
  * Translates a WooCommerce order into the NMI Level 3 field names accepted by
  * transact.php. Values are derived in this order of precedence:
@@ -34,7 +34,7 @@ namespace Cardz3n_Gateway;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Maps a WooCommerce order into NMI Level 2/3 field data.
+ * Maps a WooCommerce order into Level 3 (CEDP) field data.
  */
 class Level3_Mapper {
 
@@ -58,17 +58,17 @@ class Level3_Mapper {
 	}
 
 	/**
-	 * Whether Level 2/3 data submission is enabled in settings.
+	 * Whether Level 3 (CEDP) data submission is enabled in settings.
 	 */
 	public function enabled() {
 		return isset( $this->settings['enable_level3'] ) && 'yes' === $this->settings['enable_level3'];
 	}
 
 	/**
-	 * Build the Level 2/3 payload for a given order.
+	 * Build the Level 3 (CEDP) payload for a given order.
 	 *
 	 * @param \WC_Order $order Order to build the payload from.
-	 * @return array Level 2/3 payload fields, or an empty array when disabled.
+	 * @return array Level 3 (CEDP) payload fields, or an empty array when disabled.
 	 */
 	public function build( \WC_Order $order ) {
 		if ( ! $this->enabled() ) {

@@ -4,7 +4,7 @@
 //   - The setting is a three-way choice and defaults to OFF on a fresh install (nothing saved).
 //   - When Required is saved, the settings page shows a plain warning that Required BLOCKS ALL new-card payments until the account is
 //     enrolled for 3D Secure, and says to leave it Off until then; with Attempt or Off that warning is not shown.
-//   - The help text next to the setting says 3D Secure must be enabled and enrolled first (can take a few business days), that the plugin cannot enroll the merchant, and
+//   - The help text next to the setting says 3D Secure must be enabled and enrolled first (can take about 4 to 7 business days), that the plugin cannot enroll the merchant, and
 //     promises nothing about liability shift or compliance.
 //   - When a card payment is stopped because 3-D Secure could not run (reported by the checkout page with a fixed reason code), the
 //     merchant sees a notice with the cause in plain words on the settings page; an unknown reason is refused.
@@ -86,7 +86,7 @@ try {
   check('Required saved: the page shows the plain warning that Required blocks ALL new-card payments and recommends Attempt', req.value === 'required' && REQUIRED_WARNING.test(req.text), j({ value: req.value }));
 
   // 4) The help text next to the setting.
-  check('Help text: the account must be enabled and enrolled first (can take a few business days), and the plugin cannot enroll the merchant', /3D Secure must be enabled and enrolled for your merchant account before it can work, and enrollment can take a few business days/.test(req.helper) && /cannot enroll you/.test(req.helper), req.helper.slice(0, 120));
+  check('Help text: the account must be enabled and enrolled first (can take about 4 to 7 business days), and the plugin cannot enroll the merchant', /3D Secure must be enabled and enrolled for your merchant account before it can work, and enrollment can take about 4 to 7 business days/.test(req.helper) && /cannot enroll you/.test(req.helper), req.helper.slice(0, 120));
   check('Help text: says Required blocks all new-card payments until the account is enrolled, and to leave 3D Secure Off until then', /BLOCKS ALL new-card payments until your account is enrolled/.test(req.helper) && /leave 3D Secure set to Off/.test(req.helper) && !/Payer Authentication/.test(req.helper));
   check('Help text: says plainly that saved cards are NOT put through 3D Secure and that Required applies to new-card payments only', /3D Secure applies to NEW card payments only\. Saved cards are NOT put through 3D Secure, so Required does not stop or check a payment made with a saved card/.test(req.helper), req.helper.slice(0, 160));
   check('Setting options: the Required label says saved cards are not put through 3D Secure', /Required: stop a new-card payment[^|]*saved cards are not put through 3D Secure/.test(req.optionLabels), req.optionLabels);

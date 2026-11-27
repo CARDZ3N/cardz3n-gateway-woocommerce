@@ -48,7 +48,7 @@ CARDZ3N / NMI account with Collect.js enabled.
 | 19 | Subscription payment-method update                           | New vault id replaces old on the subscription          |      |
 | 20 | Pre-order checkout (WC Pre-Orders active)                    | Auth stored; release triggers vault-sale successfully |      |
 
-## 4. Commercial data (Level 2/3)
+## 4. Commercial data (Level 3 / CEDP)
 
 | #  | Scenario                                                    | Expected                                                | Pass |
 |----|-------------------------------------------------------------|---------------------------------------------------------|:----:|

@@ -363,7 +363,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 
 		// 3-D Secure: Required blocks ALL new-card payments until the gateway account is enrolled for 3-D Secure.
 		if ( Three_DS::required( $this->settings ) ) {
-			$warnings[] = __( '<strong>3D Secure is set to Required.</strong> Every new-card payment will be BLOCKED until your merchant account is enrolled for 3D Secure (enrollment can take a few business days; contact CARDZ3N support). Leave 3D Secure set to Off until then. Required applies to new-card payments only: payments with a saved card are not put through 3D Secure.', 'cardz3n-gateway' );
+			$warnings[] = __( '<strong>3D Secure is set to Required.</strong> Every new-card payment will be BLOCKED until your merchant account is enrolled for 3D Secure (enrollment can take about 4 to 7 business days; contact CARDZ3N support). Leave 3D Secure set to Off until then. Required applies to new-card payments only: payments with a saved card are not put through 3D Secure.', 'cardz3n-gateway' );
 		}
 		// 3-D Secure on a Checkout block page: the Checkout block does not run 3-D Secure.
 		if ( 'yes' === $this->get_option( 'enabled' ) && cardz3n_gw_checkout_page_uses_block() ) {
@@ -378,7 +378,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 			$last      = end( $blocked );
 			$warnings[] = sprintf(
 				/* translators: 1: number of stopped payments, 2: cause in plain words */
-				_n( '<strong>%1$d card payment was stopped in the last 7 days because 3D Secure could not run.</strong> Cause: %2$s. Check that your merchant account is enrolled for 3D Secure (enrollment can take a few business days).', '<strong>%1$d card payments were stopped in the last 7 days because 3D Secure could not run.</strong> Most recent cause: %2$s. Check that your merchant account is enrolled for 3D Secure (enrollment can take a few business days).', count( $blocked ), 'cardz3n-gateway' ),
+				_n( '<strong>%1$d card payment was stopped in the last 7 days because 3D Secure could not run.</strong> Cause: %2$s. Check that your merchant account is enrolled for 3D Secure (enrollment can take about 4 to 7 business days).', '<strong>%1$d card payments were stopped in the last 7 days because 3D Secure could not run.</strong> Most recent cause: %2$s. Check that your merchant account is enrolled for 3D Secure (enrollment can take about 4 to 7 business days).', count( $blocked ), 'cardz3n-gateway' ),
 				count( $blocked ),
 				Three_DS::REASONS[ $last['reason'] ]
 			);
@@ -1374,7 +1374,7 @@ class Gateway extends \WC_Payment_Gateway_CC {
 	 *
 	 * - Off, or not a new card: nothing.
 	 * - The browser completed the authentication: its values are returned and go to the gateway with the request.
-	 * - The browser could not complete it (Gateway.js did not load, the gateway is not enrolled for Payer Authentication, a timeout,
+	 * - The browser could not complete it (Gateway.js did not load, the gateway is not enrolled for 3-D Secure, a timeout,
 	 *   a crash, the cardholder name is missing): in "attempt" mode the payment goes on WITHOUT 3-D Secure and an order note says so
 	 *   (no liability shift for that payment); in "required" mode the payment is stopped with a plain message and nothing is sent to
 	 *   the gateway.

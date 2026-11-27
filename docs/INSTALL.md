@@ -44,7 +44,7 @@ git clone https://github.com/your-org/cardz3n-gateway-woocommerce.git
 3. Enable **Sandbox Mode** while testing
 4. Click **Save changes**, then click **Test Credentials** — you should see a green ✓
 5. Enable the payment methods you want to offer
-6. (B2B only) Fill in the **Level 2 / Level 3 Commercial Data** section — especially **Merchant TIN**
+6. (B2B only) Fill in the **Level 3 / CEDP** (Commercial Enhanced Data Program) section — especially **Merchant TIN**
 
 ## 5. Run a sandbox transaction
 
@@ -100,7 +100,7 @@ These can be set via the WooCommerce admin, WP-CLI, or a product-import CSV.
 | Gateway hidden at checkout                               | Missing credentials or live mode without HTTPS                |
 | "Tokenization timed out" at checkout                     | Browser blocked `z3n.transactiongateway.com` — check CSP, ad-blockers |
 | `Invalid security key` on Test Credentials               | Keys swapped or belong to a disabled account                  |
-| Level 3 data not transmitted                             | Toggle `Enable Level 2/3 Transmission` in settings            |
+| Level 3 data not transmitted                             | Toggle `Enable Level 3 / CEDP Transmission` in settings            |
 | Auto-capture never fires                                 | Set `Auto-capture on Status Change` to a specific status      |
 | Apple Pay button not showing                             | Apple Pay domain verification file missing from `.well-known` |
 

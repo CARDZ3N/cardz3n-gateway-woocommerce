@@ -8,7 +8,7 @@
  *
  *   - Security-key authenticated transactions (sale, auth, capture, void, refund, credit).
  *   - Customer Vault add/update/delete (card + ACH).
- *   - Level 2/3 enhanced data pass-through (fields merged into the transact.php payload).
+ *   - Level 3 (CEDP) enhanced data pass-through (fields merged into the transact.php payload).
  *   - Deterministic response parsing and error normalization.
  *
  * Credentials are stored in WooCommerce gateway settings and only used server-side.
@@ -502,7 +502,7 @@ class Api_Client {
 			}
 		}
 
-		// Level 2/3 fields merged directly.
+		// Level 3 (CEDP) fields merged directly.
 		if ( is_array( $args['level3'] ) && ! empty( $args['level3'] ) ) {
 			foreach ( $args['level3'] as $k => $v ) {
 				if ( null === $v || '' === $v ) {

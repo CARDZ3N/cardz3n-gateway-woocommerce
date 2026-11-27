@@ -7,13 +7,13 @@
  * authentication values, which are sent with the sale. Source: https://docs.nmi.com/docs/payer-authentication-3ds
  *
  * CONFIRMED by NMI's AI assistant (ticket answer, 2026-10-26; the live behaviour of our TEST account is not yet checked):
- * - 3-D Secure needs Payer Authentication 2.0 switched on for the merchant account, an eCommerce-classified processor and
+ * - 3-D Secure needs 3-D Secure (version 2) switched on and enrolled for the merchant account, an eCommerce-classified processor and
  *   enrollment data (website URL, acquiring bank, bank VISA and MasterCard BINs, requestor category code, name and ID). Collect.js
  *   works with 3-D Secure only together with Gateway.js.
  * - For the first-store transaction use challengeIndicator '04'. After authentication send cavv, xid, eci, cardholder_auth,
  *   three_ds_version and directory_server_id with the Payment API request (T3 is therefore confirmed), together with the
  *   first-store flags of the recurring fields. Cardholder first and last name are required for 3-D Secure 2.
- * - 3-D Secure can be tested in Test Mode when Payer Authentication 2.0 is active. NMI's "Testing" page lists the Test Mode cards
+ * - 3-D Secure can be tested in Test Mode when 3-D Secure is enabled on the account. NMI's "Testing" page lists the Test Mode cards
  *   (Visa 4000000000002701 successful frictionless, ...2925 failed, ...2719 attempted, ...2503 successful step up, ...2370 failed
  *   step up and others); the AI assistant says expiry 08/2030, CVV 999, challenge password 1234 (not on the page).
  *
