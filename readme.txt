@@ -8,7 +8,7 @@ Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Embedded checkout on the CARDZ3N payment gateway: cards, ACH, Apple Pay, Google Pay, subscriptions and B2B Level 3 data. US, Canada, UK, EU.
+Embedded checkout on the CARDZ3N payment gateway: cards, ACH, subscriptions and B2B Level 3 data. US, Canada, UK, EU.
 
 == Description ==
 
