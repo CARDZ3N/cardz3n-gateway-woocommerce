@@ -102,7 +102,7 @@ These live in a separate `assets/` directory committed to the `trunk` SVN but se
 - [ ] `assets/screenshot-3.png` — Apple Pay / Google Pay wallet buttons
 - [ ] `assets/screenshot-4.png` — Saved payment methods
 - [ ] `assets/screenshot-5.png` — Admin settings (Credentials section)
-- [ ] `assets/screenshot-6.png` — Admin settings (Level 2/3 section)
+- [ ] `assets/screenshot-6.png` — Admin settings (Level 3 / CEDP section)
 - [ ] `assets/screenshot-7.png` — Order screen with Capture / Refund buttons
 
 ## 8. Build & packaging

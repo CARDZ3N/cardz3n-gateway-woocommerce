@@ -1,6 +1,6 @@
 === CARDZ3N for WooCommerce ===
 Contributors: jbenedetti, cardz3n
-Tags: payment gateway, credit card, ach, subscriptions
+Tags: payment gateway, credit card, ach, subscriptions, b2b
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
@@ -8,11 +8,11 @@ Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Embedded WooCommerce checkout via the CARDZ3N payment gateway. Card and ACH payments, subscriptions (card payments), saved methods, refunds, and optional Commercial Enhanced Data Program (CEDP)/Level 3 data.
+Embedded checkout on the CARDZ3N payment gateway: cards, ACH, subscriptions and B2B Level 3 data. US, Canada, UK, EU.
 
 == Description ==
 
-CARDZ3N for WooCommerce turns your WooCommerce store into a full-featured embedded checkout using the CARDZ3N payment gateway.
+CARDZ3N for WooCommerce turns your WooCommerce store into a full-featured embedded checkout using the CARDZ3N payment gateway. It supports B2B merchants with optional Commercial Enhanced Data Program (CEDP)/Level 3 data on orders.
 
 Buyers stay on your site — no visible redirect — and can choose between **credit/debit cards, ACH bank payments, or a saved payment method** inside a single gateway UI. All sensitive payment data is tokenized in the browser by Collect.js, loaded from the CARDZ3N gateway host, so card numbers and bank account numbers never touch your WordPress server.
 
@@ -24,7 +24,7 @@ B2B merchants can switch on **Commercial Enhanced Data Program (CEDP)/Level 3 da
 * Credit / debit card, ACH / eCheck and saved payment methods, all in one gateway UI
 * Saved payment methods (card + ACH): your site never stores full card numbers
 * Apple Pay and Google Pay for single purchases on the classic checkout (not offered on subscription or pre-order carts)
-* Optional 3-D Secure (Off, Attempt or Required) for new card payments on the classic checkout
+* Optional 3-D Secure (Off, Attempt or Required) for new card payments on the classic checkout; your merchant account must be enrolled for 3-D Secure first
 * WooCommerce Subscriptions, card payments only: the card is saved at sign-up, renewals are charged from it, free trials save the card without charging it, customers can change their payment method (covered by automated stand-in tests)
 * Authorize-only + manual capture, void, full and partial refunds
 * Auto-capture on order-status change
@@ -69,7 +69,7 @@ This plugin connects to the CARDZ3N payment gateway, a white-labeled instance of
 * CARDZ3N terms: https://cardz3n.com/merchant-services-terms-conditions
 * CARDZ3N privacy policy: https://cardz3n.com/privacy-policy
 
-2. **Gateway Transaction API** (https://z3n.transactiongateway.com/api/transact.php) — called by your WordPress server only when a shopper submits a payment, when the store owner captures, voids or refunds a payment from the order screen, when a subscription or pre-order is charged, when a saved payment method is deleted, and when the store owner clicks Test Credentials. It sends your private Security Key, the payment token or vault ID, the order amount, the buyer's billing and shipping details, line items and, when enabled, Level 2/3 fields. Purpose: to charge, capture, void, refund and verify payments.
+2. **Gateway Transaction API** (https://z3n.transactiongateway.com/api/transact.php) — called by your WordPress server only when a shopper submits a payment, when the store owner captures, voids or refunds a payment from the order screen, when a subscription or pre-order is charged, when a saved payment method is deleted, and when the store owner clicks Test Credentials. It sends your private Security Key, the payment token or vault ID, the order amount, the buyer's billing and shipping details, line items and, when enabled, Level 3 (CEDP) fields. Purpose: to charge, capture, void, refund and verify payments.
 * NMI merchant terms: https://www.nmi.com/policy/terms-conditions-for-nmis-services-merchant-terms-and-conditions/
 * NMI privacy policy: https://www.nmi.com/policy/privacy/
 * CARDZ3N terms: https://cardz3n.com/merchant-services-terms-conditions
@@ -121,7 +121,7 @@ The plugin has Apple Pay and Google Pay settings. They are off by default and ne
 
 = Can I use 3D Secure (strong customer authentication)? =
 
-Optional, off by default. The plugin can ask the cardholder's bank to check a new card before it is charged. **3-D Secure must be enabled and enrolled for your merchant account before it can work, and enrollment can take a few business days. Your processor must support 3-D Secure 2 for online (eCommerce) payments, and your website address is needed for enrollment. Contact CARDZ3N support at support@cardz3n.com or 725-888-5001 to start. Until your account is enrolled, leave 3-D Secure set to Off.** Once it is enrolled, choose a mode in the gateway settings: *Attempt* tries 3D Secure and takes the payment without it if it cannot run (the order note says so); *Required* stops every new card payment that cannot be authenticated, so it blocks all new-card payments until your account is enrolled. **Saved cards are not put through 3D Secure, so Required applies to new-card payments only and does not stop or check a payment made with a saved card.** A card that its bank reports as failed is always stopped. It covers new cards on the classic checkout payment form, including free trials; not saved cards, bank payments, Apple Pay, Google Pay, the My Account pages, the native block checkout or subscription renewals. The flow was verified against a 3D Secure test environment (a shared demo account); it has not been verified on CARDZ3N's own gateway host. The plugin makes no promise about liability or about meeting any regulation: ask your bank and CARDZ3N which payments you need to cover.
+Optional, off by default. The plugin can ask the cardholder's bank to check a new card before it is charged. **3-D Secure must be enabled and enrolled for your merchant account before it can work, and enrollment can take about 4 to 7 business days. Your processor must support 3-D Secure 2 for online (eCommerce) payments, and your website address is needed for enrollment. Contact CARDZ3N support at support@cardz3n.com or 725-888-5001 to start. Until your account is enrolled, leave 3-D Secure set to Off.** Once it is enrolled, choose a mode in the gateway settings: *Attempt* tries 3D Secure and takes the payment without it if it cannot run (the order note says so); *Required* stops every new card payment that cannot be authenticated, so it blocks all new-card payments until your account is enrolled. **Saved cards are not put through 3D Secure, so Required applies to new-card payments only and does not stop or check a payment made with a saved card.** A card that its bank reports as failed is always stopped. It covers new cards on the classic checkout payment form, including free trials; not saved cards, bank payments, Apple Pay, Google Pay, the My Account pages, the native block checkout or subscription renewals. The flow was verified against a 3D Secure test environment (a shared demo account); it has not been verified on CARDZ3N's own gateway host. The plugin makes no promise about liability or about meeting any regulation: ask your bank and CARDZ3N which payments you need to cover.
 
 = Does it support WooCommerce Subscriptions? =
 
@@ -153,10 +153,15 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 
 == Changelog ==
 
+= 1.1.1 =
+* Fixed: the card payment method is now offered on every Checkout block page, even if "Native Block Checkout" is off. Before, those stores showed shoppers "There are no payment methods available". It is card payments only; ACH, Apple Pay, Google Pay and saved methods stay on the classic checkout.
+* Changed: with 3-D Secure set to Attempt, card payments on the Checkout block are taken without 3-D Secure (the order note says so), because 3-D Secure runs on the classic checkout only. With 3-D Secure set to Required, the payment method is not offered on Checkout block pages. The gateway settings page explains both cases and how to fix them.
+* Changed: 3-D Secure enrollment is described as taking about 4 to 7 business days, and commercial-card data is now named "Commercial Enhanced Data Program (CEDP)/Level 3" throughout the plugin text (the setting is named Level 3 / CEDP).
+
 = 1.1.0 =
 * New: a "Block Other Card Brands" tickbox (off by default, so nothing changes for existing stores). When ticked, a card whose brand is not in "Accepted Card Brands" is refused at checkout, before any charge where the brand is known, or voided at once if the brand is only known after approval. Saved-card renewals are not affected.
 * Changed: the "Gateway Receipts" setting was removed because it never did anything.
-* New: 3-D Secure setting (Off, Attempt, Required) for new card payments on the classic checkout. 3-D Secure must be enabled and enrolled for your merchant account first (enrollment can take a few business days). Saved cards, bank payments, Apple Pay, Google Pay, the My Account pages and renewals are not authenticated, and the native block checkout is switched off while the setting is Attempt or Required.
+* New: 3-D Secure setting (Off, Attempt, Required) for new card payments on the classic checkout. 3-D Secure must be enabled and enrolled for your merchant account first (enrollment can take about 4 to 7 business days). Saved cards, bank payments, Apple Pay, Google Pay, the My Account pages and renewals are not authenticated, and the native block checkout is switched off while the setting is Attempt or Required.
 * New: a box for the Apple Pay domain verification file, with set-up steps. Apple Pay is offered for single purchases on the classic checkout, not on subscription or pre-order carts, and was tested once in Test Mode from a mobile device.
 * Fixed: Google Pay is handed to the card form whenever it is switched on. Google Pay is offered for single purchases on the classic checkout, not on subscription or pre-order carts, and was tested once in Test Mode from a mobile device.
 * Fixed: subscription card payments send the stored-card details the gateway expects.
@@ -214,7 +219,7 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * Payment method now shows the real card brand instead of the generic "Credit Card" label, on classic and Block checkout, including saved cards.
 
 = 1.0.31 =
-* Order screens/emails/admin now show the actual payment method used; fixed credential autofill cross-fill; real logo option; renamed Level 2/3 to Level 3/CEDP with new fields.
+* Order screens/emails/admin now show the actual payment method used; fixed credential autofill cross-fill; real logo option; commercial-card data renamed Commercial Enhanced Data Program (CEDP)/Level 3 data, with new fields.
 
 = 1.0.30 =
 * Merged the 1.0.29 wallet fix forward; repo-wide coding-standards cleanup. No merchant-facing change.
@@ -244,7 +249,7 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * Critical: fixed tokenize failures from duplicate submit handlers, a credential-mixing bug, and ACH lockup after failed submit; refreshed brand artwork.
 
 = 1.0.21 =
-* Critical: fixed ACH fields not accepting input from overlapping iframes (fixed with `inert`); Level 2/3 and PO fields default off.
+* Critical: fixed ACH fields not accepting input from overlapping iframes (fixed with `inert`); Commercial Enhanced Data Program (CEDP)/Level 3 data and PO fields default off.
 
 = 1.0.20 =
 * Critical: fixed card/ACH fields rejecting input from an invalid wallet config; added "save this card/bank" checkboxes and a version-mismatch banner.
@@ -265,7 +270,7 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * Fixes "Unable to initialize secure payment form"; merges four key fields into one Security + Tokenization Key; adds wallet icons.
 
 = 1.0.14 =
-* Fixes "no payment methods available" on the Checkout Block for good via the classic-shortcode compatibility layer.
+* Attempted a fix for "no payment methods available" on the Checkout Block through the classic-shortcode compatibility layer. That layer does not work for the Checkout block; this is corrected in 1.1.1, which offers the card payment method on every Checkout block page.
 
 = 1.0.13 =
 * Critical: actually fixes the Block "no payment methods available" error that 1.0.12 didn't (wrong availability check timing).
@@ -307,9 +312,12 @@ All PHP, JavaScript, CSS, and image assets bundled inside this plugin are first-
 * Minor WP.org compliance fixes. No merchant-facing changes.
 
 = 1.0.0 =
-* Initial release. Embedded Collect.js checkout -- Card, ACH, Apple Pay, Google Pay, saved methods, Subscriptions/Pre-Orders, refunds, Level 2/3 data, 3DS2/SCA, HPOS.
+* Initial release. Embedded Collect.js checkout -- Card, ACH, Apple Pay, Google Pay, saved methods, Subscriptions/Pre-Orders, refunds, Commercial Enhanced Data Program (CEDP)/Level 3 data, 3DS2/SCA, HPOS.
 
 == Upgrade Notice ==
+
+= 1.1.1 =
+Stores whose checkout page uses the Checkout block now always get the card payment method. With 3-D Secure on Attempt, those payments are taken without 3-D Secure; with Required, the method is not offered there.
 
 = 1.1.0 =
 Test Mode now never uses live keys: a store in Test Mode with only live keys sees the gateway hidden until test keys are added. Adds card subscriptions and a native block checkout for new installs. Fixes the classic checkout and ACH.
@@ -366,7 +374,7 @@ Critical hotfix. 1.0.15 shipped with a PHP parse error that prevented the plugin
 Required if card/ACH fields stopped accepting input in 1.0.14. Fixes "Unable to initialize secure payment form," merges the four key fields into one Security Key + Tokenization Key (auto-migrated), and adds Maestro/Apple Pay/Google Pay icons.
 
 = 1.0.14 =
-Fixes "no payment methods available" on the Checkout Block for good, by rendering CARDZ3N via the classic-shortcode compatibility layer. Recommended for every site using Cart/Checkout Blocks.
+Correction: the compatibility layer described here did not fix "no payment methods available" on the Checkout Block. See 1.1.1, which offers the card payment method on every Checkout block page.
 
 = 1.0.13 =
 Critical: actually fixes the Checkout Block's "no payment methods available" error that 1.0.12 didn't. Blocks_Support::is_active() wrongly used the classic-checkout cascade during Woo Blocks' early REST phase. Upgrade immediately if using Blocks.

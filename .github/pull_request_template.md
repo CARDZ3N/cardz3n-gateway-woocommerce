@@ -19,7 +19,7 @@ Closes #
 - [ ] API client / gateway transactions
 - [ ] Saved methods (vault)
 - [ ] Refunds / voids / captures
-- [ ] Level 2/3 commercial data
+- [ ] Level 3 (CEDP) commercial data
 - [ ] Subscriptions / Pre-Orders
 - [ ] Apple Pay / Google Pay
 - [ ] Admin / settings

@@ -3,10 +3,21 @@
 All notable changes to CARDZ3N for WooCommerce will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.1] - unreleased (draft)
+
+### Fixed
+- The native Cart & Checkout Blocks payment method (card only) is now offered on every Checkout block page, even with "Native Block Checkout" (`enable_experimental_blocks_checkout`) off, except while 3-D Secure is Required. Before, such stores (stores that saved the setting off before 1.1.0, stores with Subscriptions or Pre-Orders, stores with 3-D Secure on) showed "There are no payment methods available". The "classic-shortcode compatibility layer" claimed in 1.0.14 does not exist for the Checkout block (measured 2026-11-25, WooCommerce 11.2.1). The setting is kept: it still makes the method offered on a page whose Checkout block the plugin cannot detect, and it decides what is declared on a classic page.
+
+### Changed
+- 3-D Secure Attempt: card payments on the Checkout block are taken without 3-D Secure (order note "3-D Secure was not available for this payment ... sent without it"). 3-D Secure Required: the method is not offered on Checkout block pages. New settings-page notices explain both.
+- 3-D Secure enrollment is described as "about 4 to 7 business days". Commercial-card data is named "Commercial Enhanced Data Program (CEDP)/Level 3" throughout the plugin text, code comments, developer docs and the history lines of the changelogs. "Payer Authentication" wording replaced in code comments with 3-D Secure wording.
+- Corrected the 1.0.14 changelog line and Upgrade Notice in readme.txt.
+- Tests: `recurring-blocks` split into two specs; the add-to-cart helper retries once on `net::ERR_ABORTED`.
+
 ## [1.1.0] - 2026-10-25
 ### Added
 - `enforce_card_brands` ("Block Other Card Brands", off by default): refuses a card whose brand is not in `allowed_card_brands`, before the charge when the brand is known, or by voiding the charge when only the reply names it. Removed the unused `gateway_receipts` setting from the screen.
-- 3-D Secure setting `three_d_secure_mode` (Off, Attempt, Required) for new card payments on the classic checkout, including card-storing subscription sign-ups. 3-D Secure must be enabled and enrolled for the merchant account first (enrollment can take a few business days). Required covers new-card payments only: saved cards are not put through 3-D Secure (planned for 1.1.1). Also not applied to bank (ACH), Apple Pay, Google Pay, My Account pages or renewals; the native block checkout is off while the mode is Attempt or Required. The server checks the returned values in Required mode.
+- 3-D Secure setting `three_d_secure_mode` (Off, Attempt, Required) for new card payments on the classic checkout, including card-storing subscription sign-ups. 3-D Secure must be enabled and enrolled for the merchant account first (enrollment can take about 4 to 7 business days). Required covers new-card payments only: saved cards are not put through 3-D Secure (planned for 1.1.1). Also not applied to bank (ACH), Apple Pay, Google Pay, My Account pages or renewals; the native block checkout is off while the mode is Attempt or Required. The server checks the returned values in Required mode.
 - Apple Pay domain verification file setting, served at `/.well-known/apple-developer-merchantid-domain-association`, with set-up guidance. Apple Pay is offered for single purchases on the classic checkout, not on subscription or pre-order carts, and was tested once in Test Mode from a mobile device.
 - WooCommerce Subscriptions with card payments (`Recurring` helper): the card is saved for every subscription order (no checkbox), stored on the first order, every subscription and the customer's saved method; renewals are charged from it with the order currency and never twice; free trials verify and save the card with a $0.00 `validate` request instead of a $0.00 sale; change payment method (customer, admin, My Account add method) without any charge; failed renewals fail cleanly and can be retried; the block checkout offers subscription carts. Bank (ACH) is not available for subscriptions. Card-on-file request fields (`initiated_by`, `stored_credential_indicator`, `initial_transaction_id`, `billing_method`) are based on the gateway's published API and adjustable through the `cardz3n_gw_recurring_fields` filter. Covered by automated stand-in tests; not tested with the real WooCommerce Subscriptions plugin.
 - Native Cart & Checkout Blocks payment method for CARD payments, **on by default for new installs** (setting `enable_experimental_blocks_checkout`, "Native Block Checkout", still visible and switchable). Stores that already had saved settings are pinned to their previous behaviour (off) once, by `cardz3n_gw_maybe_migrate_settings()`. `cart_checkout_blocks` is declared compatible whenever the integration is on (HPOS stays compatible).
@@ -127,7 +138,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Live/Test credential fields no longer get cross-filled by browser password-manager autofill -- `autocomplete="off"` added to all four key fields.
 ### Changed
 - Real CARDZ3N logo now renders for the "Show CARDZ3N logo only" gateway icon style (previously a placeholder).
-- "Level 2 / Level 3 Commercial Data" settings section renamed to "Level 3 / CEDP", with an updated description noting Visa's 2026 retirement of Level 2 and that all applicable fields must be present together to qualify for the discount. Settings page now groups fields into "Auto-Pulled from Order & Profile" and "Merchant Overrides" subsections.
+- The commercial-card data settings section (titled with two program levels until then) renamed to "Level 3 / CEDP" (Commercial Enhanced Data Program (CEDP)/Level 3), with an updated description noting Visa's 2026 retirement of its separate lower-level program and that all applicable fields must be present together to qualify for the discount. Settings page now groups fields into "Auto-Pulled from Order & Profile" and "Merchant Overrides" subsections.
 ### Added
 - New Level 3/CEDP payload fields: `customerid` (Customer Code), `summary_commodity_code`, `duty_amount`, `vat_tax_amount`, `vat_tax_rate`, `vat_invoice_reference_number`. Field names confirmed against NMI's own Integration Portal (Retail Data reference), not guessed. `customerid` is auto-pulled from the order's WooCommerce customer ID; the rest are read from dedicated order meta keys and omitted (never fabricated) when absent.
 ### CI
@@ -184,7 +195,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - **`data-cardz3n-version` attribute on `.cardz3n-gateway-ui`** was dropped between 1.0.19 and 1.0.20. Restored. Support can now confirm the running build at the checkout via that attribute AND via the localized `CARDZ3N_GW.version`.
 
 ### Changed
-- **`enable_level3` default is now `no`.** Level 2/3 commercial-card interchange optimization requires meaningful catalog metadata (UPC, commodity code, tax amount). When enabled without that metadata, the processor can DOWNGRADE interchange rather than improve it. Merchants who know they qualify enable it intentionally on `WooCommerce → Payments → CARDZ3N`.
+- **`enable_level3` default is now `no`.** Commercial Enhanced Data Program (CEDP)/Level 3 commercial-card interchange optimization requires meaningful catalog metadata (UPC, commodity code, tax amount). When enabled without that metadata, the processor can DOWNGRADE interchange rather than improve it. Merchants who know they qualify enable it intentionally on `WooCommerce → Payments → CARDZ3N`.
 - **`enable_po_field` default is now `no`.** Purchase Order number is a B2B/procurement feature that adds clutter to a retail checkout. Off by default; B2B stores enable it intentionally.
 
 ### Reference — How stored cards are retrieved and used
@@ -543,7 +554,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Dynamic descriptor with optional per-order suffix.
 - Card-brand restriction controls.
 - Gateway receipts toggle.
-- Level 2 / Level 3 commercial-data mapper with merchant-configurable UOM, commodity source, UPC key, and PO field.
+- Commercial Enhanced Data Program (CEDP)/Level 3 commercial-data mapper with merchant-configurable UOM, commodity source, UPC key, and PO field.
 - Optional checkout Purchase Order (PO) number field.
 - Credential validation "Test" button.
 - WooCommerce logger-backed diagnostics (redacted — never logs sensitive payment data).

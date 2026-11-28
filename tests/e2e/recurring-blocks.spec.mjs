@@ -1,3 +1,6 @@
+// PART 1 of 2 (phases 1-4: the recurring features advertised, and the carts, with the store switches off / on / only Subscriptions on /
+// plugins not active). Part 2 is recurring-blocks-pinned-3ds.spec.mjs (pinned stores, 3-D Secure, classic page). Split in two because one
+// long run was interrupted by the local test browser.
 // End-to-end (local stand-in) check: subscription and pre-order carts on the native block checkout, card only.
 //
 // Before this change the native block method advertised only 'products' and 'refunds'. WooCommerce Subscriptions / Pre-Orders add a payment
@@ -68,7 +71,9 @@ try {
     const pid = await page.evaluate((n) => fetch('/wp-json/wc/store/v1/products?search=' + encodeURIComponent(n)).then((r) => r.json()).then((p) => (p.find((x) => x.name === n) || p[0] || {}).id), productName);
     // Playground logs in as admin and WooCommerce keeps a signed-in user's cart, so start every page from an empty cart.
     await page.evaluate(async () => { const c = await fetch('/wp-json/wc/store/v1/cart'); await fetch('/wp-json/wc/store/v1/cart/items', { method: 'DELETE', headers: { Nonce: c.headers.get('nonce') } }); });
-    await page.goto(`${base}/?add-to-cart=${pid}`, { waitUntil: 'domcontentloaded' });
+    // Test helper only: the local browser sometimes aborts this page load (net::ERR_ABORTED) on a long run; try once more.
+    try { await page.goto(`${base}/?add-to-cart=${pid}`, { waitUntil: 'domcontentloaded' }); }
+    catch (e) { if (!/ERR_ABORTED/.test(String(e.message))) { throw e; } await page.waitForTimeout(3000); await page.goto(`${base}/?add-to-cart=${pid}`, { waitUntil: 'domcontentloaded' }); }
     // Fill the billing address through the Store API so the Checkout block form is complete.
     await page.evaluate(async () => {
       const c = await fetch('/wp-json/wc/store/v1/cart');
@@ -193,6 +198,7 @@ try {
   await cfg('stub_subs=no&stub_pre=no&sw_subs=yes&sw_pre=yes');
   { const f = await probe('features');
     check('Switches on but Subscriptions / Pre-Orders not active: nothing recurring is advertised', j(f.features) === j(['products', 'refunds']), j(f.features)); }
+
 
   await browser.close();
 } catch (e) {

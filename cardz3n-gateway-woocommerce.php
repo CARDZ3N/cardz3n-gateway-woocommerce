@@ -102,26 +102,64 @@ function cardz3n_gw_blocks_default_value() {
 }
 
 /**
- * Is the native Cart & Checkout Blocks integration switched on?
+ * The saved 3-D Secure mode: 'off', 'attempt' or 'required'.
  *
- * A saved choice always wins. With no saved value (a new install) it follows
- * cardz3n_gw_blocks_default_value(): on, unless Subscriptions or Pre-Orders is active. Stores that were
- * installed before this default existed are pinned to their previous behaviour (off) by
- * cardz3n_gw_maybe_migrate_settings().
+ * @return string
+ */
+function cardz3n_gw_three_ds_mode() {
+	$settings = get_option( cardz3n_gw_settings_option_key(), array() );
+	if ( ! is_array( $settings ) ) {
+		return 'off';
+	}
+	if ( isset( $settings['three_d_secure_mode'] ) ) {
+		return in_array( $settings['three_d_secure_mode'], array( 'attempt', 'required' ), true ) ? $settings['three_d_secure_mode'] : 'off';
+	}
+	return ( isset( $settings['enable_3d_secure'] ) && 'yes' === $settings['enable_3d_secure'] ) ? 'attempt' : 'off';
+}
+
+/**
+ * Does the store's checkout page use the Checkout block (and not the classic shortcode)?
+ *
+ * @return bool
+ */
+function cardz3n_gw_checkout_page_uses_block() {
+	$page_id = (int) get_option( 'woocommerce_checkout_page_id' );
+	if ( $page_id < 1 ) {
+		return false;
+	}
+	$page = get_post( $page_id );
+	return $page instanceof \WP_Post && has_block( 'woocommerce/checkout', $page->post_content );
+}
+
+/**
+ * Is the "Native Block Checkout" setting ticked? A saved choice always wins; with no saved value (a new install) it follows
+ * cardz3n_gw_blocks_default_value(): on, unless Subscriptions or Pre-Orders is active. Stores that were installed before this
+ * default existed were pinned to off by cardz3n_gw_maybe_migrate_settings().
+ *
+ * @return bool
+ */
+function cardz3n_gw_native_blocks_setting_on() {
+	$settings = get_option( cardz3n_gw_settings_option_key(), array() );
+	$value    = ( is_array( $settings ) && isset( $settings['enable_experimental_blocks_checkout'] ) ) ? $settings['enable_experimental_blocks_checkout'] : cardz3n_gw_blocks_default_value();
+	return 'yes' === $value;
+}
+
+/**
+ * Is the native Cart & Checkout Blocks payment method offered?
+ *
+ * - Never while 3-D Secure is Required: it runs on the classic payment form only, and every new-card payment without it would be stopped.
+ * - Yes when the "Native Block Checkout" setting is ticked.
+ * - Also yes, even with the setting off, when the store's checkout page uses the Checkout block: without it WooCommerce would show
+ *   shoppers "There are no payment methods available". (Card payments only; with 3-D Secure on Attempt the payment is taken without
+ *   3-D Secure, and the order note says so.)
  *
  * @return bool
  */
 function cardz3n_gw_native_blocks_enabled() {
-	$settings = get_option( cardz3n_gw_settings_option_key(), array() );
-	// 3-D Secure runs on the classic payment form only (the native block checkout does not run it), so the native Blocks method is off while it is switched on.
-	if ( is_array( $settings ) ) {
-		$three_ds_mode = isset( $settings['three_d_secure_mode'] ) ? $settings['three_d_secure_mode'] : ( ( isset( $settings['enable_3d_secure'] ) && 'yes' === $settings['enable_3d_secure'] ) ? 'attempt' : 'off' );
-		if ( in_array( $three_ds_mode, array( 'attempt', 'required' ), true ) ) {
-			return false;
-		}
+	if ( 'required' === cardz3n_gw_three_ds_mode() ) {
+		return false;
 	}
-	$value    = ( is_array( $settings ) && isset( $settings['enable_experimental_blocks_checkout'] ) ) ? $settings['enable_experimental_blocks_checkout'] : cardz3n_gw_blocks_default_value();
-	return 'yes' === $value;
+	return cardz3n_gw_native_blocks_setting_on() || cardz3n_gw_checkout_page_uses_block();
 }
 
 /*
@@ -136,16 +174,10 @@ add_action(
 			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', CARDZ3N_GW_FILE, true );
 
 			/*
-			 * cart_checkout_blocks is declared TRUE whenever the native Blocks payment
-			 * method is switched on ("Native Block Checkout", setting
-			 * enable_experimental_blocks_checkout), which is the default for new installs.
-			 *
-			 * A store that has switched it off (or that was installed before it became
-			 * the default, see cardz3n_gw_maybe_migrate_settings()) renders this gateway in
-			 * the block checkout through WooCommerce's classic-shortcode compatibility
-			 * layer (payment_fields()/process_payment()), exactly as before, so for that
-			 * store the declaration stays FALSE rather than claiming something it is not
-			 * using.
+			 * cart_checkout_blocks is declared TRUE whenever the native Blocks payment method is offered: the
+			 * "Native Block Checkout" setting is ticked (the default for new installs), or the store's checkout page uses the
+			 * Checkout block (see cardz3n_gw_native_blocks_enabled()). It stays FALSE for a store on the classic checkout that
+			 * has the setting off, and while 3-D Secure is Required.
 			 */
 			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', CARDZ3N_GW_FILE, cardz3n_gw_native_blocks_enabled() );
 		}
@@ -155,9 +187,9 @@ add_action(
 /*
  * --------------------------------------------------------------------------
  * Native Blocks Checkout registration (default on for new installs, can be
- * switched off — see setting above). Only wires up while the setting is on;
- * otherwise this is a no-op and the classic-shortcode compatibility layer
- * handles the block checkout exactly as it has since 1.0.14.
+ * switched off — see setting above). Wires up while the setting is on or the
+ * checkout page uses the Checkout block (never while 3-D Secure is Required);
+ * otherwise this is a no-op (the classic checkout is unaffected).
  * --------------------------------------------------------------------------
  */
 add_action(
@@ -268,31 +300,20 @@ function cardz3n_gw_bootstrap() {
 	add_filter( 'plugin_action_links_' . CARDZ3N_GW_BASENAME, 'cardz3n_gw_action_links' );
 
 	/*
-	 * Cart/Checkout Blocks integration intentionally disabled. See
-	 * `declare_compatibility('cart_checkout_blocks', …, false)` above. The
-	 * Block checkout renders our classic payment_fields() output via Woo's
-	 * built-in shortcode-compatibility layer, which is materially simpler
-	 * and avoids the early-boot PaymentMethodRegistry timing problems we
-	 * spent 1.0.11–1.0.13 chasing.
+	 * Cart/Checkout Blocks: the native block payment method is registered by the woocommerce_blocks_loaded hook above
+	 * (see cardz3n_gw_native_blocks_enabled()). The Checkout block has no classic fallback, so without it shoppers on a
+	 * Checkout block page would see no payment method.
 	 */
 }
 
 /*
- * NOTE: 1.0.11–1.0.13 attempted a native WooCommerce Blocks PaymentMethodType
- * integration via includes/class-cardz3n-blocks-support.php. 1.0.14 switched
- * to the classic-shortcode compatibility layer because Woo Blocks was failing
- * to enqueue our PaymentMethodType bundle on the test stack at the time
- * (empty `cardz3n_gateway_data` setting, empty blocksRegistry) despite three
- * different registration strategies (nested-hook, direct DI-container,
- * early-boot is_active() fallback) — the underlying cause was never
- * conclusively identified.
+ * NOTE: 1.0.11–1.0.13 first tried a native WooCommerce Blocks PaymentMethodType integration; 1.0.14 dropped it for a
+ * "classic-shortcode compatibility layer". Testing on 2026-11-25 (WooCommerce 11.2.1, Checkout block page, native method off)
+ * showed that layer does not exist for the Checkout block: the shopper sees "There are no payment methods available".
  *
- * The integration is on by default for new installs (setting
- * enable_experimental_blocks_checkout, see the `woocommerce_blocks_loaded`
- * hook above), for card payments only; stores installed earlier keep their
- * previous behaviour until they switch it on. Merchants can roll it back
- * instantly by turning the setting off. ACH, wallet and saved-method support
- * in the block checkout is not part of it yet.
+ * The native integration (includes/class-cardz3n-blocks-support.php) is therefore offered on every Checkout block page (and
+ * wherever the "Native Block Checkout" setting is ticked), for card payments only, except while 3-D Secure is Required.
+ * ACH, wallets, saved methods and 3-D Secure are not part of it.
  */
 
 /**

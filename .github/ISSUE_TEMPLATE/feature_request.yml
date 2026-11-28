@@ -29,7 +29,7 @@ body:
         - Gateway / API
         - Vault / Saved methods
         - Refund / Void / Capture
-        - Level 2/3
+        - Level 3 / CEDP
         - Subscriptions / Pre-Orders
         - Apple Pay / Google Pay
         - Admin / Settings
